@@ -1,0 +1,88 @@
+import express from 'express'
+import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import path from 'path'
+import { corsOptions } from './config/cors'
+import { env } from './config/env'
+import { errorHandler } from './middleware/error'
+
+// Route imports
+import authRoutes from './routes/auth'
+import productRoutes from './routes/products'
+import categoryRoutes from './routes/categories'
+import brandRoutes from './routes/brands'
+import orderRoutes from './routes/orders'
+import repairRoutes from './routes/repairs'
+import sellRequestRoutes from './routes/sellRequests'
+import exchangeRequestRoutes from './routes/exchangeRequests'
+import phoneValuationRoutes from './routes/phoneValuations'
+import reviewRoutes from './routes/reviews'
+import couponRoutes from './routes/coupons'
+import cmsRoutes from './routes/cms'
+import settingsRoutes from './routes/settings'
+import customerRoutes from './routes/customers'
+import notificationRoutes from './routes/notifications'
+import contactRequestRoutes from './routes/contactRequests'
+import analyticsRoutes from './routes/analytics'
+import auditLogRoutes from './routes/auditLogs'
+import uploadRoutes from './routes/uploads'
+import inventoryRoutes from './routes/inventory'
+
+const app = express()
+
+// Security
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+app.use(cors(corsOptions))
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later' },
+}))
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+app.use(cookieParser())
+
+// Static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ success: true, message: 'OM Cellular API is running', timestamp: new Date().toISOString() })
+})
+
+// API Routes
+app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/products', productRoutes)
+app.use('/api/v1/categories', categoryRoutes)
+app.use('/api/v1/brands', brandRoutes)
+app.use('/api/v1/orders', orderRoutes)
+app.use('/api/v1/repairs', repairRoutes)
+app.use('/api/v1/sell-requests', sellRequestRoutes)
+app.use('/api/v1/exchange-requests', exchangeRequestRoutes)
+app.use('/api/v1/phone-valuations', phoneValuationRoutes)
+app.use('/api/v1/reviews', reviewRoutes)
+app.use('/api/v1/coupons', couponRoutes)
+app.use('/api/v1/banners', cmsRoutes.banners)
+app.use('/api/v1/homepage-sections', cmsRoutes.homepageSections)
+app.use('/api/v1/information-cards', cmsRoutes.informationCards)
+app.use('/api/v1/testimonials', cmsRoutes.testimonials)
+app.use('/api/v1/faqs', cmsRoutes.faqs)
+app.use('/api/v1/settings', settingsRoutes)
+app.use('/api/v1/customers', customerRoutes)
+app.use('/api/v1/notifications', notificationRoutes)
+app.use('/api/v1/contact-requests', contactRequestRoutes)
+app.use('/api/v1/analytics', analyticsRoutes)
+app.use('/api/v1/audit-logs', auditLogRoutes)
+app.use('/api/v1/uploads', uploadRoutes)
+app.use('/api/v1/inventory', inventoryRoutes)
+
+// Error handler
+app.use(errorHandler)
+
+export default app
