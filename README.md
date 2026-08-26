@@ -1,157 +1,170 @@
 # OM Cellular
 
-A full-stack mobile e-commerce and mobile repair platform built with Next.js.
+A full-stack mobile e-commerce and mobile repair platform.
 
 ## Features
 
-- **Smartphone Marketplace** - Browse, search, and purchase new and refurbished phones
-- **Product Management** - Categories, brands, variants, inventory, pricing, discounts
-- **Sell Your Phone** - Submit device for valuation and sell
-- **Phone Exchange** - Trade in old phone and pay the difference for a new one
-- **Mobile Repair Booking** - Book repair services, track repair status
-- **Customer Accounts** - Registration, login, order history, wishlist
-- **Cart & Checkout** - Shopping cart, coupons, order placement
-- **Reviews & Ratings** - Product reviews and ratings
-- **Admin Dashboard** - Full admin panel for managing all operations
-- **Homepage CMS** - Banners, information cards, testimonials, FAQs, homepage sections
-- **Inventory Management** - Stock tracking, low stock alerts
-- **Analytics** - Sales reports and analytics dashboard
-- **Audit Logs** - Admin action tracking
-- **Notifications** - User notification system
+- **Smartphone Marketplace** — Browse, search, and purchase new and refurbished phones
+- **Product Management** — Categories, brands, variants, inventory, pricing, discounts
+- **Sell Your Phone** — Submit device for valuation and sell
+- **Phone Exchange** — Trade in old phone and pay the difference for a new one
+- **Mobile Repair Booking** — Book repair services, track repair status
+- **Customer Accounts** — Registration, login, order history, wishlist
+- **Cart & Checkout** — Shopping cart, coupons, order placement
+- **Reviews & Ratings** — Product reviews and ratings
+- **Admin Dashboard** — Full admin panel for managing all operations
+- **Homepage CMS** — Banners, information cards, testimonials, FAQs, homepage sections
+- **Inventory Management** — Stock tracking, low stock alerts
+- **Analytics** — Sales reports and analytics dashboard
+- **Audit Logs** — Admin action tracking
+- **Notifications** — User notification system
 
 ## Tech Stack
 
-- **Framework:** Next.js 16
-- **Language:** TypeScript
-- **UI:** React 19, Tailwind CSS 4
-- **Database:** SQLite (local development), Prisma ORM
-- **Authentication:** NextAuth.js 4 with Prisma Adapter
-- **State Management:** Zustand
-- **Forms:** React Hook Form + Zod
-- **Charts:** Recharts
-- **Animations:** Framer Motion
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, Vite, Tailwind CSS 3, React Router 6 |
+| Backend | Node.js, Express 4, TypeScript |
+| Database | MongoDB (Mongoose 8) |
+| Auth | JWT (httpOnly cookies), bcryptjs |
+| State | Zustand |
+| Charts | Recharts |
+| Animations | Framer Motion |
 
-## Local Setup
-
-### Prerequisites
+## Prerequisites
 
 - Node.js 18+ (recommended: 20+)
+- MongoDB 6+ (running locally or a connection string for Atlas)
 - npm
 
-### Installation
+## Setup
+
+### 1. Clone and install
 
 ```bash
 git clone <your-repo-url>
 cd omcellular
 ```
 
-Create a `.env` file from the example:
+### 2. Server setup
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` and set a strong `NEXTAUTH_SECRET` for production. For local development the defaults work.
-
-Install dependencies and generate Prisma client:
-
-```bash
+cd server
+cp .env.example .env    # Edit with your MongoDB URI and secrets
 npm install
+npm run dev             # Starts on http://localhost:5000
 ```
 
-Push the database schema:
+### 3. Client setup
 
 ```bash
-npm run db:push
+cd client
+cp .env.example .env    # Default works for local dev
+npm install
+npm run dev             # Starts on http://localhost:5173
 ```
 
-Start the development server:
+The Vite dev server proxies `/api` requests to the Express backend on port 5000.
 
-```bash
-npm run dev
-```
+### 4. Seed data (optional)
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Use the admin dashboard or MongoDB tools to populate categories, brands, products, and CMS content.
 
 ## Available Scripts
 
+### Server (`/server`)
+
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run db:generate` | Generate Prisma client |
-| `npm run db:push` | Push schema to database |
-| `npm run db:migrate` | Run Prisma migrations |
-| `npm run db:migrate:deploy` | Deploy migrations (production) |
-| `npm run db:studio` | Open Prisma Studio |
+| `npm run dev` | Start dev server with hot reload (tsx watch) |
+| `npm run build` | Compile TypeScript |
+| `npm start` | Start production server |
 
-## Build
+### Client (`/client`)
 
-```bash
-npm run build
-npm run start
-```
-
-## Production Deployment
-
-This project is designed for deployment on platforms like Render or Vercel.
-
-For production:
-
-1. Set environment variables in your hosting platform:
-   - `DATABASE_URL` - Use PostgreSQL for production
-   - `NEXTAUTH_SECRET` - Generate a strong random secret
-   - `NEXTAUTH_URL` - Your production domain
-
-2. The local development database is SQLite. For production, switch the Prisma provider to `postgresql` and update `DATABASE_URL` accordingly.
-
-3. Run `npm run db:migrate:deploy` during deployment to apply migrations.
-
-**Note:** Do not use the local SQLite database in production.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server |
+| `npm run build` | TypeScript check + production build |
+| `npm run preview` | Preview production build |
 
 ## Project Structure
 
 ```
 omcellular/
-├── prisma/              # Prisma schema and migrations
-├── public/              # Static assets and uploads
-├── src/
-│   ├── app/             # Next.js App Router pages and API routes
-│   │   ├── (shop)/      # Public-facing pages
-│   │   ├── admin/       # Admin panel pages
-│   │   └── api/         # API routes
-│   ├── components/      # React components
-│   │   ├── layout/      # Layout components (Header, Footer, Sidebar)
-│   │   ├── ui/          # Reusable UI primitives
-│   │   ├── cart/        # Cart components
-│   │   ├── home/        # Homepage components
-│   │   └── product/     # Product components
-│   ├── hooks/           # Custom React hooks
-│   ├── lib/             # Utility libraries (auth, prisma, utils)
-│   ├── stores/          # Zustand stores
-│   └── types/           # TypeScript type definitions
-├── .env.example         # Environment variable template
+├── client/                # React + Vite frontend
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── layouts/       # Shop, Admin, Account layouts
+│   │   ├── pages/         # All page components
+│   │   ├── services/      # API service layer (axios)
+│   │   ├── stores/        # Zustand state stores
+│   │   ├── types/         # TypeScript type definitions
+│   │   └── utils/         # Helper functions
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── package.json
+│
+├── server/                # Express + Mongoose backend
+│   ├── src/
+│   │   ├── config/        # Environment, database, CORS
+│   │   ├── middleware/    # Auth, error handling, validation
+│   │   ├── models/        # Mongoose schemas (20 models)
+│   │   ├── routes/        # Express route handlers (20 routes)
+│   │   ├── types/         # TypeScript type definitions
+│   │   └── utils/         # Helper functions
+│   ├── tsconfig.json
+│   └── package.json
+│
+├── public/uploads/        # User-uploaded files
 ├── .gitignore
-├── eslint.config.mjs
-├── next.config.ts
-├── package.json
-├── postcss.config.mjs
-└── tsconfig.json
+└── README.md
 ```
 
-## Git Workflow
+## API Endpoints
 
-```bash
-git init
-git add .
-git commit -m "Initial OM Cellular project"
-git branch -M main
-git remote add origin <your-github-repository-url>
-git push -u origin main
-```
+All API routes are prefixed with `/api/v1/`.
+
+| Route | Description |
+|-------|-------------|
+| `/auth` | Register, login, logout, refresh token |
+| `/products` | Product CRUD, search, filtering |
+| `/categories` | Category management |
+| `/brands` | Brand management |
+| `/orders` | Order placement and management |
+| `/repairs` | Repair booking and tracking |
+| `/sell-requests` | Sell phone requests |
+| `/exchange-requests` | Phone exchange requests |
+| `/phone-valuations` | Phone valuation calculator |
+| `/reviews` | Product reviews |
+| `/coupons` | Coupon management |
+| `/banners` | CMS banners |
+| `/homepage-sections` | CMS homepage sections |
+| `/testimonials` | CMS testimonials |
+| `/faqs` | CMS FAQs |
+| `/information-cards` | CMS information cards |
+| `/settings` | Site settings |
+| `/customers` | Customer management (admin) |
+| `/notifications` | User notifications |
+| `/contact-requests` | Contact form submissions |
+| `/analytics` | Sales analytics |
+| `/audit-logs` | Admin action logs |
+| `/uploads` | File uploads |
+| `/inventory` | Inventory management |
+
+## Deployment
+
+### Backend
+
+1. Set environment variables on your hosting platform
+2. `npm run build && npm start`
+3. Ensure MongoDB is accessible
+
+### Frontend
+
+1. `npm run build` — outputs to `client/dist/`
+2. Serve `client/dist/` with any static host or configure nginx to proxy `/api` to the backend
 
 ## License
 
-Private project - All rights reserved.
+Private project — All rights reserved.
