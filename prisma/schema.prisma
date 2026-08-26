@@ -125,6 +125,11 @@ model Product {
   brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   variants ProductVariant[]
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive])
+  @@index([isFeatured])
 }
 
 model ProductVariant {
@@ -158,6 +163,9 @@ model ProductVariant {
   reviews          Review[]
   wishlists        Wishlist[]
   exchangeRequests ExchangeRequest[]
+
+  @@index([productId])
+  @@index([isActive])
 }
 
 model Inventory {
@@ -189,6 +197,8 @@ model Address {
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
+
+  @@index([userId])
 }
 
 model Order {
@@ -214,6 +224,10 @@ model Order {
   user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   address Address?     @relation(fields: [addressId], references: [id], onDelete: SetNull)
   items   OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -227,6 +241,9 @@ model OrderItem {
 
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([variantId])
 }
 
 // ─── Reviews & Wishlist ──────────────────────────────────────────────────────
@@ -245,6 +262,10 @@ model Review {
 
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@index([userId])
+  @@index([isApproved])
 }
 
 model Wishlist {
@@ -321,6 +342,9 @@ model RepairBooking {
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   service      RepairService?    @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   statusHistory RepairStatusHistory[]
+
+  @@index([userId])
+  @@index([status])
 }
 
 model RepairStatusHistory {
@@ -331,6 +355,8 @@ model RepairStatusHistory {
   createdAt DateTime @default(now())
 
   repair RepairBooking @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([repairId])
 }
 
 // ─── Sell & Exchange Requests ────────────────────────────────────────────────
@@ -363,6 +389,9 @@ model SellRequest {
   updatedAt            DateTime @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
 
 model ExchangeRequest {
@@ -386,6 +415,9 @@ model ExchangeRequest {
 
   user       User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   newVariant ProductVariant?  @relation(fields: [newVariantId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
 }
 
 // ─── Phone Valuation ─────────────────────────────────────────────────────────
@@ -426,6 +458,9 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
 }
 
 // ─── CMS / Content Models ───────────────────────────────────────────────────
@@ -513,6 +548,8 @@ model ContactRequest {
   updatedAt  DateTime  @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
 }
 
 model Setting {
@@ -538,4 +575,8 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   admin User? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([entity])
+  @@index([createdAt])
 }

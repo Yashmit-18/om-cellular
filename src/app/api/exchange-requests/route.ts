@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { getSession, requireAuth } from '@/lib/auth-helpers'
-import { generateRequestNumber } from '@/lib/utils'
+import { getSession, requireAuth } from '@/lib/auth'
+import { createExchangeRequest, getExchangeRequests } from '@/server/exchange/exchange.service'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth()
@@ -12,49 +11,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const status = searchParams.get('status') || undefined
+    const search = searchParams.get('search') || undefined
 
-    if (session.user.role === 'ADMIN') {
-      const status = searchParams.get('status') || undefined
-      const search = searchParams.get('search') || undefined
-      const where: Record<string, unknown> = {}
-      if (status) where.status = status
-      if (search) {
-        where.OR = [
-          { requestNumber: { contains: search } },
-          { oldBrand: { contains: search } },
-          { oldModel: { contains: search } },
-          { user: { name: { contains: search } } },
-        ]
-      }
-      const skip = (page - 1) * limit
-      const [requests, total] = await Promise.all([
-        prisma.exchangeRequest.findMany({
-          where,
-          include: {
-            user: { select: { id: true, name: true, email: true, phone: true } },
-            newVariant: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.exchangeRequest.count({ where }),
-      ])
-      return NextResponse.json({ requests, total, page, totalPages: Math.ceil(total / limit) })
-    }
+    const isAdmin = session.user.role === 'ADMIN'
 
-    const [requests, total] = await Promise.all([
-      prisma.exchangeRequest.findMany({
-        where: { userId: session.user.id },
-        include: { newVariant: true },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.exchangeRequest.count({ where: { userId: session.user.id } }),
-    ])
+    const result = await getExchangeRequests({
+      userId: session.user.id,
+      isAdmin,
+      page,
+      limit,
+      status,
+      search,
+    })
 
-    return NextResponse.json({ requests, total, page, totalPages: Math.ceil(total / limit) })
+    return NextResponse.json(result)
   } catch (error) {
     console.error('GET /api/exchange-requests error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -75,31 +46,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (newVariantId) {
-      const variant = await prisma.productVariant.findUnique({ where: { id: newVariantId } })
-      if (!variant || !variant.isActive) {
-        return NextResponse.json({ error: 'Selected new phone is not available' }, { status: 400 })
-      }
-    }
-
-    const requestNumber = generateRequestNumber('exchange')
-
-    const exchangeRequest = await prisma.exchangeRequest.create({
-      data: {
-        requestNumber,
-        userId: session?.user?.id || null,
-        oldBrand,
-        oldModel,
-        oldStorage: oldStorage || null,
-        oldRam: oldRam || null,
-        oldCondition,
-        newVariantId: newVariantId || null,
-        oldDeviceDetails: JSON.stringify(oldDeviceDetails || {}),
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        newVariant: true,
-      },
+    const exchangeRequest = await createExchangeRequest({
+      userId: session?.user?.id,
+      oldBrand,
+      oldModel,
+      oldStorage,
+      oldRam,
+      oldCondition,
+      newVariantId,
+      oldDeviceDetails,
     })
 
     return NextResponse.json(

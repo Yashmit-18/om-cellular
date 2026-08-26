@@ -6,8 +6,8 @@ import { Trash2, Plus, Minus, ShoppingCart, ArrowRight, Tag, Heart } from "lucid
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import EmptyState from "@/components/ui/empty-state";
-import { useCartStore } from "@/lib/stores/cart-store";
-import { useWishlistStore } from "@/lib/stores/wishlist-store";
+import { useCartStore } from "@/stores/cart-store";
+import { useWishlistStore } from "@/stores/wishlist-store";
 import { useToast } from "@/components/ui/toast";
 
 export default function CartPage() {

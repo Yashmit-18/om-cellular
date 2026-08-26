@@ -431,7 +431,7 @@ function ProductShowcaseCard({ product }: { product: Product }) {
       href={`/phones/${product.brand?.slug || "unknown"}/${product.slug}`}
       className="group flex-shrink-0 w-[260px] sm:w-[280px] snap-start"
     >
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-200 transition-all duration-300 h-full">
+      <div className="card-premium overflow-hidden h-full">
         <div className="relative aspect-square bg-slate-50 overflow-hidden p-4">
           <Image
             src={img}
@@ -477,7 +477,7 @@ function ProductShowcaseCard({ product }: { product: Product }) {
           </div>
           <button
             onClick={(e) => e.preventDefault()}
-            className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+            className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <ShoppingCart className="h-4 w-4" /> Add to Cart
           </button>
@@ -587,7 +587,7 @@ function RefurbishedSection({ products }: { products: Product[] }) {
                     href={`/phones/${product.brand?.slug || "unknown"}/${product.slug}`}
                     className="group"
                   >
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 hover:shadow-lg hover:border-blue-200 transition-all duration-200">
+                    <div className="card-premium p-4 hover:border-blue-200">
                       <div className="relative aspect-square bg-white rounded-xl overflow-hidden mb-3">
                         <Image src={img} alt={product.name} fill className="object-contain p-3" sizes="200px" />
                         <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${condClass}`}>

@@ -14,10 +14,9 @@ export type ContactStatus = 'PENDING' | 'READ' | 'REPLIED' | 'ARCHIVED'
 
 export interface User {
   id: string
-  name: string
-  email: string
+  name: string | null
+  email: string | null
   phone: string | null
-  password: string | null
   role: UserRole
   image: string | null
   createdAt: Date
@@ -39,13 +38,11 @@ export interface Category {
   slug: string
   description: string | null
   image: string | null
-  parentId: string | null
+  icon: string | null
   isActive: boolean
   sortOrder: number
   createdAt: Date
   updatedAt: Date
-  parent?: Category | null
-  children?: Category[]
   products?: Product[]
 }
 
@@ -55,21 +52,29 @@ export interface Brand {
   slug: string
   logo: string | null
   isActive: boolean
+  sortOrder: number
   createdAt: Date
   updatedAt: Date
-  products?: Product[]
 }
 
 export interface Product {
   id: string
   name: string
   slug: string
-  description: string
-  shortDescription: string | null
-  categoryId: string
-  brandId: string
+  description: string | null
+  categoryId: string | null
+  brandId: string | null
   isActive: boolean
   isFeatured: boolean
+  isNewArrival: boolean
+  isBestSeller: boolean
+  isRefurbished: boolean
+  condition: string | null
+  warranty: string | null
+  returnPolicy: string | null
+  seoTitle: string | null
+  seoDescription: string | null
+  seoKeywords: string | null
   createdAt: Date
   updatedAt: Date
   category?: Category
@@ -89,12 +94,21 @@ export interface ProductVariant {
   storage: string | null
   ram: string | null
   stock: number
+  reservedStock: number
+  soldCount: number
   images: string
+  condition: string | null
+  batteryHealth: number | null
+  specifications: string
+  whatsIncluded: string
+  isRefurbished: boolean
+  featured: boolean
+  badge: string | null
   isActive: boolean
   createdAt: Date
   updatedAt: Date
   product?: Product
-  inventory?: Inventory[]
+  inventory?: Inventory
   orderItems?: OrderItem[]
   wishlist?: Wishlist[]
   reviews?: Review[]
@@ -104,10 +118,8 @@ export interface Inventory {
   id: string
   variantId: string
   quantity: number
-  type: string
-  reference: string | null
-  note: string | null
-  createdAt: Date
+  lowStockThreshold: number
+  updatedAt: Date
   variant?: ProductVariant
 }
 
@@ -121,9 +133,9 @@ export interface Address {
   city: string
   state: string
   pincode: string
+  country: string
   isDefault: boolean
   createdAt: Date
-  updatedAt: Date
   user?: User
   orders?: Order[]
 }
@@ -132,14 +144,17 @@ export interface Order {
   id: string
   orderNumber: string
   userId: string
-  addressId: string
+  addressId: string | null
   status: OrderStatus
-  totalAmount: number
-  discountAmount: number
-  shippingCharge: number
-  paymentMethod: PaymentMethod
+  total: number
+  discount: number
+  shipping: number
+  tax: number
+  paymentMethod: string | null
   paymentStatus: PaymentStatus
-  couponCode: string | null
+  couponId: string | null
+  couponDiscount: number
+  trackingNumber: string | null
   notes: string | null
   createdAt: Date
   updatedAt: Date
@@ -152,10 +167,10 @@ export interface OrderItem {
   id: string
   orderId: string
   variantId: string
-  name: string
   price: number
   quantity: number
   total: number
+  discount: number
   order?: Order
   variant?: ProductVariant
 }
@@ -165,8 +180,9 @@ export interface Review {
   userId: string
   variantId: string
   rating: number
-  title: string
-  comment: string
+  title: string | null
+  comment: string | null
+  isAdminReply: boolean
   isApproved: boolean
   createdAt: Date
   updatedAt: Date
@@ -187,14 +203,16 @@ export interface Coupon {
   id: string
   code: string
   description: string | null
-  discountType: DiscountType
-  discountValue: number
+  type: DiscountType
+  value: number
   minOrderAmount: number | null
   maxDiscount: number | null
   usageLimit: number | null
   usedCount: number
-  validFrom: Date
-  validUntil: Date
+  expiresAt: Date
+  applicableTo: string
+  applicableProductIds: string
+  applicableCategoryIds: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -205,9 +223,10 @@ export interface RepairService {
   name: string
   slug: string
   description: string | null
-  image: string | null
-  estimatedTime: string | null
-  price: number | null
+  estimatedDuration: string | null
+  startingPrice: number | null
+  compatibleDevices: string
+  warranty: string | null
   isActive: boolean
   sortOrder: number
   createdAt: Date
@@ -219,17 +238,20 @@ export interface RepairBooking {
   id: string
   bookingNumber: string
   userId: string
-  serviceId: string
+  serviceId: string | null
   brand: string
   model: string
-  issueDescription: string
-  name: string
-  email: string
-  phone: string
-  preferredDate: string | null
-  preferredTime: string | null
+  problemDescription: string
+  appointmentDate: string | null
+  appointmentTime: string | null
   status: RepairStatus
   notes: string | null
+  technicianNotes: string | null
+  estimatedCost: number | null
+  finalCost: number | null
+  pickupRequired: boolean
+  pickupAddress: string | null
+  technicianName: string | null
   createdAt: Date
   updatedAt: Date
   user?: User
@@ -239,11 +261,11 @@ export interface RepairBooking {
 
 export interface RepairStatusHistory {
   id: string
-  bookingId: string
+  repairId: string
   status: string
   note: string | null
   createdAt: Date
-  booking?: RepairBooking
+  repair?: RepairBooking
 }
 
 export interface SellRequest {
@@ -252,17 +274,24 @@ export interface SellRequest {
   userId: string | null
   brand: string
   model: string
-  condition: Condition
+  condition: string
   storage: string
-  color: string | null
-  description: string | null
-  askingPrice: number
-  images: string
+  ram: string | null
+  age: string | null
+  displayCondition: string | null
+  batteryCondition: string | null
+  cameraCondition: string | null
+  bodyCondition: string | null
+  accessoriesAvailable: boolean
+  originalBill: boolean
+  originalBox: boolean
+  estimatedPrice: number | null
+  finalOfferedPrice: number | null
+  pickupAddress: string | null
+  pickupDate: Date | null
+  pickupTime: string | null
   status: RequestStatus
-  name: string
-  email: string
-  phone: string
-  notes: string | null
+  adminNotes: string | null
   createdAt: Date
   updatedAt: Date
   user?: User | null
@@ -272,24 +301,22 @@ export interface ExchangeRequest {
   id: string
   requestNumber: string
   userId: string | null
-  brand: string
-  model: string
-  condition: Condition
-  storage: string
-  color: string | null
-  description: string | null
-  askingPrice: number
-  images: string
-  desiredProductId: string | null
-  status: RequestStatus
-  name: string
-  email: string
-  phone: string
-  notes: string | null
+  oldBrand: string
+  oldModel: string
+  oldStorage: string | null
+  oldRam: string | null
+  oldCondition: string
+  oldDeviceDetails: string
+  newVariantId: string | null
+  estimatedExchangeValue: number | null
+  finalExchangeValue: number | null
+  difference: number | null
+  status: string
+  adminNotes: string | null
   createdAt: Date
   updatedAt: Date
   user?: User | null
-  desiredProduct?: Product | null
+  newVariant?: ProductVariant | null
 }
 
 export interface Notification {
@@ -297,9 +324,9 @@ export interface Notification {
   userId: string
   title: string
   message: string
-  type: NotificationType
+  type: string
   isRead: boolean
-  link: string | null
+  metadata: string
   createdAt: Date
   user?: User
 }
@@ -307,10 +334,15 @@ export interface Notification {
 export interface HomepageSection {
   id: string
   title: string
+  subtitle: string | null
   type: SectionType
   isActive: boolean
   sortOrder: number
-  items: string
+  productIds: string
+  ctaText: string | null
+  ctaLink: string | null
+  image: string | null
+  background: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -320,9 +352,12 @@ export interface Banner {
   title: string
   subtitle: string | null
   image: string
-  link: string | null
+  ctaText: string | null
+  ctaLink: string | null
   isActive: boolean
   sortOrder: number
+  startDate: Date | null
+  endDate: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -332,7 +367,9 @@ export interface InformationCard {
   title: string
   description: string | null
   icon: string | null
-  link: string | null
+  ctaText: string | null
+  ctaLink: string | null
+  image: string | null
   isActive: boolean
   sortOrder: number
   createdAt: Date
@@ -341,10 +378,9 @@ export interface InformationCard {
 
 export interface Testimonial {
   id: string
-  name: string
-  designation: string | null
-  avatar: string | null
-  content: string
+  customerName: string
+  customerImage: string | null
+  comment: string
   rating: number | null
   isActive: boolean
   sortOrder: number
@@ -368,10 +404,10 @@ export interface ContactRequest {
   name: string
   email: string
   phone: string | null
-  subject: string
+  subject: string | null
   message: string
   status: ContactStatus
-  notes: string | null
+  adminNotes: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -380,23 +416,22 @@ export interface Setting {
   id: string
   key: string
   value: string
-  type: string
-  group: string
+  group: string | null
   createdAt: Date
   updatedAt: Date
 }
 
 export interface AuditLog {
   id: string
-  userId: string | null
+  adminId: string | null
   action: string
   entity: string
   entityId: string | null
-  oldData: string | null
-  newData: string | null
-  ip: string | null
+  oldValue: string | null
+  newValue: string | null
+  ipAddress: string | null
   createdAt: Date
-  user?: User | null
+  admin?: User | null
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────

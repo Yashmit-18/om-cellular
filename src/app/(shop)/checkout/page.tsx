@@ -17,7 +17,7 @@ import {
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import Textarea from "@/components/ui/textarea";
-import { useCartStore } from "@/lib/stores/cart-store";
+import { useCartStore } from "@/stores/cart-store";
 import { useToast } from "@/components/ui/toast";
 
 const STEPS = ["Address", "Delivery", "Review", "Payment", "Confirm"];

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
@@ -10,11 +10,13 @@ export async function PUT(
   if ('error' in auth) return auth.error
 
   try {
-    const { variantId } = await params
-    const body = await request.json()
+    const { id, variantId } = await params
 
     const existing = await prisma.productVariant.findUnique({ where: { id: variantId } })
     if (!existing) return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
+    if (existing.productId !== id) return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
+
+    const body = await request.json()
 
     const variant = await prisma.productVariant.update({
       where: { id: variantId },
@@ -53,9 +55,10 @@ export async function DELETE(
   if ('error' in auth) return auth.error
 
   try {
-    const { variantId } = await params
+    const { id, variantId } = await params
     const existing = await prisma.productVariant.findUnique({ where: { id: variantId } })
     if (!existing) return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
+    if (existing.productId !== id) return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
     await prisma.productVariant.update({ where: { id: variantId }, data: { isActive: false } })
     return NextResponse.json({ message: 'Variant deactivated' })
   } catch (error) {

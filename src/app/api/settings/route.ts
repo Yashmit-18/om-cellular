@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
       orderBy: { key: 'asc' },
     })
 
-    return NextResponse.json({ settings })
+    const PUBLIC_PREFIXES = ['business_', 'social_']
+    const PUBLIC_EXACT = new Set(['website_logo', 'website_favicon', 'tax_rate', 'free_shipping_threshold', 'standard_shipping_price', 'express_shipping_price'])
+
+    const publicSettings = settings.filter((s) =>
+      PUBLIC_PREFIXES.some((p) => s.key.startsWith(p)) || PUBLIC_EXACT.has(s.key)
+    )
+
+    return NextResponse.json({ settings: publicSettings })
   } catch (error) {
     console.error('GET /api/settings error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

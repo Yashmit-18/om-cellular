@@ -278,13 +278,13 @@ export default function Header() {
             <div className="border-t p-4 space-y-2">
               <Link
                 href="/auth/login"
-                className="block rounded-lg bg-[#2563eb] px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+                className="btn-primary block text-center w-full"
               >
                 Sign In
               </Link>
               <Link
                 href="/auth/register"
-                className="block rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                className="btn-secondary block text-center w-full"
               >
                 Create Account
               </Link>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin, getSession } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin, getSession } from '@/lib/auth'
+import { getProductById } from '@/server/products/product.service'
 
 export async function GET(
   request: NextRequest,
@@ -11,14 +12,7 @@ export async function GET(
     const session = await getSession()
     const isAdmin = session?.user?.role === 'ADMIN'
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        brand: true,
-        category: true,
-        variants: isAdmin ? true : { where: { isActive: true } },
-      },
-    })
+    const product = await getProductById(id, isAdmin)
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })

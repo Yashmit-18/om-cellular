@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
+import { getActiveHomepageSections } from '@/server/cms/cms.service'
 
 export async function GET() {
   try {
-    const sections = await prisma.homepageSection.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-    })
+    const sections = await getActiveHomepageSections()
     return NextResponse.json({ sections })
   } catch (error) {
     console.error('GET /api/homepage-sections error:', error)

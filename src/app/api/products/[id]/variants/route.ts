@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin, getSession } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin, getSession } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -37,6 +37,10 @@ export async function POST(
 
     if (!name || !sku || price === undefined) {
       return NextResponse.json({ error: 'Name, SKU, and price are required' }, { status: 400 })
+    }
+
+    if (price < 0) {
+      return NextResponse.json({ error: 'Price must be >= 0' }, { status: 400 })
     }
 
     const product = await prisma.product.findUnique({ where: { id } })

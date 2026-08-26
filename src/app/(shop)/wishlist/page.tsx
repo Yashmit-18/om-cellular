@@ -3,8 +3,8 @@
 import { ShoppingCart, Trash2, Heart } from "lucide-react";
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
-import { useWishlistStore } from "@/lib/stores/wishlist-store";
-import { useCartStore } from "@/lib/stores/cart-store";
+import { useWishlistStore } from "@/stores/wishlist-store";
+import { useCartStore } from "@/stores/cart-store";
 import { useToast } from "@/components/ui/toast";
 
 export default function WishlistPage() {

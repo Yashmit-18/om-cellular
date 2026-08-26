@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
-import { requireAdmin } from '@/lib/auth-helpers'
+import { requireAdmin } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin()

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
+import { getActiveBanners } from '@/server/cms/cms.service'
 
 export async function GET() {
   try {
-    const banners = await prisma.banner.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-    })
+    const banners = await getActiveBanners()
     return NextResponse.json({ banners })
   } catch (error) {
     console.error('GET /api/banners error:', error)

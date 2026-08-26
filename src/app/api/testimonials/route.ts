@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth-helpers'
+import prisma from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
+import { getActiveTestimonials } from '@/server/cms/cms.service'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
-    const skip = (page - 1) * limit
 
-    const [testimonials, total] = await Promise.all([
-      prisma.testimonial.findMany({
-        where: { isActive: true },
-        orderBy: { sortOrder: 'asc' },
-        skip,
-        take: limit,
-      }),
-      prisma.testimonial.count({ where: { isActive: true } }),
-    ])
+    const result = await getActiveTestimonials({ page, limit })
 
-    return NextResponse.json({ testimonials, total, page, totalPages: Math.ceil(total / limit) })
+    return NextResponse.json(result)
   } catch (error) {
     console.error('GET /api/testimonials error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

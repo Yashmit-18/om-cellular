@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import GlobalProviders from "./Providers";
 import ToastContainer from "@/components/ui/toast";
+import FloatingWhatsApp from "@/components/ui/FloatingWhatsApp";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <GlobalProviders>
           {children}
           <ToastContainer />
+          <FloatingWhatsApp />
         </GlobalProviders>
       </body>
     </html>
