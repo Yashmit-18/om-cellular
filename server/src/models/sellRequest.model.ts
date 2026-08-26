@@ -55,6 +55,5 @@ const sellRequestSchema = new Schema<ISellRequest>({
 
 sellRequestSchema.index({ userId: 1 })
 sellRequestSchema.index({ status: 1 })
-sellRequestSchema.index({ requestNumber: 1 })
 
 export const SellRequest = mongoose.model<ISellRequest>('SellRequest', sellRequestSchema)

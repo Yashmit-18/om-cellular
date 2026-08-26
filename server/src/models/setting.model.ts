@@ -15,7 +15,6 @@ const settingSchema = new Schema<ISetting>({
   group: { type: String },
 }, { timestamps: true })
 
-settingSchema.index({ key: 1 })
 settingSchema.index({ group: 1 })
 
 export const Setting = mongoose.model<ISetting>('Setting', settingSchema)

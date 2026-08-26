@@ -70,7 +70,6 @@ const repairBookingSchema = new Schema<IRepairBooking>({
 
 repairBookingSchema.index({ userId: 1 })
 repairBookingSchema.index({ status: 1 })
-repairBookingSchema.index({ bookingNumber: 1 })
 
 export const RepairBooking = mongoose.model<IRepairBooking>('RepairBooking', repairBookingSchema)
 

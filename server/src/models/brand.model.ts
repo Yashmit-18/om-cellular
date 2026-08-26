@@ -19,7 +19,6 @@ const brandSchema = new Schema<IBrand>({
   sortOrder: { type: Number, default: 0 },
 }, { timestamps: true })
 
-brandSchema.index({ slug: 1 })
 brandSchema.index({ isActive: 1 })
 brandSchema.index({ sortOrder: 1 })
 

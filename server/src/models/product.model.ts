@@ -45,6 +45,5 @@ productSchema.index({ categoryId: 1 })
 productSchema.index({ brandId: 1 })
 productSchema.index({ isActive: 1 })
 productSchema.index({ isFeatured: 1 })
-productSchema.index({ slug: 1 })
 
 export const Product = mongoose.model<IProduct>('Product', productSchema)

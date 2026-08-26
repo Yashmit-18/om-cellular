@@ -34,7 +34,6 @@ const couponSchema = new Schema<ICoupon>({
   isActive: { type: Boolean, default: true },
 }, { timestamps: { createdAt: true, updatedAt: false } })
 
-couponSchema.index({ code: 1 })
 couponSchema.index({ isActive: 1 })
 
 export const Coupon = mongoose.model<ICoupon>('Coupon', couponSchema)
