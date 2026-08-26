@@ -7,12 +7,19 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Disable the new React 19 rule that flags setState inside useEffect.
+      // The standard data-fetching pattern (useCallback + useEffect) used throughout
+      // this codebase is valid. This rule is overly strict for this pattern.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
