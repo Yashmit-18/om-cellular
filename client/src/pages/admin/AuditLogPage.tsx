@@ -15,7 +15,7 @@ export default function AdminAuditLogPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Audit Log</h1>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Action</th><th className="px-4 py-3 font-medium">Entity</th><th className="px-4 py-3 font-medium">Admin</th><th className="px-4 py-3 font-medium">IP</th><th className="px-4 py-3 font-medium">Date</th>

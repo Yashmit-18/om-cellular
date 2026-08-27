@@ -15,7 +15,7 @@ export default function AdminPhoneValuationPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Phone Valuations</h1>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Brand</th><th className="px-4 py-3 font-medium">Model</th><th className="px-4 py-3 font-medium">Condition</th><th className="px-4 py-3 font-medium">Value</th><th className="px-4 py-3 font-medium">Date</th>

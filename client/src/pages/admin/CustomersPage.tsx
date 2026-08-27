@@ -15,7 +15,7 @@ export default function AdminCustomersPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Customers</h1>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Email</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Joined</th>

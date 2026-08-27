@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Phone, Mail, MapPin, MessageCircle, ExternalLink } from 'lucide-react'
+import { Phone, Mail, MapPin, Clock, MessageCircle, ExternalLink } from 'lucide-react'
 import { settingsService } from '../../services/settings.service'
 
 export default function Footer() {
@@ -24,9 +24,8 @@ export default function Footer() {
     <footer className="border-t border-gray-200 bg-navy-950 text-gray-400">
       <div className="container-custom py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {/* Brand */}
           <div>
-            <h3 className="text-lg font-bold text-white tracking-tight">OM Cellular</h3>
+            <h3 className="text-lg font-bold text-white tracking-tight">{settings.business_name || 'OM Cellular'}</h3>
             <p className="mt-3 text-sm leading-relaxed text-gray-400">
               {settings.footer_about || 'Your trusted partner for buying, selling, repairing and exchanging mobile phones.'}
             </p>
@@ -46,21 +45,24 @@ export default function Footer() {
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {settings.business_address}
                 </div>
               )}
+              {settings.opening_hours && (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Clock className="h-4 w-4 shrink-0" /> {settings.opening_hours}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Services */}
           <div>
             <h4 className="text-sm font-semibold text-white">Services</h4>
             <ul className="mt-3 space-y-2.5 text-sm">
-              <li><Link to="/products" className="hover:text-white transition-colors">Buy Phone</Link></li>
+              <li><Link to="/buy-phones" className="hover:text-white transition-colors">Buy Phones</Link></li>
               <li><Link to="/sell-phone" className="hover:text-white transition-colors">Sell Phone</Link></li>
               <li><Link to="/repair" className="hover:text-white transition-colors">Repair Services</Link></li>
               <li><Link to="/exchange" className="hover:text-white transition-colors">Exchange Phone</Link></li>
             </ul>
           </div>
 
-          {/* Support */}
           <div>
             <h4 className="text-sm font-semibold text-white">Support</h4>
             <ul className="mt-3 space-y-2.5 text-sm">
@@ -71,7 +73,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Account */}
           <div>
             <h4 className="text-sm font-semibold text-white">Account</h4>
             <ul className="mt-3 space-y-2.5 text-sm">
@@ -83,7 +84,6 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Social Links */}
         {(settings.facebook_url || settings.instagram_url || whatsAppUrl) && (
           <div className="mt-8 flex items-center gap-3">
             {whatsAppUrl && (

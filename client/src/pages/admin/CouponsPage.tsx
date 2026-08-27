@@ -47,7 +47,7 @@ export default function AdminCouponsPage() {
         </div>
         <button onClick={handleCreate} className="btn-primary mt-4"><Plus className="mr-1 h-4 w-4" /> Add Coupon</button>
       </div>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Code</th><th className="px-4 py-3 font-medium">Type</th><th className="px-4 py-3 font-medium">Value</th><th className="px-4 py-3 font-medium">Used</th><th className="px-4 py-3 font-medium">Expires</th><th className="px-4 py-3 font-medium">Actions</th>

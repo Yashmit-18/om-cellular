@@ -14,7 +14,7 @@ export default function AdminInventoryPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Inventory</h1>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Variant</th><th className="px-4 py-3 font-medium">Quantity</th><th className="px-4 py-3 font-medium">Low Stock Threshold</th><th className="px-4 py-3 font-medium">Status</th>

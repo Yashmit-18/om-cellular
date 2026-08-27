@@ -20,6 +20,7 @@ const Login = lazy(() => import('./pages/auth/LoginPage'))
 const Register = lazy(() => import('./pages/auth/RegisterPage'))
 const FAQ = lazy(() => import('./pages/shop/FAQPage'))
 const Contact = lazy(() => import('./pages/shop/ContactPage'))
+const BuyPhones = lazy(() => import('./pages/shop/BuyPhonesPage'))
 const SellPhone = lazy(() => import('./pages/shop/SellPhonePage'))
 const Exchange = lazy(() => import('./pages/shop/ExchangePage'))
 const RepairBook = lazy(() => import('./pages/shop/RepairBookPage'))
@@ -67,6 +68,7 @@ export default function App() {
       <Routes>
         <Route element={<ShopLayout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/buy-phones" element={<BuyPhones />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />

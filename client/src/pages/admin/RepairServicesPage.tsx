@@ -113,7 +113,7 @@ export default function AdminRepairServicesPage() {
       {loading ? (
         <div className="mt-6 flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" /></div>
       ) : services.length > 0 ? (
-        <div className="mt-6 card overflow-hidden">
+        <div className="mt-6 card overflow-x-auto">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50">

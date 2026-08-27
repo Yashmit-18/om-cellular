@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { 
+import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Shield, Clock, Award, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
   MapPin, Mail, ExternalLink
@@ -9,6 +9,12 @@ import api from '../../services/api'
 import { formatPrice } from '../../utils'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard } from '../../types'
 
+const REPAIR_ICONS: Record<string, string> = {
+  'Screen Repair': '📱', 'Battery Replacement': '🔋', 'Charging Port': '🔌',
+  'Back Glass': '💎', 'Water Damage': '💧', 'Camera Repair': '📸',
+  'Software Issues': '💻', 'Dead Phone': '🔧',
+}
+
 export default function HomePage() {
   const [banners, setBanners] = useState<Banner[]>([])
   const [featured, setFeatured] = useState<ProductWithVariant[]>([])
@@ -16,6 +22,7 @@ export default function HomePage() {
   const [faqs, setFaqs] = useState<FAQ[]>([])
   const [infoCards, setInfoCards] = useState<InformationCard[]>([])
   const [brands, setBrands] = useState<any[]>([])
+  const [repairServices, setRepairServices] = useState<any[]>([])
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [currentBanner, setCurrentBanner] = useState(0)
@@ -31,6 +38,7 @@ export default function HomePage() {
         api.get('/information-cards'),
         api.get('/brands'),
         api.get('/settings'),
+        api.get('/repairs/services'),
       ])
       if (results[0].status === 'fulfilled') setBanners(results[0].value.data.data || [])
       if (results[1].status === 'fulfilled') setFeatured(results[1].value.data.data || [])
@@ -48,6 +56,7 @@ export default function HomePage() {
           setSettings(s)
         }
       }
+      if (results[7].status === 'fulfilled') setRepairServices(results[7].value.data.data || [])
     } catch { /* silently fail */ } finally { setLoading(false) }
   }, [])
 
@@ -112,11 +121,14 @@ export default function HomePage() {
               <h1 className="text-4xl font-bold text-white md:text-5xl leading-tight">Your Trusted Mobile Partner</h1>
               <p className="mt-4 text-lg text-gray-300">Buy, Sell, Repair & Exchange - All in one place. Expert service you can trust.</p>
               <div className="mt-8 flex flex-wrap gap-4">
-                <Link to="/sell-phone" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-700">
+                <Link to="/buy-phones" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-700">
+                  <Smartphone className="h-4 w-4" /> Buy Phones
+                </Link>
+                <Link to="/sell-phone" className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/20">
                   <DollarSign className="h-4 w-4" /> Sell Your Phone
                 </Link>
                 <Link to="/repair" className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/20">
-                  <Wrench className="h-4 w-4" /> Repair Your Phone
+                  <Wrench className="h-4 w-4" /> Repair
                 </Link>
               </div>
             </div>
@@ -156,7 +168,7 @@ export default function HomePage() {
         </div>
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Smartphone, title: 'Buy Phone', desc: 'Browse our collection of quality phones at competitive prices.', link: '/products', color: 'bg-blue-50 text-blue-600', border: 'hover:border-blue-200' },
+            { icon: Smartphone, title: 'Buy Phone', desc: 'Browse our collection of quality phones at competitive prices.', link: '/buy-phones', color: 'bg-blue-50 text-blue-600', border: 'hover:border-blue-200' },
             { icon: DollarSign, title: 'Sell Phone', desc: 'Get the best value for your used phone. Quick evaluation and instant payment.', link: '/sell-phone', color: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-200' },
             { icon: Wrench, title: 'Phone Repair', desc: 'Expert repair services with genuine parts and warranty.', link: '/repair', color: 'bg-amber-50 text-amber-600', border: 'hover:border-amber-200' },
             { icon: ArrowLeftRight, title: 'Exchange Phone', desc: 'Trade in your old phone and get a great deal on a new one.', link: '/exchange', color: 'bg-purple-50 text-purple-600', border: 'hover:border-purple-200' },
@@ -222,15 +234,22 @@ export default function HomePage() {
           <p className="section-subheading">Professional repair with genuine parts and warranty</p>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            'Display Replacement', 'Battery Replacement', 'Charging Port', 'Back Glass',
-            'Dead Phone Repair', 'Water Damage', 'Software Issues', 'Camera Repair',
-          ].map((service) => (
-            <div key={service} className="card-premium flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
-                <Wrench className="h-5 w-5 text-amber-600" />
+          {(repairServices.length > 0 ? repairServices.slice(0, 8) : [
+            { name: 'Display Replacement' }, { name: 'Battery Replacement' },
+            { name: 'Charging Port' }, { name: 'Back Glass' },
+            { name: 'Dead Phone Repair' }, { name: 'Water Damage' },
+            { name: 'Software Issues' }, { name: 'Camera Repair' },
+          ]).map((service: any, i: number) => (
+            <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-lg">
+                {REPAIR_ICONS[service.name] || '🔧'}
               </div>
-              <span className="text-sm font-medium text-gray-900">{service}</span>
+              <div>
+                <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                {service.price && (
+                  <p className="text-xs text-gray-500">From {formatPrice(service.price)}</p>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -435,7 +454,7 @@ export default function HomePage() {
             <div className="hidden lg:block">
               {settings.google_maps_url ? (
                 <div className="overflow-hidden rounded-2xl">
-                  <iframe src={settings.google_maps_url.replace(/\/$/, '') + '/embed?pb=!1m18!1m12!1m3!1d3000!2d0!3d0!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTLCsDAwJzAwLjAiTiA3MsKwMDAnMDAuMCJF!5e0!3m2!1sen!2sin!4v1!5m2!1sen!2sin'} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" className="rounded-2xl" title="Store Location" />
+                  <iframe src={settings.google_maps_url} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" className="rounded-2xl" title="Store Location" />
                 </div>
               ) : (
                 <div className="rounded-2xl bg-white/5 p-12 text-center backdrop-blur">

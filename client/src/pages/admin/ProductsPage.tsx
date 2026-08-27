@@ -36,7 +36,7 @@ export default function AdminProductsPage() {
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search products..." className="input !pl-10" />
         </div>
       </div>
-      <div className="mt-6 card overflow-hidden">
+      <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
             <th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Price</th><th className="px-4 py-3 font-medium">Stock</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Actions</th>
