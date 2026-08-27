@@ -277,7 +277,7 @@ export default function HomePage() {
               {featured.slice(0, 8).map(product => (
                 <Link key={product.id} to={`/products/${product.slug || product.id}`} className="card-premium group p-4">
                   <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                    <img src={product.primaryImage || '/placeholder.png'} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={product.primaryImage || '/placeholder.svg'} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                   </div>
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-gray-900 line-clamp-2">{product.name}</h3>

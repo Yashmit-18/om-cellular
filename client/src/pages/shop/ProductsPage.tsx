@@ -188,7 +188,7 @@ export default function ProductsPage() {
                       'overflow-hidden rounded-lg bg-gray-100',
                       viewMode === 'grid' ? 'aspect-square' : 'h-32 w-32 shrink-0'
                     )}>
-                      <img src={product.primaryImage || '/placeholder.png'} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      <img src={product.primaryImage || '/placeholder.svg'} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                     </div>
                     <div className={cn('mt-3', viewMode === 'list' && 'ml-4 flex-1')}>
                       {product.brand && <p className="text-xs text-gray-500">{product.brand.name}</p>}

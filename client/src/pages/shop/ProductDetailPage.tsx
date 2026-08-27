@@ -49,7 +49,7 @@ export default function ProductDetailPage() {
       productId: product.id,
       name: `${product.name} - ${selectedVariant.name}`,
       slug: product.slug,
-      image: images[0] || '/placeholder.png',
+      image: images[0] || '/placeholder.svg',
       price: selectedVariant.price,
       discountPrice: selectedVariant.discountPrice,
       stock: selectedVariant.stock,
@@ -114,7 +114,7 @@ export default function ProductDetailPage() {
         <div>
           <div className="aspect-square overflow-hidden rounded-xl bg-gray-100">
             <img
-              src={images[selectedImage] || '/placeholder.png'}
+              src={images[selectedImage] || '/placeholder.svg'}
               alt={product.name}
               className="h-full w-full object-cover"
             />

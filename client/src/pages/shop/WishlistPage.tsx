@@ -36,7 +36,7 @@ export default function WishlistPage() {
         {products.map(p => p && (
           <div key={p.id} className="card-premium group p-4">
             <Link to={`/products/${p.slug || p.id}`} className="aspect-square overflow-hidden rounded-lg bg-gray-100 block">
-              <img src={p.primaryImage || '/placeholder.png'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+              <img src={p.primaryImage || '/placeholder.svg'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
             </Link>
             <h3 className="mt-3 text-sm font-medium line-clamp-2"><Link to={`/products/${p.slug || p.id}`} className="hover:text-brand-600">{p.name}</Link></h3>
             <p className="mt-1 font-bold text-brand-600">{formatPrice(p.lowestPrice)}</p>

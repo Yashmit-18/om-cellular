@@ -42,7 +42,7 @@ export default function SearchPage() {
           {results.map(p => (
             <Link key={p.id} to={`/products/${p.slug || p.id}`} className="card-premium group p-4">
               <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                <img src={p.primaryImage || '/placeholder.png'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                <img src={p.primaryImage || '/placeholder.svg'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
               </div>
               <h3 className="mt-3 text-sm font-medium line-clamp-2">{p.name}</h3>
               <p className="mt-1 font-bold text-brand-600">{formatPrice(p.lowestPrice)}</p>

@@ -6,6 +6,7 @@ import { useCartStore } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { orderService } from '../../services/order.service'
 import { couponService } from '../../services/coupon.service'
+import { settingsService } from '../../services/settings.service'
 import { formatPrice } from '../../utils'
 
 export default function CheckoutPage() {
@@ -20,10 +21,13 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('cod')
   const [addresses, setAddresses] = useState<any[]>([])
   const [notes, setNotes] = useState('')
+  const [taxRate, setTaxRate] = useState(0.18)
+  const [shippingConfig, setShippingConfig] = useState({ free: 999, standard: 99 })
 
   const subtotal = getTotal()
-  const shipping = subtotal >= 999 ? 0 : 99
-  const total = subtotal + shipping - couponDiscount
+  const shipping = subtotal >= shippingConfig.free ? 0 : shippingConfig.standard
+  const tax = Math.round(subtotal * taxRate * 100) / 100
+  const total = subtotal + shipping + tax - couponDiscount
 
   useEffect(() => {
     if (items.length === 0) {
@@ -34,7 +38,6 @@ export default function CheckoutPage() {
       navigate('/login?redirect=/checkout')
       return
     }
-    // Fetch user addresses
     import('../../services/api').then(api => {
       api.default.get('/auth/me').then(r => {
         const addrs = r.data.data?.addresses || []
@@ -43,6 +46,17 @@ export default function CheckoutPage() {
         if (defaultAddr) setSelectedAddressId(defaultAddr.id)
       }).catch(() => {})
     })
+    settingsService.getSettings().then(r => {
+      const s = r.data
+      const map: Record<string, string> = {}
+      if (Array.isArray(s)) s.forEach((item: any) => { map[item.key] = item.value })
+      else if (typeof s === 'object') Object.assign(map, s)
+      setTaxRate(parseFloat(map.tax_rate) || 0.18)
+      setShippingConfig({
+        free: parseInt(map.free_shipping_threshold) || 999,
+        standard: parseInt(map.standard_shipping_price) || 99,
+      })
+    }).catch(() => {})
   }, [items, user, navigate])
 
   const handleApplyCoupon = async () => {
@@ -196,6 +210,7 @@ export default function CheckoutPage() {
           <div className="mt-4 space-y-2 border-t pt-4 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600">Free</span> : formatPrice(shipping)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Tax ({Math.round(taxRate * 100)}%)</span><span>{formatPrice(tax)}</span></div>
             {couponDiscount > 0 && <div className="flex justify-between text-emerald-600"><span>Coupon Discount</span><span>-{formatPrice(couponDiscount)}</span></div>}
             <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
           </div>
