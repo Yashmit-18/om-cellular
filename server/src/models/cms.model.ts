@@ -27,7 +27,11 @@ const homepageSectionSchema = new Schema<IHomepageSection>({
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
   background: { type: String },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 homepageSectionSchema.index({ sortOrder: 1 })
 homepageSectionSchema.index({ isActive: 1 })
@@ -59,7 +63,11 @@ const bannerSchema = new Schema<IBanner>({
   sortOrder: { type: Number, default: 0 },
   startDate: { type: Date },
   endDate: { type: Date },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 bannerSchema.index({ sortOrder: 1 })
 bannerSchema.index({ isActive: 1 })
@@ -89,7 +97,11 @@ const informationCardSchema = new Schema<IInformationCard>({
   ctaLink: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 informationCardSchema.index({ sortOrder: 1 })
 informationCardSchema.index({ isActive: 1 })
@@ -114,7 +126,11 @@ const testimonialSchema = new Schema<ITestimonial>({
   comment: { type: String, required: true },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, {
+  timestamps: { createdAt: true, updatedAt: false },
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 testimonialSchema.index({ sortOrder: 1 })
 testimonialSchema.index({ isActive: 1 })
@@ -138,7 +154,11 @@ const faqSchema = new Schema<IFAQ>({
   category: { type: String },
   sortOrder: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 faqSchema.index({ sortOrder: 1 })
 faqSchema.index({ isActive: 1 })

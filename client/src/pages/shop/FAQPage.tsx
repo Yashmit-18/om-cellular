@@ -9,7 +9,7 @@ export default function FAQPage() {
   const [openId, setOpenId] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get('/cms/faqs').then(r => setFaqs(r.data.data || [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/faqs').then(r => setFaqs(r.data.data || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>

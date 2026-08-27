@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Wrench, Smartphone, ArrowRightLeft,
   DollarSign, Image, LayoutTemplate, MessageSquare, HelpCircle, Tag, Settings,
-  ClipboardList, Box, MessageCircle, ChevronLeft, ChevronRight, Store, Phone,
+  ClipboardList, Box, MessageCircle, ChevronLeft, ChevronRight, Store, Phone, Info,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,6 +22,7 @@ const links = [
   { to: '/admin/homepage', label: 'Homepage', icon: LayoutTemplate },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
   { to: '/admin/faqs', label: 'FAQs', icon: HelpCircle },
+  { to: '/admin/information-cards', label: 'Information Cards', icon: Info },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag },
   { to: '/admin/inventory', label: 'Inventory', icon: Box },
   { to: '/admin/contact-requests', label: 'Contact Requests', icon: MessageCircle },

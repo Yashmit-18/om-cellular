@@ -39,11 +39,18 @@ const productSchema = new Schema<IProduct>({
   seoDescription: { type: String },
   seoKeywords: { type: String },
   isActive: { type: Boolean, default: true },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 productSchema.index({ categoryId: 1 })
 productSchema.index({ brandId: 1 })
 productSchema.index({ isActive: 1 })
 productSchema.index({ isFeatured: 1 })
+
+productSchema.virtual('brand', { ref: 'Brand', localField: 'brandId', foreignField: '_id', justOne: true })
+productSchema.virtual('category', { ref: 'Category', localField: 'categoryId', foreignField: '_id', justOne: true })
 
 export const Product = mongoose.model<IProduct>('Product', productSchema)

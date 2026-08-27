@@ -1,13 +1,28 @@
 import { Router, Request, Response } from 'express'
+import jwt from 'jsonwebtoken'
 import { Banner, HomepageSection, InformationCard, Testimonial, FAQ } from '../models/cms.model'
 import { requireAdmin } from '../middleware/auth'
+import { AuthRequest, AuthUser } from '../types'
+import { env } from '../config/env'
 
 function createCmsRouter(model: any, displayName: string) {
   const router = Router()
 
-  router.get('/', async (_req: Request, res: Response) => {
+  router.get('/', async (req: AuthRequest, res: Response) => {
     try {
-      const items = await model.find({ isActive: true }).sort({ sortOrder: 1 })
+      const includeAll = req.query.includeAll === 'true'
+      if (includeAll) {
+        const token = req.cookies?.accessToken || req.headers.authorization?.replace('Bearer ', '')
+        if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' })
+        let decoded: AuthUser
+        try {
+          decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser
+        } catch {
+          return res.status(401).json({ success: false, message: 'Invalid or expired token' })
+        }
+        if (decoded.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Forbidden' })
+      }
+      const items = await model.find(includeAll ? {} : { isActive: true }).sort({ sortOrder: 1 })
       return res.json({ success: true, data: items })
     } catch (error) {
       return res.status(500).json({ success: false, message: 'Internal server error' })
