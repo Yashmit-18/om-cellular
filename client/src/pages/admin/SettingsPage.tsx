@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { settingsService } from '../../services/settings.service'
+import { Save } from 'lucide-react'
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -9,11 +10,12 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
-      if (r.success && r.data) {
+      const s = r.data?.data
+      if (Array.isArray(s)) {
         const map: Record<string, string> = {}
-        r.data.forEach((s: any) => { map[s.key] = s.value })
+        s.forEach((item: any) => { map[item.key] = item.value })
         setSettings(map)
-      }
+      } else if (typeof s === 'object') setSettings(s)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -21,36 +23,94 @@ export default function AdminSettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await settingsService.updateSettings(settings)
-      toast.success('Settings saved')
-    } catch { toast.error('Failed to save') }
-    finally { setSaving(false) }
+      const settingsArray = Object.entries(settings).map(([key, value]) => ({ key, value: value || '' }))
+      await settingsService.updateSettings({ settings: settingsArray } as any)
+      toast.success('Settings saved successfully')
+    } catch { toast.error('Failed to save settings') } finally { setSaving(false) }
   }
 
-  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
+  const updateSetting = (key: string, value: string) => setSettings(prev => ({ ...prev, [key]: value }))
 
-  const fields = [
-    { key: 'business_name', label: 'Business Name' },
-    { key: 'business_phone', label: 'Business Phone' },
-    { key: 'business_email', label: 'Business Email' },
-    { key: 'business_address', label: 'Business Address' },
-    { key: 'footer_about', label: 'Footer About Text' },
-    { key: 'whatsapp_number', label: 'WhatsApp Number' },
-    { key: 'facebook_url', label: 'Facebook URL' },
-    { key: 'instagram_url', label: 'Instagram URL' },
+  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" /></div>
+
+  const groups = [
+    {
+      title: 'Business Information',
+      settings: [
+        { key: 'business_name', label: 'Business Name', placeholder: 'OM Cellular' },
+        { key: 'business_phone', label: 'Phone Number', placeholder: '+91 98765 43210' },
+        { key: 'business_email', label: 'Email Address', placeholder: 'info@omcellular.com', type: 'email' },
+        { key: 'business_address', label: 'Business Address', placeholder: 'Store address', type: 'textarea' },
+        { key: 'opening_hours', label: 'Opening Hours', placeholder: 'Mon-Sat: 10:00 AM - 8:00 PM' },
+      ],
+    },
+    {
+      title: 'WhatsApp',
+      settings: [
+        { key: 'whatsapp_number', label: 'WhatsApp Number', placeholder: '+919876543210' },
+      ],
+    },
+    {
+      title: 'Google Maps',
+      settings: [
+        { key: 'google_maps_url', label: 'Google Maps URL', placeholder: 'https://maps.google.com/...' },
+      ],
+    },
+    {
+      title: 'Social Media',
+      settings: [
+        { key: 'facebook_url', label: 'Facebook URL', placeholder: 'https://facebook.com/...' },
+        { key: 'instagram_url', label: 'Instagram URL', placeholder: 'https://instagram.com/...' },
+      ],
+    },
+    {
+      title: 'Footer',
+      settings: [
+        { key: 'footer_about', label: 'Footer About Text', placeholder: 'About your business...', type: 'textarea' },
+      ],
+    },
+    {
+      title: 'E-Commerce',
+      settings: [
+        { key: 'tax_rate', label: 'Tax Rate (decimal)', placeholder: '0.18 for 18%' },
+        { key: 'free_shipping_threshold', label: 'Free Shipping Threshold (₹)', placeholder: '999' },
+        { key: 'standard_shipping_price', label: 'Standard Shipping Price (₹)', placeholder: '99' },
+      ],
+    },
   ]
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <div className="mt-6 card p-6 space-y-4">
-        {fields.map(f => (
-          <div key={f.key}>
-            <label className="block text-sm font-medium text-gray-700">{f.label}</label>
-            <input value={settings[f.key] || ''} onChange={e => setSettings({ ...settings, [f.key]: e.target.value })} className="input mt-1" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Business Settings</h1>
+          <p className="mt-1 text-sm text-gray-500">Configure your business information and store settings</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn-primary">
+          <Save className="mr-2 h-4 w-4" /> {saving ? 'Saving...' : 'Save All Settings'}
+        </button>
+      </div>
+
+      <div className="mt-8 space-y-8">
+        {groups.map(group => (
+          <div key={group.title} className="card p-6">
+            <h2 className="text-lg font-semibold text-gray-900">{group.title}</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {group.settings.map(field => (
+                <div key={field.key} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                  <label className="block text-sm font-medium text-gray-700">{field.label}</label>
+                  {field.type === 'textarea' ? (
+                    <textarea value={settings[field.key] || ''} onChange={e => updateSetting(field.key, e.target.value)}
+                      className="input mt-1" rows={3} placeholder={field.placeholder} />
+                  ) : (
+                    <input type={field.type || 'text'} value={settings[field.key] || ''} onChange={e => updateSetting(field.key, e.target.value)}
+                      className="input mt-1" placeholder={field.placeholder} />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         ))}
-        <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Settings'}</button>
       </div>
     </div>
   )

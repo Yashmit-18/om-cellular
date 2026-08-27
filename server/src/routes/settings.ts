@@ -4,8 +4,8 @@ import { requireAdmin } from '../middleware/auth'
 
 const router = Router()
 
-const PUBLIC_PREFIXES = ['business_', 'social_']
-const PUBLIC_KEYS = ['store_name', 'store_email', 'store_phone', 'store_address']
+const PUBLIC_PREFIXES = ['business_', 'social_', 'store_', 'whatsapp_', 'google_maps_', 'opening_hours_', 'footer_']
+const PUBLIC_KEYS = ['store_name', 'store_email', 'store_phone', 'store_address', 'tax_rate', 'free_shipping_threshold', 'standard_shipping_price']
 
 router.get('/', async (_req: Request, res: Response) => {
   try {
@@ -15,9 +15,8 @@ router.get('/', async (_req: Request, res: Response) => {
         { key: { $in: PUBLIC_KEYS } },
       ],
     })
-    const settingsMap: Record<string, string> = {}
-    for (const s of settings) settingsMap[s.key] = s.value || ''
-    return res.json({ success: true, data: settingsMap })
+    const data = settings.map((s) => ({ key: s.key, value: s.value || '' }))
+    return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }

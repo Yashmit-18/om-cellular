@@ -57,6 +57,9 @@ const AdminSettings = lazy(() => import('./pages/admin/SettingsPage'))
 const AdminAuditLog = lazy(() => import('./pages/admin/AuditLogPage'))
 const AdminInventory = lazy(() => import('./pages/admin/InventoryPage'))
 const AdminContactRequests = lazy(() => import('./pages/admin/ContactRequestsPage'))
+const AdminRepairServices = lazy(() => import('./pages/admin/RepairServicesPage'))
+const AdminPhoneCatalog = lazy(() => import('./pages/admin/PhoneCatalogPage'))
+const AdminBrands = lazy(() => import('./pages/admin/BrandsPage'))
 
 export default function App() {
   return (
@@ -110,6 +113,9 @@ export default function App() {
           <Route path="testimonials" element={<AdminTestimonials />} />
           <Route path="faqs" element={<AdminFAQs />} />
           <Route path="coupons" element={<AdminCoupons />} />
+          <Route path="brands" element={<AdminBrands />} />
+          <Route path="repair-services" element={<AdminRepairServices />} />
+          <Route path="phone-catalog" element={<AdminPhoneCatalog />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="audit-log" element={<AdminAuditLog />} />
           <Route path="inventory" element={<AdminInventory />} />

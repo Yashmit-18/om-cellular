@@ -9,6 +9,9 @@ export interface IRepairService {
   estimatedDuration?: string
   warranty?: string
   compatibleDevices: string[]
+  category: string
+  priceType: string
+  icon?: string
   isActive: boolean
   sortOrder: number
   createdAt: Date
@@ -23,6 +26,9 @@ const repairServiceSchema = new Schema<IRepairService>({
   estimatedDuration: { type: String },
   warranty: { type: String },
   compatibleDevices: { type: [String], default: [] },
+  category: { type: String, default: 'General' },
+  priceType: { type: String, default: 'starting', enum: ['starting', 'fixed'] },
+  icon: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
 }, { timestamps: true })

@@ -1,10 +1,26 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Minus, Plus, Trash2, ShoppingBag, ChevronRight } from 'lucide-react'
 import { useCartStore } from '../../stores/cartStore'
 import { formatPrice, calculateDiscount } from '../../utils'
+import { settingsService } from '../../services/settings.service'
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal, getItemCount, clearCart } = useCartStore()
+  const [shippingConfig, setShippingConfig] = useState({ freeShippingThreshold: 999, standardShipping: 99 })
+
+  useEffect(() => {
+    settingsService.getSettings().then(r => {
+      const s = r.data?.data
+      const map: Record<string, string> = {}
+      if (Array.isArray(s)) s.forEach((item: any) => { map[item.key] = item.value })
+      else if (typeof s === 'object') Object.assign(map, s)
+      setShippingConfig({
+        freeShippingThreshold: parseInt(map.free_shipping_threshold) || 999,
+        standardShipping: parseInt(map.standard_shipping_price) || 99,
+      })
+    }).catch(() => {})
+  }, [])
 
   if (items.length === 0) {
     return (
@@ -19,7 +35,7 @@ export default function CartPage() {
     )
   }
 
-  const shipping = getTotal() >= 999 ? 0 : 99
+  const shipping = getTotal() >= shippingConfig.freeShippingThreshold ? 0 : shippingConfig.standardShipping
   const total = getTotal() + shipping
 
   return (
@@ -84,7 +100,7 @@ export default function CartPage() {
               <span className="font-medium">{shipping === 0 ? <span className="text-emerald-600">Free</span> : formatPrice(shipping)}</span>
             </div>
             {shipping > 0 && (
-              <p className="text-xs text-gray-400">Free shipping on orders above {formatPrice(999)}</p>
+              <p className="text-xs text-gray-400">Free shipping on orders above {formatPrice(shippingConfig.freeShippingThreshold)}</p>
             )}
             <div className="border-t pt-3">
               <div className="flex justify-between text-base font-bold">

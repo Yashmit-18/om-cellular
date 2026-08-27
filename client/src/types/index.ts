@@ -570,3 +570,19 @@ export interface DashboardStats {
   pendingSellRequests: number
   recentOrders: Order[]
 }
+
+export interface PhoneCatalogModelEntry {
+  id: string
+  brandName: string
+  modelName: string
+  slug: string
+  storageVariants: Array<{
+    storage: string
+    ram: string
+    baseValue: number
+  }>
+  isActive: boolean
+  sortOrder: number
+  createdAt: Date
+  updatedAt: Date
+}

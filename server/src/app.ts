@@ -29,6 +29,7 @@ import analyticsRoutes from './routes/analytics'
 import auditLogRoutes from './routes/auditLogs'
 import uploadRoutes from './routes/uploads'
 import inventoryRoutes from './routes/inventory'
+import phoneCatalogRoutes from './routes/phoneCatalog'
 
 const app = express()
 
@@ -81,6 +82,7 @@ app.use('/api/v1/analytics', analyticsRoutes)
 app.use('/api/v1/audit-logs', auditLogRoutes)
 app.use('/api/v1/uploads', uploadRoutes)
 app.use('/api/v1/inventory', inventoryRoutes)
+app.use('/api/v1/phone-catalog', phoneCatalogRoutes)
 
 // Error handler
 app.use(errorHandler)
