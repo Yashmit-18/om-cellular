@@ -15,7 +15,7 @@ export default function Header() {
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
-      const s = r.data?.data
+      const s = r.data
       if (Array.isArray(s)) {
         const map: Record<string, string> = {}
         s.forEach((item: any) => { map[item.key] = item.value })

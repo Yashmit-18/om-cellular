@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Mail, Phone, MapPin, Send, MessageCircle, Clock, ExternalLink } from 'lucide-react'
+import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { contactRequestService } from '../../services/contactRequest.service'
 import { settingsService } from '../../services/settings.service'
@@ -11,7 +11,7 @@ export default function ContactPage() {
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
-      const s = r.data?.data
+      const s = r.data
       if (Array.isArray(s)) {
         const map: Record<string, string> = {}
         s.forEach((item: any) => { map[item.key] = item.value })

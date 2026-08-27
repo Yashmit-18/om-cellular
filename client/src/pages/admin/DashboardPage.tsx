@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { ShoppingCart, Package, Users, DollarSign, TrendingUp, Clock, Smartphone, ArrowRightLeft, Wrench, AlertTriangle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import api from '../../services/api'
-import { formatPrice, formatDate } from '../../utils'
-import { ORDER_STATUS_COLORS } from '../../constants'
+import { formatPrice } from '../../utils'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)

@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Trash2, Edit, Search, Save, X, Store, Upload } from 'lucide-react'
+import { Plus, Trash2, Edit, Search, Save, X, Store } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { brandService } from '../../services/brand.service'
-import api from '../../services/api'
 import type { Brand } from '../../types'
 
 export default function AdminBrandsPage() {

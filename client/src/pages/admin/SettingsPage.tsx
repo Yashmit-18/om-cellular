@@ -9,8 +9,8 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    settingsService.getSettings().then(r => {
-      const s = r.data?.data
+    settingsService.getAllSettings().then(r => {
+      const s = r.data
       if (Array.isArray(s)) {
         const map: Record<string, string> = {}
         s.forEach((item: any) => { map[item.key] = item.value })
