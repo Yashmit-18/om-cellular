@@ -126,14 +126,14 @@ router.post('/:id/status', requireAdmin, async (req: AuthRequest, res: Response)
 
 router.post('/services', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, startingPrice, estimatedDuration, warranty, compatibleDevices } = req.body
+    const { name, description, startingPrice, estimatedDuration, warranty, compatibleDevices, category, priceType, icon } = req.body
     if (!name) return res.status(400).json({ success: false, message: 'Name is required' })
 
     let slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     const existing = await RepairService.findOne({ slug })
     if (existing) slug = `${slug}-${Date.now()}`
 
-    const service = await RepairService.create({ name, slug, description, startingPrice, estimatedDuration, warranty, compatibleDevices })
+    const service = await RepairService.create({ name, slug, description, startingPrice, estimatedDuration, warranty, compatibleDevices, category, priceType, icon })
     return res.status(201).json({ success: true, message: 'Repair service created', data: service })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })

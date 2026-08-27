@@ -14,7 +14,7 @@ export default function ShopLayout() {
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
-      const s = r.data?.data
+      const s = r.data
       let map: Record<string, string> = {}
       if (Array.isArray(s)) { s.forEach((item: any) => { map[item.key] = item.value }) }
       else if (typeof s === 'object') map = s

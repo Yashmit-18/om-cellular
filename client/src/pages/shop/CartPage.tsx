@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Minus, Plus, Trash2, ShoppingBag, ChevronRight } from 'lucide-react'
 import { useCartStore } from '../../stores/cartStore'
-import { formatPrice, calculateDiscount } from '../../utils'
+import { formatPrice } from '../../utils'
 import { settingsService } from '../../services/settings.service'
 
 export default function CartPage() {
@@ -11,7 +11,7 @@ export default function CartPage() {
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
-      const s = r.data?.data
+      const s = r.data
       const map: Record<string, string> = {}
       if (Array.isArray(s)) s.forEach((item: any) => { map[item.key] = item.value })
       else if (typeof s === 'object') Object.assign(map, s)

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { 
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Shield, Clock, Award, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
-  MapPin, Mail, ExternalLink, Search
+  MapPin, Mail, ExternalLink
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
@@ -24,11 +24,11 @@ export default function HomePage() {
   const fetchData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
-        api.get('/cms/banners'),
+        api.get('/banners'),
         api.get('/products?isFeatured=true&limit=8'),
-        api.get('/cms/testimonials'),
-        api.get('/cms/faqs'),
-        api.get('/cms/information-cards'),
+        api.get('/testimonials'),
+        api.get('/faqs'),
+        api.get('/information-cards'),
         api.get('/brands'),
         api.get('/settings'),
       ])
@@ -181,7 +181,7 @@ export default function HomePage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <h2 className="section-heading">Sell Your Phone in 3 Simple Steps</h2>
-              <p className="mt-4 text-gray-500 leading-relaxed">Get the best price for your used phone. Our transparent evaluation process ensures you get a aird deal.</p>
+              <p className="mt-4 text-gray-500 leading-relaxed">Get the best price for your used phone. Our transparent evaluation process ensures you get a fair deal.</p>
               <div className="mt-8 space-y-6">
                 {[
                   { step: '1', title: 'Select Your Device', desc: 'Choose your phone brand, model, and storage variant from our database.' },
