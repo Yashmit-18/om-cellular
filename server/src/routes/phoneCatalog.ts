@@ -92,6 +92,25 @@ router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   }
 })
 
+// Normalize storage variants that may arrive either as plain strings:
+//   ["128GB", "256GB"]
+// or as objects:
+//   [{ storage: "128GB", ram: "8GB", baseValue: 10000 }]
+// String-only entries get a default baseValue of 0 so they don't fail schema validation.
+const normalizeStorageVariants = (variants: any): Array<{ storage: string; ram: string; baseValue: number }> => {
+  if (!Array.isArray(variants)) return []
+  return variants.map((v: any) => {
+    if (typeof v === 'string') {
+      return { storage: v.trim(), ram: '', baseValue: 0 }
+    }
+    return {
+      storage: String(v.storage || '').trim(),
+      ram: String(v.ram || '').trim(),
+      baseValue: Number(v.baseValue) || 0,
+    }
+  }).filter(v => v.storage)
+}
+
 router.post('/seed', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { phones } = req.body
@@ -99,6 +118,7 @@ router.post('/seed', requireAdmin, async (req: Request, res: Response) => {
     let created = 0
     let skipped = 0
     for (const phone of phones) {
+      if (!phone.brandName || !phone.modelName) continue
       const slug = `${phone.brandName}-${phone.modelName}`.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       const existing = await PhoneCatalogModel.findOne({ slug })
       if (existing) { skipped++; continue }
@@ -106,12 +126,24 @@ router.post('/seed', requireAdmin, async (req: Request, res: Response) => {
         brandName: phone.brandName,
         modelName: phone.modelName,
         slug,
-        storageVariants: phone.storageVariants || [],
-        sortOrder: phone.sortOrder || 0,
+        storageVariants: normalizeStorageVariants(phone.storageVariants),
+        sortOrder: Number(phone.sortOrder) || 0,
+        isActive: true,
       })
       created++
     }
-    return res.json({ success: true, message: `Seeded: ${created} created, ${skipped} skipped`, data: { created, skipped } })
+    // Restore any previously deactivated models that exist again in this seed list
+    let reactivated = 0
+    for (const phone of phones) {
+      if (!phone.brandName || !phone.modelName) continue
+      const slug = `${phone.brandName}-${phone.modelName}`.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      const existing = await PhoneCatalogModel.findOne({ slug, isActive: false })
+      if (existing) {
+        await PhoneCatalogModel.updateOne({ slug }, { $set: { isActive: true } })
+        reactivated++
+      }
+    }
+    return res.json({ success: true, message: `Seeded: ${created} created, ${skipped} skipped, ${reactivated} reactivated`, data: { created, skipped, reactivated } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
