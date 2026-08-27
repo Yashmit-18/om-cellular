@@ -1,7 +1,15 @@
 // Run: node scripts/seedAll.js
 // Comprehensive seed script for OM Cellular
 // Seeds: Brands, Phone Catalog Models, Repair Services, Sample Products + Variants
-// Requires MONGODB_URI env var
+// Requires MONGODB_URI env var (loaded from server/.env)
+
+// Load environment variables from server/.env before reading any env vars.
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') })
+
+// Force Node.js to use reliable public DNS servers.
+// Required because the system DNS resolver is returning ECONNREFUSED
+// for MongoDB Atlas SRV records (matches server/src/config/database.ts).
+require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient, ObjectId } = require('mongodb')
 

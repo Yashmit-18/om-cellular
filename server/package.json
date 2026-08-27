@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "node scripts/seedAll.js",
+    "seed:phones": "node scripts/seedPhoneCatalog.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
