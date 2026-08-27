@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const baseURL = import.meta.env.VITE_API_URL || '/api/v1'
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -15,7 +17,7 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       try {
-        const refreshResponse = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true })
+        const refreshResponse = await axios.post(`${baseURL}/auth/refresh`, {}, { withCredentials: true })
         if (refreshResponse.data.success) {
           return api(error.config)
         }
