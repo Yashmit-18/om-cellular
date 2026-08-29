@@ -62,6 +62,7 @@ const AdminContactRequests = lazy(() => import('./pages/admin/ContactRequestsPag
 const AdminRepairServices = lazy(() => import('./pages/admin/RepairServicesPage'))
 const AdminPhoneCatalog = lazy(() => import('./pages/admin/PhoneCatalogPage'))
 const AdminBrands = lazy(() => import('./pages/admin/BrandsPage'))
+const AdminLogin = lazy(() => import('./pages/admin/AdminLoginPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -94,6 +95,7 @@ export default function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
 
         <Route element={<AccountLayout />}>
           <Route path="/account" element={<AccountDashboard />} />

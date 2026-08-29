@@ -18,7 +18,7 @@ export default function AdminHeader() {
           <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500"></span>
         </button>
         <button
-          onClick={() => { logout(); navigate('/login') }}
+          onClick={() => { logout(); navigate('/admin/login') }}
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
         >
           <LogOut className="h-4 w-4" />
