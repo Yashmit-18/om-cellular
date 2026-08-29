@@ -158,7 +158,12 @@ export default function ExchangePage() {
                     <div className="p-2"><input value={modelSearch} onChange={e => setModelSearch(e.target.value)} className="input !py-2 !text-xs" placeholder="Search..." autoFocus /></div>
                     <div className="max-h-48 overflow-y-auto">
                       {filteredModels.map(m => (
-                        <button key={(m as any).id || (m as any)._id} type="button" onClick={() => { setSelectedModel(m); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50">{m.modelName}</button>
+                        <button key={(m as any).id || (m as any)._id} type="button" onClick={() => { setSelectedModel(m); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                          {m.image
+                            ? <img src={m.image} alt="" className="h-6 w-6 shrink-0 rounded object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                            : <Smartphone className="h-3.5 w-3.5 shrink-0 text-gray-400" />}
+                          <span className="truncate">{m.modelName}</span>
+                        </button>
                       ))}
                       {filteredModels.length === 0 && <p className="px-3 py-2 text-xs text-gray-500">{loadingModels ? 'Loading...' : 'No models found'}</p>}
                     </div>

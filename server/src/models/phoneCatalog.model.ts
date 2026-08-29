@@ -5,6 +5,7 @@ export interface IPhoneCatalogModel {
   brandName: string
   modelName: string
   slug: string
+  image?: string
   storageVariants: Array<{
     storage: string
     ram: string
@@ -20,6 +21,7 @@ const phoneCatalogModelSchema = new Schema<IPhoneCatalogModel>({
   brandName: { type: String, required: true, trim: true },
   modelName: { type: String, required: true, trim: true },
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  image: { type: String, trim: true },
   storageVariants: [{
     storage: { type: String, required: true },
     ram: { type: String, default: '' },

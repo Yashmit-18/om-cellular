@@ -61,12 +61,12 @@ router.get('/admin/all', requireAdmin, async (req: Request, res: Response) => {
 
 router.post('/', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { brandName, modelName, storageVariants, sortOrder } = req.body
+    const { brandName, modelName, image, storageVariants, sortOrder } = req.body
     if (!brandName || !modelName) return res.status(400).json({ success: false, message: 'Brand name and model name are required' })
     let slug = `${brandName}-${modelName}`.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     const existing = await PhoneCatalogModel.findOne({ slug })
     if (existing) slug = `${slug}-${Date.now()}`
-    const model = await PhoneCatalogModel.create({ brandName, modelName, slug, storageVariants: storageVariants || [], sortOrder: sortOrder || 0 })
+    const model = await PhoneCatalogModel.create({ brandName, modelName, slug, image: image || undefined, storageVariants: storageVariants || [], sortOrder: sortOrder || 0 })
     return res.status(201).json({ success: true, message: 'Phone model created', data: model })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -126,6 +126,7 @@ router.post('/seed', requireAdmin, async (req: Request, res: Response) => {
         brandName: phone.brandName,
         modelName: phone.modelName,
         slug,
+        image: phone.image || undefined,
         storageVariants: normalizeStorageVariants(phone.storageVariants),
         sortOrder: Number(phone.sortOrder) || 0,
         isActive: true,

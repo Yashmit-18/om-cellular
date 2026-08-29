@@ -4,7 +4,7 @@ import { requireAdmin } from '../middleware/auth'
 
 const router = Router()
 
-const PUBLIC_PREFIXES = ['business_', 'social_', 'store_', 'whatsapp_', 'google_maps_', 'opening_hours_', 'footer_']
+const PUBLIC_PREFIXES = ['business_', 'social_', 'store_', 'whatsapp_', 'google_maps_', 'opening_hours_', 'footer_', 'upi_', 'repair_']
 const PUBLIC_KEYS = ['store_name', 'store_email', 'store_phone', 'store_address', 'tax_rate', 'free_shipping_threshold', 'standard_shipping_price']
 
 router.get('/', async (_req: Request, res: Response) => {

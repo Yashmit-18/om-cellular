@@ -14,6 +14,7 @@ require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient, ObjectId } = require('mongodb')
 const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue, STORAGE_ADJ } = require('./lib/pricing')
+const { resolveImageUrl } = require('./lib/catalogImages')
 
 const MONGODB_URI = process.env.MONGODB_URI
 if (!MONGODB_URI) {
@@ -334,8 +335,11 @@ const phoneModels = [
   // Asus
   { brandName: 'Asus', modelName: 'ROG Phone 8 Pro', storageVariants: ['256GB', '512GB'] },
   { brandName: 'Asus', modelName: 'ROG Phone 8', storageVariants: ['256GB'] },
+  { brandName: 'Asus', modelName: 'ROG Phone 7', storageVariants: ['256GB', '512GB'] },
+  { brandName: 'Asus', modelName: 'ROG Phone 7 Ultimate', storageVariants: ['256GB', '512GB'] },
   { brandName: 'Asus', modelName: 'Zenfone 11 Ultra', storageVariants: ['256GB', '512GB'] },
   { brandName: 'Asus', modelName: 'Zenfone 10', storageVariants: ['128GB', '256GB'] },
+  { brandName: 'Asus', modelName: 'Zenfone 9', storageVariants: ['128GB', '256GB'] },
 ]
 
 // ─── SAMPLE PRODUCTS ──────────────────────────────────────────────────────────
@@ -387,6 +391,7 @@ async function seed() {
 
     for (const phone of phoneModels) {
       const slug = slugify(`${phone.brandName} ${phone.modelName}`)
+      const existing = await phoneCol.findOne({ slug })
       const modelBase = computeModelBase(phone.brandName, phone.modelName)
       const storageVariants = phone.storageVariants.map(s => ({
         storage: s,
@@ -394,17 +399,22 @@ async function seed() {
         baseValue: storageVariantBaseValue(phone.brandName, phone.modelName, s),
       }))
 
+      // Resolve a real, HTTP-verified image (reuses existing valid image).
+      const image = await resolveImageUrl(phone.brandName, phone.modelName, existing?.image)
+      const setFields = {
+        brandName: phone.brandName,
+        modelName: phone.modelName,
+        storageVariants,
+        isActive: true,
+        sortOrder: 0,
+        updatedAt: new Date(),
+      }
+      if (image) setFields.image = image
+
       const result = await phoneCol.updateOne(
         { slug },
         {
-          $set: {
-            brandName: phone.brandName,
-            modelName: phone.modelName,
-            storageVariants,
-            isActive: true,
-            sortOrder: 0,
-            updatedAt: new Date(),
-          },
+          $set: setFields,
           $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true }
@@ -632,16 +642,22 @@ async function seed() {
       { key: 'business_name', value: 'OM Cellular', group: 'business' },
       { key: 'business_phone', value: '', group: 'business' },
       { key: 'business_email', value: '', group: 'business' },
-      { key: 'business_address', value: '', group: 'business' },
+      { key: 'business_address', value: '1st Floor, Central Square Mall, Kotri Road, Kota, Rajasthan, India', group: 'business' },
       { key: 'opening_hours', value: 'Mon-Sat: 10:00 AM - 8:00 PM', group: 'business' },
       { key: 'whatsapp_number', value: '', group: 'whatsapp' },
-      { key: 'google_maps_url', value: '', group: 'maps' },
+      { key: 'whatsapp_default_message', value: 'Hello OM Cellular, I need help with a mobile phone.', group: 'whatsapp' },
+      { key: 'google_maps_url', value: 'https://maps.google.com/maps?q=Central%20Square%20Mall%20Kotri%20Road%20Kota%20Rajasthan%20India&z=16&output=embed', group: 'maps' },
+      { key: 'google_maps_link', value: 'https://www.google.com/maps/search/?api=1&query=Central%20Square%20Mall%2C%20Kotri%20Road%2C%20Kota%2C%20Rajasthan%2C%20India', group: 'maps' },
       { key: 'facebook_url', value: '', group: 'social' },
       { key: 'instagram_url', value: '', group: 'social' },
       { key: 'footer_about', value: 'Your trusted partner for buying, selling, repairing and exchanging mobile phones.', group: 'footer' },
       { key: 'tax_rate', value: '0.18', group: 'commerce' },
       { key: 'free_shipping_threshold', value: '999', group: 'commerce' },
       { key: 'standard_shipping_price', value: '99', group: 'commerce' },
+      { key: 'upi_id', value: '', group: 'payment' },
+      { key: 'upi_display_name', value: '', group: 'payment' },
+      { key: 'upi_qr_image', value: '', group: 'payment' },
+      { key: 'repair_pickup_drop_fee', value: '99', group: 'repair' },
     ]
     let settingsCreated = 0, settingsSkipped = 0
 

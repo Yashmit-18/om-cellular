@@ -11,7 +11,7 @@ export default function AdminPhoneCatalogPage() {
   const [brandFilter, setBrandFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ brandName: '', modelName: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] })
+  const [form, setForm] = useState({ brandName: '', modelName: '', image: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] })
 
   const fetchModels = useCallback(async () => {
     setLoading(true)
@@ -35,18 +35,18 @@ export default function AdminPhoneCatalogPage() {
         await phoneCatalogService.update(editingId, form)
         toast.success('Model updated')
       } else {
-        await phoneCatalogService.create(form)
+        await phoneCatalogService.create({ ...form, image: form.image || undefined })
         toast.success('Model created')
       }
       setShowForm(false); setEditingId(null)
-      setForm({ brandName: '', modelName: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] })
+      setForm({ brandName: '', modelName: '', image: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] })
       fetchModels()
     } catch { toast.error('Failed to save') }
   }
 
   const handleEdit = (model: PhoneCatalogModelEntry) => {
     setEditingId(model.id || (model as any)._id)
-    setForm({ brandName: model.brandName, modelName: model.modelName, storageVariants: model.storageVariants || [] })
+    setForm({ brandName: model.brandName, modelName: model.modelName, image: model.image || '', storageVariants: model.storageVariants || [] })
     setShowForm(true)
   }
 
@@ -70,7 +70,7 @@ export default function AdminPhoneCatalogPage() {
           <h1 className="text-2xl font-bold text-gray-900">Phone Catalog</h1>
           <p className="mt-1 text-sm text-gray-500">Manage phone brands, models, and storage variants for Sell Phone</p>
         </div>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ brandName: '', modelName: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] }) }}
+        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ brandName: '', modelName: '', image: '', storageVariants: [{ storage: '', ram: '', baseValue: 0 }] }) }}
           className="btn-primary"><Plus className="mr-1 h-4 w-4" /> Add Phone Model</button>
       </div>
 
@@ -95,6 +95,11 @@ export default function AdminPhoneCatalogPage() {
               <button onClick={() => { setShowForm(false); setEditingId(null) }} className="rounded-lg p-1 hover:bg-gray-100"><X className="h-5 w-5" /></button>
             </div>
             <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Model Image URL</label>
+                <input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} className="input mt-1" placeholder="https://...bigpic/phone.jpg" />
+                {form.image && <img src={form.image} alt="Model preview" className="mt-2 h-16 w-16 rounded-lg object-contain ring-1 ring-gray-200" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-gray-700">Brand Name *</label><input value={form.brandName} onChange={e => setForm({ ...form, brandName: e.target.value })} className="input mt-1" placeholder="e.g. Apple" /></div>
                 <div><label className="block text-sm font-medium text-gray-700">Model Name *</label><input value={form.modelName} onChange={e => setForm({ ...form, modelName: e.target.value })} className="input mt-1" placeholder="e.g. iPhone 15 Pro" /></div>
@@ -131,6 +136,7 @@ export default function AdminPhoneCatalogPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50">
                 <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 font-medium text-gray-600">Image</th>
                   <th className="px-4 py-3 font-medium text-gray-600">Brand</th>
                   <th className="px-4 py-3 font-medium text-gray-600">Model</th>
                   <th className="px-4 py-3 font-medium text-gray-600">Storage Variants</th>
@@ -141,6 +147,11 @@ export default function AdminPhoneCatalogPage() {
               <tbody>
                 {models.map(model => (
                   <tr key={model.id || (model as any)._id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      {model.image
+                        ? <img src={model.image} alt="" className="h-10 w-10 rounded-lg object-contain ring-1 ring-gray-100" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        : <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 text-gray-300"><Smartphone className="h-4 w-4" /></span>}
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-900">{model.brandName}</td>
                     <td className="px-4 py-3 text-gray-700">{model.modelName}</td>
                     <td className="px-4 py-3">

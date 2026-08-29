@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { useParams, Link, useLocation } from 'react-router-dom'
+import { ChevronRight, Clock, MapPin } from 'lucide-react'
 import api from '../../services/api'
 import { formatDate, formatPrice } from '../../utils'
-import { ORDER_STATUS_COLORS } from '../../constants'
+import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 
 export default function AccountOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const paymentPending = (location.state as any)?.paymentPending
 
   useEffect(() => {
     if (!id) return
@@ -17,6 +19,8 @@ export default function AccountOrderDetailPage() {
 
   if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
   if (!order) return <div className="text-center py-12 text-gray-500">Order not found</div>
+
+  const address = order.shippingAddress || order.address
 
   return (
     <div>
@@ -29,13 +33,38 @@ export default function AccountOrderDetailPage() {
         <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
         <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{order.status}</span>
       </div>
+      {order.paymentStatus === 'PENDING_PAYMENT' && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Payment pending verification</p>
+            <p className="mt-0.5 text-xs text-amber-700">We are verifying your UPI payment. Your order will be confirmed and moved to "Paid" shortly.</p>
+          </div>
+        </div>
+      )}
       <div className="mt-6 card p-6 space-y-4">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><p className="text-gray-500">Date</p><p className="font-medium">{formatDate(order.createdAt)}</p></div>
-          <div><p className="text-gray-500">Payment</p><p className="font-medium capitalize">{order.paymentMethod || 'N/A'}</p></div>
-          <div><p className="text-gray-500">Payment Status</p><p className="font-medium">{order.paymentStatus}</p></div>
+          <div>
+            <p className="text-gray-500">Payment</p>
+            <p className="font-medium capitalize">
+              {order.paymentMethod === 'upi' ? 'UPI / Online' : order.paymentMethod || 'N/A'}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500">Payment Status</p>
+            <span className={`badge ${PAYMENT_STATUS_COLORS[order.paymentStatus] || 'badge-info'}`}>{order.paymentStatus}</span>
+          </div>
+          {order.upiReferenceId && <div><p className="text-gray-500">UPI Reference</p><p className="font-medium">{order.upiReferenceId}</p></div>}
           {order.trackingNumber && <div><p className="text-gray-500">Tracking</p><p className="font-medium">{order.trackingNumber}</p></div>}
         </div>
+        {address && (
+          <div className="border-t pt-4">
+            <h3 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-brand-500" /> Delivery Address</h3>
+            <p className="text-sm text-gray-600">{address.name}, {address.phone}</p>
+            <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}, {address.city}, {address.state} - {address.pincode}</p>
+          </div>
+        )}
         {order.items && order.items.length > 0 && (
           <div className="border-t pt-4">
             <h3 className="font-semibold mb-3">Items</h3>

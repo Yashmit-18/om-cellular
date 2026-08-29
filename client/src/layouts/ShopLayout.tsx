@@ -19,7 +19,8 @@ export default function ShopLayout() {
       if (Array.isArray(s)) { s.forEach((item: any) => { map[item.key] = item.value }) }
       else if (typeof s === 'object') map = s
       const num = map.whatsapp_number || ''
-      if (num) setWhatsAppUrl(`https://wa.me/${num.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello OM Cellular, I need help with a mobile phone.')}`)
+      const msg = map.whatsapp_default_message || 'Hello OM Cellular, I need help with a mobile phone.'
+      if (num) setWhatsAppUrl(`https://wa.me/${num.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`)
     }).catch(() => {})
   }, [])
 

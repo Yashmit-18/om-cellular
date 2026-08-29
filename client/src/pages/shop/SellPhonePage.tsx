@@ -366,7 +366,9 @@ export default function SellPhonePage() {
                               className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm"
                             >
                               <span className="flex items-center gap-3">
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-brand-600"><Smartphone className="h-5 w-5" /></span>
+                                {model.image
+                                  ? <img src={model.image} alt={`${model.modelName}`} className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 object-contain" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.visibility = 'hidden' }} />
+                                  : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-brand-600"><Smartphone className="h-5 w-5" /></span>}
                                 <span className="font-medium text-gray-900">{model.modelName}</span>
                               </span>
                               <ChevronRight className="h-4 w-4 text-gray-300" />

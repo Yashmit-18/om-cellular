@@ -51,6 +51,8 @@ export interface IRepairBooking {
   technicianNotes?: string
   pickupRequired: boolean
   pickupAddress?: string
+  serviceMode?: string
+  pickupFee?: number
   appointmentDate?: Date
   appointmentTime?: string
   createdAt: Date
@@ -72,6 +74,8 @@ const repairBookingSchema = new Schema<IRepairBooking>({
   technicianNotes: { type: String },
   pickupRequired: { type: Boolean, default: false },
   pickupAddress: { type: String },
+  serviceMode: { type: String, default: 'STORE_DROP', enum: ['STORE_DROP', 'DOORSTEP_PICKUP'] },
+  pickupFee: { type: Number, default: 0, min: 0 },
   appointmentDate: { type: Date },
   appointmentTime: { type: String },
 }, { timestamps: true })

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express'
 import { RepairBooking, RepairStatusHistory, RepairService } from '../models/repair.model'
+import { Setting } from '../models/setting.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRepairBookingNumber, paginate } from '../utils/helpers'
@@ -66,18 +67,32 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { serviceId, brand, model, problemDescription, phone, pickupRequired, pickupAddress, appointmentDate, appointmentTime } = req.body
+    const { serviceId, brand, model, problemDescription, phone, pickupRequired, pickupAddress, serviceMode, appointmentDate, appointmentTime } = req.body
     if (!brand || !model) return res.status(400).json({ success: false, message: 'Brand and model are required' })
     if (!phone || !String(phone).trim()) return res.status(400).json({ success: false, message: 'A contact phone number is required for repair bookings' })
+
+    const mode = serviceMode === 'DOORSTEP_PICKUP' ? 'DOORSTEP_PICKUP' : (pickupRequired ? 'DOORSTEP_PICKUP' : 'STORE_DROP')
+    const addressRequired = mode === 'DOORSTEP_PICKUP'
+    if (addressRequired && (!pickupAddress || !String(pickupAddress).trim())) {
+      return res.status(400).json({ success: false, message: 'A pickup address is required for doorstep pickup' })
+    }
+
+    let pickupFee = 0
+    if (mode === 'DOORSTEP_PICKUP') {
+      const feeSetting = await Setting.findOne({ key: 'repair_pickup_drop_fee' })
+      pickupFee = Math.max(0, parseInt(feeSetting?.value || '0', 10) || 0)
+    }
 
     const bookingNumber = generateRepairBookingNumber()
     const repair = await RepairBooking.create({
       bookingNumber, userId: req.user?.id || null, serviceId, brand, model, problemDescription, phone,
-      pickupRequired, pickupAddress, appointmentDate: appointmentDate ? new Date(appointmentDate) : undefined,
+      pickupRequired: mode === 'DOORSTEP_PICKUP', pickupAddress: mode === 'DOORSTEP_PICKUP' ? pickupAddress : undefined,
+      serviceMode: mode, pickupFee,
+      appointmentDate: appointmentDate ? new Date(appointmentDate) : undefined,
       appointmentTime,
     })
 
-    await RepairStatusHistory.create({ repairId: repair._id, status: 'BOOKING_RECEIVED', note: 'Booking received' })
+    await RepairStatusHistory.create({ repairId: repair._id, status: 'BOOKING_RECEIVED', note: `Booking received via ${mode === 'DOORSTEP_PICKUP' ? 'doorstep pickup' : 'store drop-off'}` })
 
     return res.status(201).json({ success: true, message: 'Repair booking created', data: { ...repair.toObject(), bookingNumber } })
   } catch (error) {

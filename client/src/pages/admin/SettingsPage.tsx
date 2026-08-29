@@ -48,12 +48,28 @@ export default function AdminSettingsPage() {
       title: 'WhatsApp',
       settings: [
         { key: 'whatsapp_number', label: 'WhatsApp Number', placeholder: '+919876543210' },
+        { key: 'whatsapp_default_message', label: 'Default WhatsApp Message', placeholder: 'Hello OM Cellular, I need help...', type: 'textarea' },
+      ],
+    },
+    {
+      title: 'UPI / Online Payments',
+      settings: [
+        { key: 'upi_id', label: 'UPI ID', placeholder: 'yourstore@oksbi' },
+        { key: 'upi_display_name', label: 'UPI Display Name', placeholder: 'OM Cellular' },
+        { key: 'upi_qr_image', label: 'UPI QR Code Image URL', placeholder: 'https://...qr-code.png' },
       ],
     },
     {
       title: 'Google Maps',
       settings: [
-        { key: 'google_maps_url', label: 'Google Maps URL', placeholder: 'https://maps.google.com/...' },
+        { key: 'google_maps_url', label: 'Google Maps Embed URL', placeholder: 'https://maps.google.com/maps?q=...&output=embed' },
+        { key: 'google_maps_link', label: 'Google Maps Directions Link', placeholder: 'https://www.google.com/maps/search/?api=1&query=...' },
+      ],
+    },
+    {
+      title: 'Repair',
+      settings: [
+        { key: 'repair_pickup_drop_fee', label: 'Repair Pickup / Drop Fee (₹)', placeholder: '99' },
       ],
     },
     {

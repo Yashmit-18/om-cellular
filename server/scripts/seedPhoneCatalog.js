@@ -19,6 +19,7 @@ require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient } = require('mongodb')
 const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue } = require('./lib/pricing')
+const { resolveImageUrl } = require('./lib/catalogImages')
 
 const MONGODB_URI = process.env.MONGODB_URI
 if (!MONGODB_URI) {
@@ -76,6 +77,12 @@ const phones = [
   // Google
   { brandName: 'Google', modelName: 'Pixel 8 Pro', storageVariants: ['128GB', '256GB', '512GB', '1TB'] },
   { brandName: 'Google', modelName: 'Pixel 8a', storageVariants: ['128GB', '256GB'] },
+  // Asus
+  { brandName: 'Asus', modelName: 'ROG Phone 8 Pro', storageVariants: ['256GB', '512GB'] },
+  { brandName: 'Asus', modelName: 'ROG Phone 7', storageVariants: ['256GB', '512GB'] },
+  { brandName: 'Asus', modelName: 'Zenfone 11 Ultra', storageVariants: ['256GB', '512GB'] },
+  { brandName: 'Asus', modelName: 'Zenfone 10', storageVariants: ['128GB', '256GB'] },
+  { brandName: 'Asus', modelName: 'Zenfone 9', storageVariants: ['128GB', '256GB'] },
 ]
 
 async function seed() {
@@ -88,6 +95,7 @@ async function seed() {
 
     for (const phone of phones) {
       const slug = slugify(`${phone.brandName} ${phone.modelName}`)
+      const existing = await col.findOne({ slug })
       const modelBase = computeModelBase(phone.brandName, phone.modelName)
       const storageVariants = phone.storageVariants.map(s => ({
         storage: s,
@@ -95,17 +103,21 @@ async function seed() {
         baseValue: storageVariantBaseValue(phone.brandName, phone.modelName, s),
       }))
 
+      const image = await resolveImageUrl(phone.brandName, phone.modelName, existing?.image)
+      const setFields = {
+        brandName: phone.brandName,
+        modelName: phone.modelName,
+        storageVariants,
+        isActive: true,
+        sortOrder: 0,
+        updatedAt: new Date(),
+      }
+      if (image) setFields.image = image
+
       const result = await col.updateOne(
         { slug },
         {
-          $set: {
-            brandName: phone.brandName,
-            modelName: phone.modelName,
-            storageVariants,
-            isActive: true,
-            sortOrder: 0,
-            updatedAt: new Date(),
-          },
+          $set: setFields,
           $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true }

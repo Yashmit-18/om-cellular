@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Phone, Mail, MapPin, Clock, MessageCircle, ExternalLink } from 'lucide-react'
 import { settingsService } from '../../services/settings.service'
+import { googleMapsSearchUrl } from '../../utils'
 
 export default function Footer() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -41,9 +42,13 @@ export default function Footer() {
                 </a>
               )}
               {settings.business_address && (
-                <div className="flex items-start gap-2 text-gray-400">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {settings.business_address}
-                </div>
+                <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-2 text-gray-400 hover:text-white transition-colors">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {settings.business_address}
+                    <span className="block text-xs text-gray-500 group-hover:text-gray-300">Get directions on Google Maps <ExternalLink className="inline h-3 w-3" /></span>
+                  </span>
+                </a>
               )}
               {settings.opening_hours && (
                 <div className="flex items-center gap-2 text-gray-400">

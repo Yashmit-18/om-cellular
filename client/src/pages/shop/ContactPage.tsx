@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Mail, Phone, MapPin, Send, MessageCircle, Clock } from 'lucide-react'
+import { Mail, Phone, MapPin, Send, MessageCircle, Clock, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { contactRequestService } from '../../services/contactRequest.service'
 import { settingsService } from '../../services/settings.service'
+import { googleMapsSearchUrl } from '../../utils'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' })
@@ -32,7 +33,7 @@ export default function ContactPage() {
   }
 
   const whatsAppNumber = settings.whatsapp_number || ''
-  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello OM Cellular, I need help.')}` : ''
+  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(settings.whatsapp_default_message || 'Hello OM Cellular, I need help.')}` : ''
 
   return (
     <div className="container-custom py-12">
@@ -68,6 +69,9 @@ export default function ContactPage() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50"><MapPin className="h-6 w-6 text-brand-600" /></div>
             <h3 className="mt-3 font-semibold text-gray-900">Visit Us</h3>
             <p className="mt-1 text-sm text-gray-500">{settings.business_address}</p>
+            <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+              Get directions <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
         )}
       </div>

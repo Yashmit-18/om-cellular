@@ -60,10 +60,13 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { items, addressId, address, couponCode, paymentMethod, notes } = req.body
+    const { items, addressId, address, couponCode, paymentMethod, notes, upiReferenceId } = req.body
     const userId = req.user!.id
 
     if (!items || !items.length) return res.status(400).json({ success: false, message: 'Items are required' })
+    if (paymentMethod && !['cod', 'online', 'upi'].includes(paymentMethod)) {
+      return res.status(400).json({ success: false, message: 'Invalid payment method' })
+    }
 
     let subtotal = 0
     const orderItems: any[] = []
@@ -94,14 +97,39 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const shipping = subtotal >= freeShippingThreshold ? 0 : standardShippingPrice
     const tax = Math.round(subtotal * taxRate * 100) / 100
 
-    let resolvedAddressId = addressId || null
-    if (!resolvedAddressId && address?.name && address?.addressLine1 && address?.city && address?.state && address?.pincode) {
+    let resolvedAddress = null
+    if (addressId) {
+      resolvedAddress = await Address.findById(addressId)
+      if (!resolvedAddress) return res.status(400).json({ success: false, message: 'Address not found' })
+      if (resolvedAddress.userId.toString() !== userId) {
+        return res.status(400).json({ success: false, message: 'Invalid delivery address' })
+      }
+    } else if (address?.addressLine1 && address?.city && address?.state && address?.pincode) {
+      if (!address.name || !String(address.phone || '').trim()) {
+        return res.status(400).json({ success: false, message: 'Recipient name and phone are required' })
+      }
       const savedAddress = await Address.create({
         userId, name: address.name, phone: address.phone || '', addressLine1: address.addressLine1,
         addressLine2: address.addressLine2, city: address.city, state: address.state, pincode: address.pincode,
-        country: 'IN', isDefault: false,
+        country: address.country || 'IN', isDefault: false,
       })
-      resolvedAddressId = savedAddress._id
+      resolvedAddress = savedAddress
+    }
+
+    if (!resolvedAddress) {
+      return res.status(400).json({ success: false, message: 'A valid delivery address is required' })
+    }
+
+    // Snapshot the address onto the order so it never changes if the user edits their saved address later.
+    const shippingAddress = {
+      name: resolvedAddress.name,
+      phone: resolvedAddress.phone,
+      addressLine1: resolvedAddress.addressLine1,
+      addressLine2: resolvedAddress.addressLine2 || '',
+      city: resolvedAddress.city,
+      state: resolvedAddress.state,
+      pincode: resolvedAddress.pincode,
+      country: resolvedAddress.country || 'IN',
     }
 
     let couponDiscount = 0
@@ -127,10 +155,14 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
     const orderNumber = generateOrderNumber()
+    const paymentStatus = paymentMethod && paymentMethod !== 'cod' ? 'PENDING_PAYMENT' : 'PENDING'
 
     const order = await Order.create({
-      orderNumber, userId, addressId: resolvedAddressId, subtotal, shipping, tax, total,
-      couponId, couponDiscount, paymentMethod, notes,
+      orderNumber, userId, addressId: resolvedAddress!.id, subtotal, shipping, tax, total,
+      couponId, couponDiscount, paymentMethod: paymentMethod || 'cod',
+      paymentStatus, shippingAddress,
+      upiReferenceId: paymentMethod && paymentMethod !== 'cod' && upiReferenceId ? String(upiReferenceId).trim() : undefined,
+      notes,
     })
 
     for (const item of orderItems) {

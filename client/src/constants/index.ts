@@ -10,6 +10,14 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   RETURNED: 'badge-danger',
 }
 
+export const PAYMENT_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'badge-warning',
+  PENDING_PAYMENT: 'badge-warning',
+  PAID: 'badge-success',
+  FAILED: 'badge-danger',
+  REFUNDED: 'badge-info',
+}
+
 export const REPAIR_STATUS_COLORS: Record<string, string> = {
   BOOKING_RECEIVED: 'badge-info',
   IN_DIAGNOSIS: 'badge-warning',

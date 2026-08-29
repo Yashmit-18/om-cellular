@@ -15,6 +15,8 @@ export interface IOrder extends Document {
   status: string
   paymentStatus: string
   paymentMethod?: string
+  shippingAddress?: Record<string, unknown>
+  upiReferenceId?: string
   trackingNumber?: string
   notes?: string
   createdAt: Date
@@ -57,8 +59,10 @@ const orderSchema = new Schema<IOrder>({
   couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', default: null },
   couponDiscount: { type: Number, default: 0, min: 0 },
   status: { type: String, default: 'PENDING', enum: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'] },
-  paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] },
-  paymentMethod: { type: String },
+  paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'] },
+  paymentMethod: { type: String, enum: ['cod', 'online', 'upi'] },
+  shippingAddress: { type: Schema.Types.Mixed, default: null },
+  upiReferenceId: { type: String, trim: true },
   trackingNumber: { type: String },
   notes: { type: String },
 }, { timestamps: true })

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Wrench, Calendar, ArrowRight, Check, Clock, Shield, Info, ChevronDown, Smartphone, Search as SearchIcon, PhoneCall } from 'lucide-react'
+import { Wrench, Calendar, ArrowRight, Check, Clock, Shield, Info, ChevronDown, Smartphone, Search as SearchIcon, PhoneCall, Store, Truck, ExternalLink, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { repairService } from '../../services/repair.service'
 import { phoneCatalogService } from '../../services/phoneCatalog.service'
-import { formatPrice } from '../../utils'
+import { settingsService } from '../../services/settings.service'
+import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
 import type { RepairService } from '../../types'
 
 export default function RepairBookPage() {
@@ -17,10 +18,12 @@ export default function RepairBookPage() {
     phone: '', brand: '', model: '', problemDescription: '',
     appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '',
   })
+  const [serviceMode, setServiceMode] = useState<'STORE_DROP' | 'DOORSTEP_PICKUP'>('STORE_DROP')
+  const [pickupFee, setPickupFee] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
   const [brands, setBrands] = useState<string[]>([])
-  const [models, setModels] = useState<{ modelName: string }[]>([])
+  const [models, setModels] = useState<{ modelName: string; image?: string }[]>([])
   const [selectedBrand, setSelectedBrand] = useState('')
   const [selectedModel, setSelectedModel] = useState('')
   const [brandSearch, setBrandSearch] = useState('')
@@ -36,6 +39,16 @@ export default function RepairBookPage() {
       const data = r.data || r.data?.data || []
       setServices(Array.isArray(data) ? data : [])
     }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    settingsService.getSettings().then(r => {
+      const s = r.data
+      const map: Record<string, string> = {}
+      if (Array.isArray(s)) s.forEach((item: any) => { map[item.key] = item.value })
+      if (typeof s === 'object') Object.assign(map, s)
+      setPickupFee(parseInt(map.repair_pickup_drop_fee || '0', 10) || 0)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -84,6 +97,7 @@ export default function RepairBookPage() {
   const resetBooking = () => {
     setView('catalog'); setSelectedService(null); setBookingNumber('')
     setSelectedBrand(''); setSelectedModel(''); setBrandSearch(''); setModelSearch(''); setModels([])
+    setServiceMode('STORE_DROP')
     setForm({ phone: '', brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' })
   }
 
@@ -93,10 +107,11 @@ export default function RepairBookPage() {
     if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
     if (!form.brand || !form.model) { toast.error('Please select your phone brand and model'); return }
     if (!form.problemDescription.trim()) { toast.error('Please describe the issue you’re facing'); return }
+    if (serviceMode === 'DOORSTEP_PICKUP' && !form.pickupAddress.trim()) { toast.error('Please enter your pickup address'); return }
     setSubmitting(true)
     try {
       const serviceId = (selectedService as any)?._id || selectedService?.id || undefined
-      const res = await repairService.createRepair({ serviceId, ...form })
+      const res = await repairService.createRepair({ serviceId, ...form, serviceMode })
       const number = res?.data?.bookingNumber || res?.bookingNumber || ''
       setBookingNumber(number)
       setView('success')
@@ -127,7 +142,34 @@ export default function RepairBookPage() {
               <div className="mt-2 flex justify-between"><span className="text-gray-500">Starting from</span><span className="font-medium text-brand-700">{formatPrice(selectedService.startingPrice)}</span></div>
             ) : null}
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
+            {serviceMode === 'DOORSTEP_PICKUP' && (
+              <>
+                <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Doorstep Pickup</span></div>
+                {pickupFee > 0 && (
+                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Pickup fee</span><span className="font-medium text-brand-700">{formatPrice(pickupFee)}</span></div>
+                )}
+                {form.pickupAddress && (
+                  <div className="mt-2 border-t border-gray-100 pt-2"><span className="text-gray-500">Pickup address</span><p className="mt-0.5 font-medium text-gray-900">{form.pickupAddress}</p></div>
+                )}
+              </>
+            )}
+            {serviceMode === 'STORE_DROP' && (
+              <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Store Drop-off</span></div>
+            )}
           </div>
+
+          {serviceMode === 'STORE_DROP' && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-brand-50 p-4 text-left">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+              <div>
+                <p className="text-xs font-medium text-gray-800">Drop your device at our store</p>
+                <p className="mt-0.5 text-xs text-gray-600">{storeAddressText()}</p>
+                <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                  Get directions <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          )}
 
           <p className="mt-4 text-xs text-gray-400">Final pricing is confirmed only after diagnosis of your device.</p>
 
@@ -198,7 +240,10 @@ export default function RepairBookPage() {
                         {loadingModels && <p className="px-3 py-2 text-xs text-gray-500">Loading...</p>}
                         {filteredModels.map(m => (
                           <button key={m.modelName} type="button" onClick={() => { setSelectedModel(m.modelName); setForm(f => ({ ...f, model: m.modelName })); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                            <Smartphone className="h-3.5 w-3.5 text-gray-400" />{m.modelName}
+                            {m.image
+                              ? <img src={m.image} alt="" className="h-6 w-6 shrink-0 rounded object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                              : <Smartphone className="h-3.5 w-3.5 shrink-0 text-gray-400" />}
+                            <span className="truncate">{m.modelName}</span>
                           </button>
                         ))}
                         {!loadingModels && filteredModels.length === 0 && <p className="px-3 py-2 text-xs text-gray-500">No models found</p>}
@@ -224,11 +269,39 @@ export default function RepairBookPage() {
                 <div><label className="block text-sm font-medium text-gray-700"><Calendar className="inline h-4 w-4 mr-1" />Preferred Date</label><input type="date" value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} className="input mt-1" /></div>
                 <div><label className="block text-sm font-medium text-gray-700">Preferred Time</label><input value={form.appointmentTime} onChange={e => setForm({ ...form, appointmentTime: e.target.value })} className="input mt-1" placeholder="e.g. 10AM-12PM" /></div>
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={form.pickupRequired} onChange={e => setForm({ ...form, pickupRequired: e.target.checked })} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                Request pickup service
-              </label>
-              {form.pickupRequired && <div><label className="block text-sm font-medium text-gray-700">Pickup Address</label><textarea value={form.pickupAddress} onChange={e => setForm({ ...form, pickupAddress: e.target.value })} className="input mt-1" rows={2} placeholder="Full address for pickup" /></div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">How would you like to service your phone?</label>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'STORE_DROP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="radio" name="serviceMode" checked={serviceMode === 'STORE_DROP'} onChange={() => { setServiceMode('STORE_DROP'); setForm(f => ({ ...f, pickupRequired: false })) }} className="mt-1" />
+                    <div>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="h-4 w-4 text-brand-600" /> Store Drop-off</p>
+                      <p className="mt-0.5 text-xs text-gray-500">Drop your device at our store — no extra fee</p>
+                    </div>
+                  </label>
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'DOORSTEP_PICKUP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="radio" name="serviceMode" checked={serviceMode === 'DOORSTEP_PICKUP'} onChange={() => { setServiceMode('DOORSTEP_PICKUP'); setForm(f => ({ ...f, pickupRequired: true })) }} className="mt-1" />
+                    <div>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Truck className="h-4 w-4 text-brand-600" /> Doorstep Pickup</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{pickupFee > 0 ? `Pickup from your address for ${formatPrice(pickupFee)}` : 'Pickup from your address'}</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              {serviceMode === 'DOORSTEP_PICKUP' && (
+                <div><label className="block text-sm font-medium text-gray-700">Pickup Address *</label><textarea value={form.pickupAddress} onChange={e => setForm({ ...form, pickupAddress: e.target.value })} className="input mt-1" rows={2} placeholder="Full address for pickup" required /></div>
+              )}
+              {serviceMode === 'STORE_DROP' && (
+                <div className="flex items-start gap-2 rounded-lg bg-brand-50 p-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">Drop-off location: {storeAddressText()}</p>
+                    <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                      Get directions on Google Maps <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3">
                 <Info className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />
                 <p className="text-xs text-blue-700">Final pricing will be confirmed after device diagnosis. Starting price is indicative.</p>

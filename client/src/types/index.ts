@@ -1,6 +1,6 @@
 export type UserRole = 'ADMIN' | 'CUSTOMER'
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'RETURNED'
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+export type PaymentStatus = 'PENDING' | 'PENDING_PAYMENT' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type PaymentMethod = 'cod' | 'online' | 'upi'
 export type DiscountType = 'PERCENTAGE' | 'FIXED'
 export type Condition = 'NEW' | 'LIKE_NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR'
@@ -155,6 +155,8 @@ export interface Order {
   tax: number
   paymentMethod: string | null
   paymentStatus: PaymentStatus
+  shippingAddress: Record<string, string> | null
+  upiReferenceId: string | null
   couponId: string | null
   couponDiscount: number
   trackingNumber: string | null
@@ -255,6 +257,8 @@ export interface RepairBooking {
   finalCost: number | null
   pickupRequired: boolean
   pickupAddress: string | null
+  serviceMode: string | null
+  pickupFee: number | null
   technicianName: string | null
   createdAt: Date
   updatedAt: Date
@@ -584,6 +588,7 @@ export interface PhoneCatalogModelEntry {
   brandName: string
   modelName: string
   slug: string
+  image?: string | null
   storageVariants: Array<{
     storage: string
     ram: string

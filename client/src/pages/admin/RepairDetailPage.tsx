@@ -41,6 +41,9 @@ export default function AdminRepairDetailPage() {
             <div><p className="text-gray-500">Date</p><p className="font-medium">{formatDate(repair.createdAt)}</p></div>
             {repair.estimatedCost && <div><p className="text-gray-500">Est. Cost</p><p className="font-medium">{formatPrice(repair.estimatedCost)}</p></div>}
             {repair.technicianName && <div><p className="text-gray-500">Technician</p><p className="font-medium">{repair.technicianName}</p></div>}
+            <div><p className="text-gray-500">Service Mode</p><p className="font-medium">{repair.serviceMode === 'DOORSTEP_PICKUP' ? 'Doorstep Pickup' : 'Store Drop-off'}</p></div>
+            {repair.pickupFee > 0 && <div><p className="text-gray-500">Pickup Fee</p><p className="font-medium">{formatPrice(repair.pickupFee)}</p></div>}
+            {repair.pickupAddress && <div><p className="text-gray-500">Pickup Address</p><p className="font-medium">{repair.pickupAddress}</p></div>}
           </div>
           <div><p className="text-gray-500 text-sm">Problem</p><p className="mt-1 text-sm">{repair.problemDescription}</p></div>
           {repair.technicianNotes && <div><p className="text-gray-500 text-sm">Technician Notes</p><p className="mt-1 text-sm">{repair.technicianNotes}</p></div>}

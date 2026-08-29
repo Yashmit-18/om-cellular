@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, MapPin } from 'lucide-react'
+import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { formatDate, formatPrice } from '../../utils'
-import { ORDER_STATUS_COLORS } from '../../constants'
+import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 
 export default function AdminOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -20,8 +21,16 @@ export default function AdminOrderDetailPage() {
     setOrder({ ...order, status })
   }
 
+  const handlePaymentUpdate = async (paymentStatus: string) => {
+    await api.put(`/orders/${id}`, { paymentStatus })
+    setOrder({ ...order, paymentStatus })
+    toast.success(`Payment marked as ${paymentStatus}`)
+  }
+
   if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
   if (!order) return <div className="text-center py-12">Order not found</div>
+
+  const address = order.shippingAddress || order.address
 
   return (
     <div>
@@ -30,7 +39,10 @@ export default function AdminOrderDetailPage() {
       </nav>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
-        <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{order.status}</span>
+        <div className="flex items-center gap-2">
+          <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{order.status}</span>
+          <span className={`badge ${PAYMENT_STATUS_COLORS[order.paymentStatus] || 'badge-info'}`}>{order.paymentStatus}</span>
+        </div>
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
@@ -43,11 +55,11 @@ export default function AdminOrderDetailPage() {
               </div>
             ))}
           </div>
-          {order.address && (
+          {address && (
             <div className="card p-6">
-              <h2 className="font-semibold mb-2">Shipping Address</h2>
-              <p className="text-sm text-gray-600">{order.address.name}, {order.address.phone}</p>
-              <p className="text-sm text-gray-600">{order.address.addressLine1}, {order.address.city}, {order.address.state} - {order.address.pincode}</p>
+              <h2 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-brand-500" /> Shipping Address</h2>
+              <p className="text-sm text-gray-600">{address.name}, {address.phone}</p>
+              <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}, {address.city}, {address.state} - {address.pincode}</p>
             </div>
           )}
         </div>
@@ -60,7 +72,15 @@ export default function AdminOrderDetailPage() {
               <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{formatPrice(order.tax)}</span></div>
               {order.couponDiscount > 0 && <div className="flex justify-between text-emerald-600"><span>Coupon</span><span>-{formatPrice(order.couponDiscount)}</span></div>}
               <div className="border-t pt-2 flex justify-between font-bold"><span>Total</span><span>{formatPrice(order.total)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Payment Method</span><span className="capitalize">{order.paymentMethod === 'upi' ? 'UPI / Online' : order.paymentMethod || 'N/A'}</span></div>
+              {order.upiReferenceId && <div className="flex justify-between"><span className="text-gray-500">UPI Reference</span><span>{order.upiReferenceId}</span></div>}
             </div>
+            {order.paymentStatus === 'PENDING_PAYMENT' && (
+              <div className="mt-4">
+                <button onClick={() => handlePaymentUpdate('PAID')} className="btn-primary w-full !text-sm">Mark as Paid</button>
+                <button onClick={() => handlePaymentUpdate('FAILED')} className="btn-ghost mt-2 w-full !text-sm text-red-500">Mark as Failed</button>
+              </div>
+            )}
           </div>
           <div className="card p-6">
             <h2 className="font-semibold mb-3">Update Status</h2>

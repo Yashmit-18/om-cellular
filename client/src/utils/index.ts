@@ -75,3 +75,17 @@ export function getImageList(productImages: unknown, variantImages?: unknown): s
 export function isValidImageUrl(url: string): boolean {
   return typeof url === 'string' && /^https?:\/\/.+/.test(url)
 }
+
+export function storeAddressText(): string {
+  return '1st Floor, Central Square Mall, Kotri Road, Kota, Rajasthan, India'
+}
+
+export function googleMapsSearchUrl(): string {
+  const q = encodeURIComponent('Central Square Mall, Kotri Road, Kota, Rajasthan, India')
+  return `https://www.google.com/maps/search/?api=1&query=${q}`
+}
+
+export function googleMapsEmbedUrl(): string {
+  const q = encodeURIComponent('Central Square Mall Kotri Road Kota Rajasthan India')
+  return `https://maps.google.com/maps?q=${q}&z=16&output=embed`
+}

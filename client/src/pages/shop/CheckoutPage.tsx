@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { MapPin, CreditCard, Truck, ChevronRight, Tag } from 'lucide-react'
+import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, CheckCircle2, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCartStore } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { orderService } from '../../services/order.service'
 import { couponService } from '../../services/coupon.service'
 import { settingsService } from '../../services/settings.service'
-import { formatPrice } from '../../utils'
+import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
+
+interface UpiConfig {
+  upiId: string
+  displayName: string
+  qrImage: string
+}
 
 export default function CheckoutPage() {
   const { items, getTotal, clearCart } = useCartStore()
@@ -18,32 +24,47 @@ export default function CheckoutPage() {
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
   const [selectedAddressId, setSelectedAddressId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('cod')
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod')
   const [addresses, setAddresses] = useState<any[]>([])
   const [notes, setNotes] = useState('')
   const [taxRate, setTaxRate] = useState(0.18)
   const [shippingConfig, setShippingConfig] = useState({ free: 999, standard: 99 })
+  const [upi, setUpi] = useState<UpiConfig>({ upiId: '', displayName: '', qrImage: '' })
+  const [upiReferenceId, setUpiReferenceId] = useState('')
+  const [upiConfirmed, setUpiConfirmed] = useState(false)
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null)
+  const [addressForm, setAddressForm] = useState({
+    name: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
+  })
 
   const subtotal = getTotal()
   const shipping = subtotal >= shippingConfig.free ? 0 : shippingConfig.standard
   const tax = Math.round(subtotal * taxRate * 100) / 100
   const total = subtotal + shipping + tax - couponDiscount
+  const upiAvailable = Boolean(upi.upiId)
 
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !placedOrderId) {
       navigate('/cart')
-      return
     }
-    if (!user) {
-      navigate('/login?redirect=/checkout')
-      return
-    }
+  }, [items, navigate, placedOrderId])
+
+  useEffect(() => {
+    if (!user) return
     import('../../services/api').then(api => {
       api.default.get('/auth/me').then(r => {
         const addrs = r.data.data?.addresses || []
         setAddresses(addrs)
         const defaultAddr = addrs.find((a: any) => a.isDefault)
-        if (defaultAddr) setSelectedAddressId(defaultAddr.id)
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id)
+          setAddressForm(f => ({
+            ...f,
+            name: defaultAddr.name, phone: defaultAddr.phone,
+            addressLine1: defaultAddr.addressLine1, addressLine2: defaultAddr.addressLine2 || '',
+            city: defaultAddr.city, state: defaultAddr.state, pincode: defaultAddr.pincode,
+          }))
+        }
       }).catch(() => {})
     })
     settingsService.getSettings().then(r => {
@@ -56,8 +77,42 @@ export default function CheckoutPage() {
         free: parseInt(map.free_shipping_threshold) || 999,
         standard: parseInt(map.standard_shipping_price) || 99,
       })
+      setUpi({
+        upiId: map.upi_id || '',
+        displayName: map.upi_display_name || 'OM Cellular',
+        qrImage: map.upi_qr_image || '',
+      })
     }).catch(() => {})
-  }, [items, user, navigate])
+  }, [user])
+
+  const selectSavedAddress = (addr: any) => {
+    setSelectedAddressId(addr.id)
+    setAddressForm({
+      name: addr.name, phone: addr.phone,
+      addressLine1: addr.addressLine1, addressLine2: addr.addressLine2 || '',
+      city: addr.city, state: addr.state, pincode: addr.pincode,
+    })
+  }
+
+  const validateAddress = (): string | null => {
+    const f = addressForm
+    if (!f.name.trim()) return 'Recipient name is required'
+    if (!f.phone.trim() || f.phone.replace(/[^0-9]/g, '').length < 10) return 'Please enter a valid 10-digit phone number'
+    if (!f.addressLine1.trim()) return 'Address line 1 is required'
+    if (!f.city.trim()) return 'City is required'
+    if (!f.state.trim()) return 'State is required'
+    if (!/^\d{6}$/.test(f.pincode.trim())) return 'Please enter a valid 6-digit PIN code'
+    return null
+  }
+
+  const validateUpiPayment = (): string | null => {
+    if (paymentMethod !== 'upi') return null
+    if (!upiConfirmed) return 'Please confirm you have completed the UPI payment'
+    if (upiReferenceId.trim() && !/^[A-Za-z0-9]{6,40}$/.test(upiReferenceId.trim())) {
+      return 'Please enter a valid UPI reference/UTR number'
+    }
+    return null
+  }
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return
@@ -74,152 +129,297 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddressId) {
-      toast.error('Please select a delivery address')
+    if (!user) {
+      toast.error('Please login to place your order')
       return
     }
+    if (paymentMethod === 'upi' && !upiAvailable) {
+      toast.error('Online payment is not configured yet. Please use Cash on Delivery.')
+      return
+    }
+
+    const addressError = validateAddress()
+    if (addressError) {
+      toast.error(addressError)
+      return
+    }
+    const upiError = validateUpiPayment()
+    if (upiError) {
+      toast.error(upiError)
+      return
+    }
+
     setLoading(true)
     try {
-      const orderData = {
+      const orderData: any = {
         items: items.map(item => ({ variantId: item.variantId, quantity: item.quantity, price: item.discountPrice || item.price })),
-        addressId: selectedAddressId,
         paymentMethod,
         couponCode: appliedCoupon?.code || undefined,
         notes: notes || undefined,
       }
+      if (selectedAddressId) {
+        orderData.addressId = selectedAddressId
+      } else {
+        orderData.address = {
+          name: addressForm.name, phone: addressForm.phone,
+          addressLine1: addressForm.addressLine1, addressLine2: addressForm.addressLine2 || undefined,
+          city: addressForm.city, state: addressForm.state, pincode: addressForm.pincode,
+        }
+      }
+      if (paymentMethod === 'upi') {
+        orderData.upiReferenceId = upiReferenceId.trim() || undefined
+      }
+
       const res = await orderService.createOrder(orderData)
       if (res.success) {
         clearCart()
-        toast.success('Order placed successfully!')
-        navigate('/account/orders/' + res.data.id)
+        const orderId = res.data.id || res.data._id
+        setPlacedOrderId(orderId)
+        if (paymentMethod === 'upi') {
+          toast.success('Order placed. Payment is being verified.')
+          navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
+        } else {
+          toast.success('Order placed successfully!')
+          navigate('/account/orders/' + orderId)
+        }
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to place order')
+      toast.error(err.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
     }
   }
 
-  if (items.length === 0) return null
+  if (items.length === 0 && !placedOrderId) return null
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="text-2xl font-bold">Checkout</h1>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_400px]">
-        <div className="space-y-6">
-          {/* Address Selection */}
-          <div className="card p-6">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <MapPin className="h-5 w-5" /> Delivery Address
-            </h2>
-            {addresses.length === 0 ? (
-              <div className="mt-4">
-                <p className="text-sm text-gray-500">No saved addresses.</p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {addresses.map((addr: any) => (
-                  <label
-                    key={addr.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-colors ${
-                      selectedAddressId === addr.id ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input type="radio" name="address" checked={selectedAddressId === addr.id} onChange={() => setSelectedAddressId(addr.id)} className="mt-1" />
-                    <div className="text-sm">
-                      <p className="font-medium">{addr.name} - {addr.phone}</p>
-                      <p className="text-gray-600">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
-                      <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
+      {!user ? (
+        <div className="mt-6 card p-8 text-center">
+          <ShieldCheck className="mx-auto h-10 w-10 text-brand-500" />
+          <h2 className="mt-3 text-lg font-bold text-gray-900">Login to continue checkout</h2>
+          <p className="mt-1 text-sm text-gray-500">You need to be logged in to place an order. Your cart is saved.</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <Link to="/login?redirect=/checkout" className="btn-primary">Login</Link>
+            <Link to="/register?redirect=/checkout" className="btn-secondary">Create Account</Link>
           </div>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_400px]">
+          <div className="space-y-6">
+            {/* Address Section */}
+            <div className="card p-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <MapPin className="h-5 w-5" /> Delivery Address
+              </h2>
 
-          {/* Payment Method */}
-          <div className="card p-6">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <CreditCard className="h-5 w-5" /> Payment Method
-            </h2>
-            <div className="mt-4 space-y-3">
-              {[
-                { value: 'cod', label: 'Cash on Delivery', desc: 'Pay when you receive' },
-                { value: 'online', label: 'Online Payment', desc: 'UPI / Card / Net Banking' },
-                { value: 'upi', label: 'UPI Payment', desc: 'GPay, PhonePe, Paytm' },
-              ].map(opt => (
-                <label key={opt.value} className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
-                  paymentMethod === opt.value ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+              {addresses.length > 0 && (
+                <>
+                  <div className="mt-4 space-y-3">
+                    {addresses.map((addr: any) => (
+                      <label
+                        key={addr.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-colors ${
+                          selectedAddressId === addr.id ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input type="radio" name="address" checked={selectedAddressId === addr.id} onChange={() => selectSavedAddress(addr)} className="mt-1" />
+                        <div className="text-sm">
+                          <p className="font-medium">{addr.name} - {addr.phone}</p>
+                          <p className="text-gray-600">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
+                          <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAddressId('')}
+                      className={`text-sm font-medium ${selectedAddressId === '' ? 'text-brand-700 underline' : 'text-brand-600 hover:text-brand-700'}`}
+                    >
+                      + Add a new address
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <div className={`mt-4 ${selectedAddressId ? 'hidden' : ''}`}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Full Name *</label>
+                    <input value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1" placeholder="Recipient name" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
+                    <input value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Address Line 1 *</label>
+                    <input value={addressForm.addressLine1} onChange={e => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input mt-1" placeholder="House number, street, area" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Address Line 2</label>
+                    <input value={addressForm.addressLine2} onChange={e => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input mt-1" placeholder="Landmark, building (optional)" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">City *</label>
+                    <input value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} className="input mt-1" placeholder="City" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">State *</label>
+                    <input value={addressForm.state} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} className="input mt-1" placeholder="State" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">PIN Code *</label>
+                    <input value={addressForm.pincode} onChange={e => setAddressForm({ ...addressForm, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })} inputMode="numeric" className="input mt-1" placeholder="6-digit PIN code" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div className="card p-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <CreditCard className="h-5 w-5" /> Payment Method
+              </h2>
+              <div className="mt-4 space-y-3">
+                <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
+                  paymentMethod === 'cod' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
                 }`}>
-                  <input type="radio" name="payment" checked={paymentMethod === opt.value} onChange={() => setPaymentMethod(opt.value)} />
+                  <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
                   <div className="text-sm">
-                    <p className="font-medium">{opt.label}</p>
-                    <p className="text-gray-500">{opt.desc}</p>
+                    <p className="font-medium">Cash on Delivery</p>
+                    <p className="text-gray-500">Pay when you receive the order</p>
                   </div>
                 </label>
-              ))}
-            </div>
-          </div>
 
-          {/* Order Notes */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold">Order Notes (optional)</h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any special instructions..."
-              className="input mt-3"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        {/* Order Summary */}
-        <div className="card h-fit p-6">
-          <h2 className="text-lg font-bold">Order Summary</h2>
-          <div className="mt-4 max-h-60 space-y-3 overflow-y-auto">
-            {items.map(item => (
-              <div key={item.variantId} className="flex gap-3 text-sm">
-                <img src={item.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                <div className="flex-1">
-                  <p className="font-medium line-clamp-1">{item.name}</p>
-                  <p className="text-gray-500">Qty: {item.quantity}</p>
-                </div>
-                <span className="font-medium">{formatPrice((item.discountPrice || item.price) * item.quantity)}</span>
+                {upiAvailable && (
+                  <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
+                    paymentMethod === 'upi' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input type="radio" name="payment" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} />
+                    <div className="text-sm">
+                      <p className="font-medium">UPI / Online Payment</p>
+                      <p className="text-gray-500">GPay, PhonePe, Paytm by scanning the QR below</p>
+                    </div>
+                  </label>
+                )}
               </div>
-            ))}
-          </div>
 
-          {/* Coupon */}
-          <div className="mt-4 flex gap-2">
-            <div className="relative flex-1">
-              <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                placeholder="Coupon code"
-                className="input !py-2.5 !pl-10"
+              {upiAvailable && paymentMethod === 'upi' && (
+                <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50/70 p-5">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <Building2 className="h-4 w-4 text-brand-600" /> Pay {formatPrice(total)} to {upi.displayName || 'store owner'}
+                  </h3>
+                  <div className="mt-3 flex flex-col items-start gap-4 sm:flex-row">
+                    {upi.qrImage && (
+                      <div className="shrink-0 rounded-xl border border-gray-200 bg-white p-2">
+                        <img src={upi.qrImage} alt="UPI QR Code" className="h-40 w-40 object-contain" />
+                      </div>
+                    )}
+                    <div className="w-full text-sm">
+                      <p className="text-gray-600">Scan the QR or send money to the UPI ID below:</p>
+                      <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 font-mono text-sm font-medium text-gray-900 ring-1 ring-gray-200">
+                        <QrCode className="h-4 w-4 shrink-0 text-brand-600" /> {upi.upiId}
+                      </p>
+                      <ol className="mt-3 list-inside list-decimal space-y-1 text-xs text-gray-500">
+                        <li>Open GPay / PhonePe / Paytm</li>
+                        <li>Pay {formatPrice(total)} to <span className="font-medium text-gray-700">{upi.upiId}</span></li>
+                        <li>Enter the UPI reference (UTR) number below</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700">UPI Reference / UTR number</label>
+                    <input value={upiReferenceId} onChange={e => setUpiReferenceId(e.target.value)} className="input mt-1" placeholder="e.g. 417182930110" />
+                    <p className="mt-1 text-xs text-gray-400">Your order will move to "Paid" after we verify the payment.</p>
+                  </div>
+
+                  <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={upiConfirmed} onChange={e => setUpiConfirmed(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> I have completed the UPI payment</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Order Notes */}
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold">Order Notes (optional)</h2>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any special instructions..."
+                className="input mt-3"
+                rows={3}
               />
             </div>
-            <button onClick={handleApplyCoupon} className="btn-secondary !px-4 !py-2.5 text-sm">
-              Apply
+
+            {/* Store info */}
+            <div className="card p-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Truck className="h-5 w-5" /> Visit Our Store
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">{storeAddressText()}</p>
+              <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+                Get directions on Google Maps <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Order Summary */}
+          <div className="card h-fit p-6">
+            <h2 className="text-lg font-bold">Order Summary</h2>
+            <div className="mt-4 max-h-60 space-y-3 overflow-y-auto">
+              {items.map(item => (
+                <div key={item.variantId} className="flex gap-3 text-sm">
+                  <img src={item.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                  <div className="flex-1">
+                    <p className="font-medium line-clamp-1">{item.name}</p>
+                    <p className="text-gray-500">Qty: {item.quantity}</p>
+                  </div>
+                  <span className="font-medium">{formatPrice((item.discountPrice || item.price) * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Coupon */}
+            <div className="mt-4 flex gap-2">
+              <div className="relative flex-1">
+                <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Coupon code"
+                  className="input !py-2.5 !pl-10"
+                />
+              </div>
+              <button onClick={handleApplyCoupon} className="btn-secondary !px-4 !py-2.5 text-sm">
+                Apply
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2 border-t pt-4 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600">Free</span> : formatPrice(shipping)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Tax ({Math.round(taxRate * 100)}%)</span><span>{formatPrice(tax)}</span></div>
+              {couponDiscount > 0 && <div className="flex justify-between text-emerald-600"><span>Coupon Discount</span><span>-{formatPrice(couponDiscount)}</span></div>}
+              <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
+            </div>
+
+            <button onClick={handlePlaceOrder} disabled={loading} className="btn-primary mt-4 w-full">
+              {loading ? 'Placing Order...' : paymentMethod === 'upi' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
             </button>
+            <p className="mt-2 text-center text-xs text-gray-400">
+              {paymentMethod === 'upi' ? 'Order confirmed after payment verification (typically within a few hours).' : 'You will pay on delivery.'}
+            </p>
           </div>
-
-          <div className="mt-4 space-y-2 border-t pt-4 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600">Free</span> : formatPrice(shipping)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Tax ({Math.round(taxRate * 100)}%)</span><span>{formatPrice(tax)}</span></div>
-            {couponDiscount > 0 && <div className="flex justify-between text-emerald-600"><span>Coupon Discount</span><span>-{formatPrice(couponDiscount)}</span></div>}
-            <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
-          </div>
-
-          <button onClick={handlePlaceOrder} disabled={loading || addresses.length === 0} className="btn-primary mt-4 w-full">
-            {loading ? 'Placing Order...' : 'Place Order'}
-          </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
