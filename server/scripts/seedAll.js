@@ -1,6 +1,7 @@
 // Run: node scripts/seedAll.js
 // Comprehensive seed script for OM Cellular
-// Seeds: Brands, Phone Catalog Models, Repair Services, Sample Products + Variants
+// Seeds: Brands, Phone Catalog Models, Repair Services, Sample Products + Variants,
+//        Categories, Business Settings
 // Requires MONGODB_URI env var (loaded from server/.env)
 
 // Load environment variables from server/.env before reading any env vars.
@@ -577,6 +578,93 @@ async function seed() {
     }
     console.log(`  Valuation rules: ${valuationsCreated} created, ${valuationsSkipped} skipped (already exist)`)
 
+    // ─── 6. SEED CATEGORIES ─────────────────────────────────────────────────
+    console.log('\nSeeding categories...')
+    const categoriesCol = db.collection('categories')
+    const categoriesData = [
+      { name: 'Smartphones', icon: 'Smartphone', sortOrder: 1 },
+      { name: 'Tablets', icon: 'Tablet', sortOrder: 2 },
+      { name: 'Smartwatches', icon: 'Watch', sortOrder: 3 },
+      { name: 'Accessories', icon: 'Package', sortOrder: 4 },
+    ]
+    let categoriesCreated = 0, categoriesSkipped = 0
+    let smartphonesCategoryId = null
+
+    for (const cat of categoriesData) {
+      const slug = slugify(cat.name)
+      const result = await categoriesCol.updateOne(
+        { slug },
+        {
+          $setOnInsert: {
+            name: cat.name,
+            slug,
+            icon: cat.icon,
+            description: '',
+            isActive: true,
+            sortOrder: cat.sortOrder,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      )
+      if (result.upsertedCount > 0) categoriesCreated++
+      else categoriesSkipped++
+      if (slug === 'smartphones') {
+        const doc = await categoriesCol.findOne({ slug })
+        if (doc) smartphonesCategoryId = doc._id
+      }
+    }
+    console.log(`  Categories: ${categoriesCreated} created, ${categoriesSkipped} skipped (already exist)`)
+
+    if (smartphonesCategoryId) {
+      const linked = await productsCol.updateMany(
+        { categoryId: null },
+        { $set: { categoryId: smartphonesCategoryId, updatedAt: new Date() } }
+      )
+      console.log(`  Products linked to Smartphones category: ${linked.modifiedCount}`)
+    }
+
+    // ─── 7. SEED BUSINESS SETTINGS ──────────────────────────────────────────
+    console.log('\nSeeding business settings...')
+    const settingsCol = db.collection('settings')
+    const settingsData = [
+      { key: 'business_name', value: 'OM Cellular', group: 'business' },
+      { key: 'business_phone', value: '', group: 'business' },
+      { key: 'business_email', value: '', group: 'business' },
+      { key: 'business_address', value: '', group: 'business' },
+      { key: 'opening_hours', value: 'Mon-Sat: 10:00 AM - 8:00 PM', group: 'business' },
+      { key: 'whatsapp_number', value: '', group: 'whatsapp' },
+      { key: 'google_maps_url', value: '', group: 'maps' },
+      { key: 'facebook_url', value: '', group: 'social' },
+      { key: 'instagram_url', value: '', group: 'social' },
+      { key: 'footer_about', value: 'Your trusted partner for buying, selling, repairing and exchanging mobile phones.', group: 'footer' },
+      { key: 'tax_rate', value: '0.18', group: 'commerce' },
+      { key: 'free_shipping_threshold', value: '999', group: 'commerce' },
+      { key: 'standard_shipping_price', value: '99', group: 'commerce' },
+    ]
+    let settingsCreated = 0, settingsSkipped = 0
+
+    for (const s of settingsData) {
+      const result = await settingsCol.updateOne(
+        { key: s.key },
+        {
+          $setOnInsert: {
+            key: s.key,
+            value: s.value,
+            group: s.group,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      )
+      if (result.upsertedCount > 0) settingsCreated++
+      else settingsSkipped++
+    }
+    console.log(`  Settings: ${settingsCreated} created, ${settingsSkipped} skipped (already exist)`)
+    console.log('  NOTE: Set business_phone, business_email, business_address and whatsapp_number from Admin > Settings.')
+
     // ─── SUMMARY ────────────────────────────────────────────────────────────
     console.log('\n' + '='.repeat(50))
     console.log('SEED COMPLETE')
@@ -586,6 +674,8 @@ async function seed() {
     console.log(`  Repair services:  ${servicesCreated} created, ${servicesSkipped} skipped`)
     console.log(`  Products:         ${productsCreated} created, ${productsSkipped} skipped`)
     console.log(`  Valuation rules:  ${valuationsCreated} created, ${valuationsSkipped} skipped`)
+    console.log(`  Categories:       ${categoriesCreated} created, ${categoriesSkipped} skipped`)
+    console.log(`  Settings:         ${settingsCreated} created, ${settingsSkipped} skipped`)
     console.log('='.repeat(50))
   } catch (e) {
     console.error('Seed failed:', e.message)

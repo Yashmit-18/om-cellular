@@ -450,25 +450,28 @@ export default function HomePage() {
         <h2 className="section-heading">Repair Services</h2>
         <p className="section-subheading">Professional repair with genuine parts and warranty</p>
       </div>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {(repairServices.length > 0 ? repairServices.slice(0, 8) : [
-          { name: 'Display Replacement' }, { name: 'Battery Replacement' },
-          { name: 'Charging Port' }, { name: 'Back Glass' },
-          { name: 'Dead Phone Repair' }, { name: 'Water Damage' },
-          { name: 'Software Issues' }, { name: 'Camera Repair' },
-        ]).map((service: any, i: number) => (
-          <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-lg">
-              {REPAIR_ICONS[service.name] || '🔧'}
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-900">{service.name}</span>
-              {service.price && (
-                <p className="text-xs text-gray-500">From {formatPrice(service.price)}</p>
-              )}
-            </div>
+      <div className="mt-10">
+        {repairServices.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {repairServices.slice(0, 8).map((service: any, i: number) => (
+              <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-lg">
+                  {REPAIR_ICONS[service.name] || '🔧'}
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                  {service.startingPrice != null && (
+                    <p className="text-xs text-gray-500">From {formatPrice(service.startingPrice)}</p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
+            No repair services are currently listed. Check back soon or <Link to="/repair" className="font-medium text-brand-600 hover:text-brand-700">contact us</Link> for assistance.
+          </p>
+        )}
       </div>
       <div className="mt-8 text-center">
         <Link to="/repair" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50">

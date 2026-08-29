@@ -41,11 +41,23 @@ router.get('/', async (req: Request, res: Response) => {
     const { page = '1', limit = '20', search, query, brand, brandId, category, categoryId, condition, sort = 'newest', isFeatured, isRefurbished, isNewArrival, isBestSeller, minPrice, maxPrice, includeAll } = req.query
     const { limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
+    const emptyPagination = { page: safePage, limit: safeLimit, total: 0, totalPages: 1, hasNext: false, hasPrev: false }
+
+    const brandRef = (brand || brandId) as string | undefined
+    if (brandRef && !(typeof brandRef === 'string' && mongoose.Types.ObjectId.isValid(brandRef))) {
+      return res.json({ success: true, data: [], pagination: emptyPagination })
+    }
+
+    const categoryRef = (category || categoryId) as string | undefined
+    if (categoryRef && !(typeof categoryRef === 'string' && mongoose.Types.ObjectId.isValid(categoryRef))) {
+      return res.json({ success: true, data: [], pagination: emptyPagination })
+    }
+
     const where: any = includeAll === 'true' ? {} : { isActive: true }
     const searchTerm = (search || query) as string | undefined
     if (searchTerm) where.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
-    if (brand || brandId) where.brandId = brand || brandId
-    if (category || categoryId) where.categoryId = category || categoryId
+    if (brandRef) where.brandId = brandRef
+    if (categoryRef) where.categoryId = categoryRef
     if (condition) where.condition = condition
     if (isFeatured === 'true') where.isFeatured = true
     if (isRefurbished === 'true') where.isRefurbished = true
