@@ -12,6 +12,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient, ObjectId } = require('mongodb')
+const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue, STORAGE_ADJ } = require('./lib/pricing')
 
 const MONGODB_URI = process.env.MONGODB_URI
 if (!MONGODB_URI) {
@@ -26,6 +27,33 @@ function slugify(text) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
 }
+
+// Realistic starting prices + service catalog, shared with focused seed scripts.
+const { repairServices, REPAIR_PRICES } = require('./data/repairServices')
+const { sampleProducts } = require('./data/sampleProducts')
+
+// Valuation engine defaults kept in sync with server/src/routes/phoneValuations.ts
+const VALUATION_DEFAULTS = {
+  conditionMultiplier: { NEW: 1, LIKE_NEW: 0.92, EXCELLENT: 0.88, GOOD: 0.78, FAIR: 0.62, POOR: 0.45 },
+  ageDepreciationPct: { less_than_3_months: 0, '3_to_6_months': 0.05, '6_to_12_months': 0.1, '1_to_2_years': 0.18, more_than_2_years: 0.3 },
+  displayDeduction: 5000,
+  batteryDeduction: 1200,
+  bodyDeduction: 1800,
+  cameraDeduction: 900,
+  accessoryDeduction: 500,
+  billDeduction: 0,
+  boxDeduction: 300,
+}
+
+// Popular models that get a full PhoneValuation pricing rule record.
+const VALUATION_SLUGS = new Set([
+  'apple-iphone-11', 'apple-iphone-12', 'apple-iphone-13', 'apple-iphone-14', 'apple-iphone-15',
+  'apple-iphone-15-pro', 'apple-iphone-16', 'apple-iphone-16-pro',
+  'samsung-galaxy-s23', 'samsung-galaxy-s24', 'samsung-galaxy-s24-ultra', 'samsung-galaxy-z-fold6',
+  'samsung-galaxy-a15', 'samsung-galaxy-a35', 'samsung-galaxy-a55',
+  'xiaomi-redmi-note-13-pro-5g', 'oneplus-oneplus-12', 'realme-realme-gt-6-pro',
+  'google-pixel-8-pro', 'google-pixel-8a', 'nothing-nothing-phone-2', 'vivo-vivo-v30-pro',
+])
 
 // ─── BRANDS ───────────────────────────────────────────────────────────────────
 
@@ -309,159 +337,8 @@ const phoneModels = [
   { brandName: 'Asus', modelName: 'Zenfone 10', storageVariants: ['128GB', '256GB'] },
 ]
 
-// ─── REPAIR SERVICES ──────────────────────────────────────────────────────────
-
-const repairServices = [
-  { name: 'Display Replacement', slug: 'display-replacement', description: 'Professional screen replacement with genuine quality displays', category: 'Screen', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 1 },
-  { name: 'Screen Replacement', slug: 'screen-replacement', description: 'Replace cracked or damaged screens', category: 'Screen', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 2 },
-  { name: 'Battery Replacement', slug: 'battery-replacement', description: 'Replace worn-out batteries to restore battery life', category: 'Battery', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 3 },
-  { name: 'Charging Port Repair', slug: 'charging-port-repair', description: 'Fix loose or damaged charging ports', category: 'Charging', estimatedDuration: '2-3 hours', warranty: '90 days', sortOrder: 4 },
-  { name: 'Charging Issue Diagnosis', slug: 'charging-issue-diagnosis', description: 'Diagnose and fix various charging problems', category: 'Charging', estimatedDuration: '1-2 hours', warranty: '30 days', sortOrder: 5 },
-  { name: 'Back Glass Replacement', slug: 'back-glass-replacement', description: 'Replace cracked or shattered back glass panels', category: 'Hardware', estimatedDuration: '2-3 hours', warranty: '90 days', sortOrder: 6 },
-  { name: 'Camera Repair', slug: 'camera-repair', description: 'Fix malfunctioning rear or front cameras', category: 'Hardware', estimatedDuration: '2-4 hours', warranty: '90 days', sortOrder: 7 },
-  { name: 'Camera Glass Replacement', slug: 'camera-glass-replacement', description: 'Replace scratched or cracked camera lens glass', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 8 },
-  { name: 'Speaker Repair', slug: 'speaker-repair', description: 'Fix distorted or non-functional speakers', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 9 },
-  { name: 'Microphone Repair', slug: 'microphone-repair', description: 'Fix microphone not working or poor audio quality', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 10 },
-  { name: 'Earpiece Repair', slug: 'earpiece-repair', description: 'Fix earpiece speaker issues during calls', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 11 },
-  { name: 'Power Button Repair', slug: 'power-button-repair', description: 'Fix unresponsive power buttons', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 12 },
-  { name: 'Volume Button Repair', slug: 'volume-button-repair', description: 'Fix stuck or unresponsive volume buttons', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 13 },
-  { name: 'Vibration Repair', slug: 'vibration-repair', description: 'Fix vibration motor issues', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 14 },
-  { name: 'Water Damage Repair', slug: 'water-damage-repair', description: 'Professional water damage treatment and recovery', category: 'Water Damage', estimatedDuration: '24-48 hours', warranty: '30 days', sortOrder: 15 },
-  { name: 'Dead Phone Repair', slug: 'dead-phone-repair', description: 'Diagnose and repair phones that won\'t turn on', category: 'Other', estimatedDuration: '24-72 hours', warranty: '30 days', sortOrder: 16 },
-  { name: 'Motherboard Repair', slug: 'motherboard-repair', description: 'Advanced motherboard-level diagnostics and repair', category: 'Motherboard', estimatedDuration: '48-72 hours', warranty: '30 days', sortOrder: 17 },
-  { name: 'Network/Signal Repair', slug: 'network-signal-repair', description: 'Fix network connectivity and signal issues', category: 'Hardware', estimatedDuration: '2-4 hours', warranty: '90 days', sortOrder: 18 },
-  { name: 'Software Repair', slug: 'software-repair', description: 'Fix software issues, boot loops, and crashes', category: 'Software', estimatedDuration: '1-3 hours', warranty: '30 days', sortOrder: 19 },
-  { name: 'OS Installation', slug: 'os-installation', description: 'Clean operating system installation and setup', category: 'Software', estimatedDuration: '1-2 hours', warranty: '30 days', sortOrder: 20 },
-  { name: 'Phone Formatting', slug: 'phone-formatting', description: 'Complete phone reset and data wipe', category: 'Software', estimatedDuration: '1 hour', warranty: 'No warranty', sortOrder: 21 },
-  { name: 'Data Recovery', slug: 'data-recovery', description: 'Recover lost data from damaged devices', category: 'Data', estimatedDuration: '24-72 hours', warranty: 'No warranty', sortOrder: 22 },
-  { name: 'Data Transfer', slug: 'data-transfer', description: 'Transfer data between devices safely', category: 'Data', estimatedDuration: '1-2 hours', warranty: 'No warranty', sortOrder: 23 },
-  { name: 'Boot Loop Repair', slug: 'boot-loop-repair', description: 'Fix phones stuck in boot loop', category: 'Software', estimatedDuration: '2-4 hours', warranty: '30 days', sortOrder: 24 },
-  { name: 'Phone Not Turning On', slug: 'phone-not-turning-on', description: 'Diagnose and fix phones that won\'t power on', category: 'Other', estimatedDuration: '24-72 hours', warranty: '30 days', sortOrder: 25 },
-  { name: 'Overheating Diagnosis', slug: 'overheating-diagnosis', description: 'Diagnose and fix overheating issues', category: 'Other', estimatedDuration: '2-4 hours', warranty: '30 days', sortOrder: 26 },
-  { name: 'Fingerprint Repair', slug: 'fingerprint-repair', description: 'Fix fingerprint sensor issues', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 27 },
-  { name: 'Face ID Diagnosis', slug: 'face-id-diagnosis', description: 'Diagnose and fix Face ID / face unlock issues', category: 'Hardware', estimatedDuration: '2-4 hours', warranty: '90 days', sortOrder: 28 },
-  { name: 'Proximity Sensor Repair', slug: 'proximity-sensor-repair', description: 'Fix proximity sensor not working during calls', category: 'Hardware', estimatedDuration: '1-2 hours', warranty: '90 days', sortOrder: 29 },
-  { name: 'Bluetooth/WiFi Repair', slug: 'bluetooth-wifi-repair', description: 'Fix Bluetooth and WiFi connectivity issues', category: 'Hardware', estimatedDuration: '2-3 hours', warranty: '90 days', sortOrder: 30 },
-]
-
 // ─── SAMPLE PRODUCTS ──────────────────────────────────────────────────────────
-
-const sampleProducts = [
-  {
-    name: 'Apple iPhone 15',
-    description: 'The Apple iPhone 15 features the Dynamic Island, a 48MP main camera system, USB-C connectivity, and the powerful A16 Bionic chip. Available in multiple stunning finishes, it delivers exceptional performance and photography capabilities.',
-    brandSlug: 'apple',
-    isFeatured: true,
-    isNewArrival: true,
-    warranty: '1 Year Apple Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'iPhone 15 128GB Black',
-      sku: 'APL-IP15-128-BLK',
-      price: 79900,
-      discountPrice: 75900,
-      stock: 10,
-      ram: '6GB',
-      storage: '128GB',
-      color: 'Black',
-    },
-  },
-  {
-    name: 'Samsung Galaxy S24',
-    description: 'Samsung Galaxy S24 comes with Galaxy AI built-in, featuring Live Translate, Circle to Search, and Generative Edit. Equipped with a 50MP camera, Dynamic AMOLED 2X display, and Snapdragon 8 Gen 3 processor for flagship performance.',
-    brandSlug: 'samsung',
-    isFeatured: true,
-    isNewArrival: true,
-    warranty: '1 Year Samsung Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'Galaxy S24 128GB Onyx Black',
-      sku: 'SAM-GS24-128-OBLK',
-      price: 74999,
-      discountPrice: 69999,
-      stock: 8,
-      ram: '8GB',
-      storage: '128GB',
-      color: 'Onyx Black',
-    },
-  },
-  {
-    name: 'OnePlus 12',
-    description: 'OnePlus 12 features the Snapdragon 8 Gen 3 processor, a Hasselblad-tuned 50MP triple camera system, 100W SUPERVOOC charging, and a stunning 2K ProXDR display. A true flagship killer with premium build quality.',
-    brandSlug: 'oneplus',
-    isFeatured: true,
-    isNewArrival: false,
-    warranty: '1 Year OnePlus Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'OnePlus 12 256GB Flowy Emerald',
-      sku: 'OPL-12-256-FEMR',
-      price: 69999,
-      discountPrice: 64999,
-      stock: 12,
-      ram: '12GB',
-      storage: '256GB',
-      color: 'Flowy Emerald',
-    },
-  },
-  {
-    name: 'Xiaomi Redmi Note 13 Pro+ 5G',
-    description: 'Redmi Note 13 Pro+ 5G packs a 200MP camera with OIS, MediaTek Dimensity 7200 Ultra chipset, 120Hz 3D Curved AMOLED display, and 120W HyperCharge fast charging. Premium mid-range at an unbeatable price.',
-    brandSlug: 'xiaomi',
-    isFeatured: false,
-    isNewArrival: false,
-    warranty: '1 Year Xiaomi Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'Redmi Note 13 Pro+ 5G 256GB Fusion Purple',
-      sku: 'XIA-RN13PP-256-FPUR',
-      price: 32999,
-      discountPrice: 29999,
-      stock: 15,
-      ram: '8GB',
-      storage: '256GB',
-      color: 'Fusion Purple',
-    },
-  },
-  {
-    name: 'Realme GT 6 Pro',
-    description: 'Realme GT 6 Pro is powered by the Snapdragon 8s Gen 3 chipset with a 5500mAh battery and 120W SUPERVOOC charging. Features a 50MP Sony LYT-808 OIS camera and a 6000-nit ultra-bright display for an immersive experience.',
-    brandSlug: 'realme',
-    isFeatured: false,
-    isNewArrival: true,
-    warranty: '1 Year Realme Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'Realme GT 6 Pro 256GB Razor Green',
-      sku: 'REL-GT6P-256-RGRN',
-      price: 39999,
-      discountPrice: 36999,
-      stock: 7,
-      ram: '12GB',
-      storage: '256GB',
-      color: 'Razor Green',
-    },
-  },
-  {
-    name: 'Vivo V40',
-    description: 'Vivo V40 features ZEISS co-engineered cameras, a 5500mAh slim battery, Snapdragon 7 Gen 3 processor, and a 120Hz AMOLED display. Designed for portrait photography with professional-grade image processing.',
-    brandSlug: 'vivo',
-    isFeatured: false,
-    isNewArrival: true,
-    warranty: '1 Year Vivo Warranty',
-    returnPolicy: '7 Days Return Policy',
-    variant: {
-      name: 'Vivo V40 256GB Lotus Purple',
-      sku: 'VIV-V40-256-LPUR',
-      price: 41999,
-      discountPrice: 38999,
-      stock: 9,
-      ram: '8GB',
-      storage: '256GB',
-      color: 'Lotus Purple',
-    },
-  },
-]
+// Defined in scripts/data/sampleProducts.js
 
 // ─── MAIN SEED FUNCTION ───────────────────────────────────────────────────────
 
@@ -509,25 +386,25 @@ async function seed() {
 
     for (const phone of phoneModels) {
       const slug = slugify(`${phone.brandName} ${phone.modelName}`)
+      const modelBase = computeModelBase(phone.brandName, phone.modelName)
       const storageVariants = phone.storageVariants.map(s => ({
         storage: s,
-        ram: '',
-        baseValue: 0,
+        ram: guessRam(modelBase + storageAdjust(s)),
+        baseValue: storageVariantBaseValue(phone.brandName, phone.modelName, s),
       }))
 
       const result = await phoneCol.updateOne(
         { slug },
         {
-          $setOnInsert: {
+          $set: {
             brandName: phone.brandName,
             modelName: phone.modelName,
-            slug,
             storageVariants,
             isActive: true,
             sortOrder: 0,
-            createdAt: new Date(),
             updatedAt: new Date(),
           },
+          $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true }
       )
@@ -548,20 +425,21 @@ async function seed() {
       const result = await repairCol.updateOne(
         { slug: service.slug },
         {
-          $setOnInsert: {
+          $set: {
             name: service.name,
-            slug: service.slug,
             description: service.description,
-            startingPrice: 0,
+            startingPrice: REPAIR_PRICES[service.slug] || 500,
             estimatedDuration: service.estimatedDuration,
             warranty: service.warranty,
-            compatibleDevices: [],
             category: service.category,
             priceType: 'starting',
             isActive: true,
             sortOrder: service.sortOrder,
-            createdAt: new Date(),
             updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            compatibleDevices: [],
+            createdAt: new Date(),
           },
         },
         { upsert: true }
@@ -648,6 +526,57 @@ async function seed() {
     }
     console.log(`  Products: ${productsCreated} created, ${productsSkipped} skipped (already exist)`)
 
+    // ─── 5. SEED PHONE VALUATION RULES ──────────────────────────────────────
+    console.log('\nSeeding phone valuation rules...')
+    const valuationCol = db.collection('phonevaluations')
+    let valuationsCreated = 0, valuationsSkipped = 0
+
+    for (const phone of phoneModels) {
+      const slug = slugify(`${phone.brandName} ${phone.modelName}`)
+      if (!VALUATION_SLUGS.has(slug)) continue
+      const baseValue = computeModelBase(phone.brandName, phone.modelName)
+      const ageDepreciation = {}
+      for (const [key, pct] of Object.entries(VALUATION_DEFAULTS.ageDepreciationPct)) {
+        ageDepreciation[key] = Math.round(baseValue * pct)
+      }
+      const storageAdjustment = {}
+      for (const s of phone.storageVariants) {
+        storageAdjustment[s] = storageAdjust(s)
+      }
+
+      const result = await valuationCol.updateOne(
+        { brand: phone.brandName, model: phone.modelName },
+        {
+          $setOnInsert: {
+            brand: phone.brandName,
+            model: phone.modelName,
+            baseValue,
+            storageAdjustment,
+            ramAdjustment: {},
+            ageDepreciation,
+            conditionMultiplier: VALUATION_DEFAULTS.conditionMultiplier,
+            displayDeduction: VALUATION_DEFAULTS.displayDeduction,
+            batteryDeduction: VALUATION_DEFAULTS.batteryDeduction,
+            bodyDeduction: VALUATION_DEFAULTS.bodyDeduction,
+            cameraDeduction: VALUATION_DEFAULTS.cameraDeduction,
+            accessoryDeduction: VALUATION_DEFAULTS.accessoryDeduction,
+            billDeduction: VALUATION_DEFAULTS.billDeduction,
+            boxDeduction: VALUATION_DEFAULTS.boxDeduction,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      )
+      if (result.upsertedCount > 0) {
+        valuationsCreated++
+      } else {
+        valuationsSkipped++
+      }
+    }
+    console.log(`  Valuation rules: ${valuationsCreated} created, ${valuationsSkipped} skipped (already exist)`)
+
     // ─── SUMMARY ────────────────────────────────────────────────────────────
     console.log('\n' + '='.repeat(50))
     console.log('SEED COMPLETE')
@@ -656,6 +585,7 @@ async function seed() {
     console.log(`  Phone models:     ${modelsCreated} created, ${modelsSkipped} skipped`)
     console.log(`  Repair services:  ${servicesCreated} created, ${servicesSkipped} skipped`)
     console.log(`  Products:         ${productsCreated} created, ${productsSkipped} skipped`)
+    console.log(`  Valuation rules:  ${valuationsCreated} created, ${valuationsSkipped} skipped`)
     console.log('='.repeat(50))
   } catch (e) {
     console.error('Seed failed:', e.message)

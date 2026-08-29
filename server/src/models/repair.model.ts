@@ -38,7 +38,7 @@ export const RepairService = mongoose.model<IRepairService>('RepairService', rep
 export interface IRepairBooking {
   _id: mongoose.Types.ObjectId
   bookingNumber: string
-  userId: mongoose.Types.ObjectId
+  userId?: mongoose.Types.ObjectId
   serviceId?: mongoose.Types.ObjectId
   brand?: string
   model?: string
@@ -58,7 +58,7 @@ export interface IRepairBooking {
 
 const repairBookingSchema = new Schema<IRepairBooking>({
   bookingNumber: { type: String, required: true, unique: true },
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   serviceId: { type: Schema.Types.ObjectId, ref: 'RepairService', default: null },
   brand: { type: String },
   model: { type: String },

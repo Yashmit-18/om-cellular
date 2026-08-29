@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import mongoose from 'mongoose'
 import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
 import { requireAdmin } from '../middleware/auth'
@@ -7,39 +8,78 @@ import { slugify, paginate } from '../utils/helpers'
 
 const router = Router()
 
+function extractVariantImage(variant: any): string {
+  if (!variant.images) return ''
+  if (typeof variant.images === 'string') return variant.images
+  if (Array.isArray(variant.images)) return variant.images.find(Boolean) || ''
+  return ''
+}
+
+function effectiveVariantPrice(variant: any): number {
+  const p = Number(variant.price) || 0
+  const dp = variant.discountPrice != null ? Number(variant.discountPrice) : null
+  return dp !== null && dp < p ? dp : p
+}
+
+function computeProductSummary(p: any, variants: any[]) {
+  const effectivePrices = variants.map(effectiveVariantPrice)
+  const noVariants = variants.length === 0
+  const lowestPrice = noVariants ? 0 : Math.min(...effectivePrices)
+  const highestPrice = noVariants ? 0 : Math.max(...effectivePrices)
+  const anyImage = variants.map(extractVariantImage).find(Boolean) || ''
+  return {
+    lowestPrice,
+    highestPrice,
+    inStock: variants.some(v => (Number(v.stock) || 0) > 0),
+    variantCount: variants.length,
+    primaryImage: anyImage,
+  }
+}
+
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { page = '1', limit = '20', search, brand, category, condition, sort = 'createdAt', isFeatured, isRefurbished, isNewArrival, isBestSeller, includeAll } = req.query
-    const { skip, limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
+    const { page = '1', limit = '20', search, query, brand, brandId, category, categoryId, condition, sort = 'newest', isFeatured, isRefurbished, isNewArrival, isBestSeller, minPrice, maxPrice, includeAll } = req.query
+    const { limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
     const where: any = includeAll === 'true' ? {} : { isActive: true }
-    if (search) where.$or = [{ name: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }]
-    if (brand) where.brandId = brand
-    if (category) where.categoryId = category
+    const searchTerm = (search || query) as string | undefined
+    if (searchTerm) where.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
+    if (brand || brandId) where.brandId = brand || brandId
+    if (category || categoryId) where.categoryId = category || categoryId
     if (condition) where.condition = condition
     if (isFeatured === 'true') where.isFeatured = true
     if (isRefurbished === 'true') where.isRefurbished = true
     if (isNewArrival === 'true') where.isNewArrival = true
     if (isBestSeller === 'true') where.isBestSeller = true
 
-    let sortObj: any = { createdAt: -1 }
-    if (sort === 'name') sortObj = { name: 1 }
-    else if (sort === 'price_asc') sortObj = { createdAt: 1 }
+    const products = await Product.find(where).populate('brand').populate('category')
 
-    const [products, total] = await Promise.all([
-      Product.find(where).populate('brand').populate('category').sort(sortObj).skip(skip).limit(safeLimit),
-      Product.countDocuments(where),
-    ])
-
-    const productsWithVariants = await Promise.all(products.map(async (p) => {
+    const withVariants = await Promise.all(products.map(async (p) => {
       const variants = await ProductVariant.find({ productId: p._id, isActive: true })
-      return { ...p.toObject(), variants }
+      return { ...p.toObject(), variants, ...computeProductSummary(p, variants) }
     }))
+
+    let result = withVariants
+
+    const min = minPrice ? Number(minPrice) : null
+    const max = maxPrice ? Number(maxPrice) : null
+    if (min !== null && !Number.isNaN(min)) result = result.filter(x => x.lowestPrice >= min)
+    if (max !== null && !Number.isNaN(max)) result = result.filter(x => x.lowestPrice <= max)
+
+    const sortBy = sort === 'name' ? 'name' : sort === 'price_asc' ? 'price_asc' : sort === 'price_desc' ? 'price_desc' : 'newest'
+    if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name))
+    else if (sortBy === 'price_asc') result = [...result].sort((a, b) => a.lowestPrice - b.lowestPrice)
+    else if (sortBy === 'price_desc') result = [...result].sort((a, b) => b.lowestPrice - a.lowestPrice)
+    else result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    const total = result.length
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit))
+    const data = result.slice((safePage - 1) * safeLimit, safePage * safeLimit)
 
     return res.json({
       success: true,
-      data: productsWithVariants,
-      pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) },
+      data,
+      pagination: { page: safePage, limit: safeLimit, total, totalPages, hasNext: safePage < totalPages, hasPrev: safePage > 1 },
     })
   } catch (error) {
     console.error('GET /products error:', error)
@@ -50,11 +90,19 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const product = await Product.findOne({ $or: [{ _id: id }, { slug: id }] }).populate('brand').populate('category')
+    let product: any = null
+
+    if (mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)) {
+      product = await Product.findById(id).populate('brand').populate('category')
+    }
+    if (!product) {
+      product = await Product.findOne({ slug: id }).populate('brand').populate('category')
+    }
+
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
 
     const variants = await ProductVariant.find({ productId: product._id, isActive: true })
-    return res.json({ success: true, data: { ...product.toObject(), variants } })
+    return res.json({ success: true, data: { ...product.toObject(), variants, ...computeProductSummary(product, variants) } })
   } catch (error) {
     console.error('GET /products/:id error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })

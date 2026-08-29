@@ -18,6 +18,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient } = require('mongodb')
+const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue } = require('./lib/pricing')
 
 const MONGODB_URI = process.env.MONGODB_URI
 if (!MONGODB_URI) {
@@ -87,25 +88,25 @@ async function seed() {
 
     for (const phone of phones) {
       const slug = slugify(`${phone.brandName} ${phone.modelName}`)
+      const modelBase = computeModelBase(phone.brandName, phone.modelName)
       const storageVariants = phone.storageVariants.map(s => ({
         storage: s,
-        ram: '',
-        baseValue: 0,
+        ram: guessRam(modelBase + storageAdjust(s)),
+        baseValue: storageVariantBaseValue(phone.brandName, phone.modelName, s),
       }))
 
       const result = await col.updateOne(
         { slug },
         {
-          $setOnInsert: {
+          $set: {
             brandName: phone.brandName,
             modelName: phone.modelName,
-            slug,
             storageVariants,
             isActive: true,
             sortOrder: 0,
-            createdAt: new Date(),
             updatedAt: new Date(),
           },
+          $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true }
       )

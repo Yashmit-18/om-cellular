@@ -36,6 +36,15 @@ export function formatPrice(amount: number): string {
   }).format(amount)
 }
 
+export function normalizePhone(phone: string): string | null {
+  if (!phone) return null
+  const digits = phone.replace(/\s|-|\(|\)/g, '')
+  const hasCountryCode = digits.startsWith('+91')
+  const bare = hasCountryCode ? digits.slice(3) : digits
+  if (!/^[6-9]\d{9}$/.test(bare)) return null
+  return `+91${bare}`
+}
+
 export function paginate(page: number, limit: number) {
   const safeLimit = Math.min(Math.max(limit, 1), 100)
   const safePage = Math.max(page, 1)

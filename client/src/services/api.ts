@@ -8,23 +8,41 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let refreshing: Promise<boolean> | null = null
+
+function tryRefresh(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = axios
+      .post(`${baseURL}/auth/refresh`, {}, { withCredentials: true })
+      .then(r => r.data?.success === true)
+      .catch(() => false)
+      .finally(() => { refreshing = null })
+  }
+  return refreshing
+}
+
 api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken')
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
   return config
 })
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      try {
-        const refreshResponse = await axios.post(`${baseURL}/auth/refresh`, {}, { withCredentials: true })
-        if (refreshResponse.data.success) {
-          return api(error.config)
-        }
-      } catch {
-        window.location.href = '/login'
+    const original = error.config as any
+    const status = error.response?.status
+
+    if (status === 401 && original && !original._retried) {
+      original._retried = true
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        return api(original)
       }
     }
+
     return Promise.reject(error)
   }
 )

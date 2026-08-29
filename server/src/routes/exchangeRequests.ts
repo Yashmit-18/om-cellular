@@ -1,7 +1,7 @@
 import { Router, Response } from 'express'
 import { ExchangeRequest } from '../models/exchangeRequest.model'
 import { ProductVariant } from '../models/productVariant.model'
-import { authenticate, requireAdmin } from '../middleware/auth'
+import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate } from '../utils/helpers'
 
@@ -43,7 +43,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails } = req.body
     if (!oldBrand || !oldModel || !oldCondition) return res.status(400).json({ success: false, message: 'Old device brand, model, and condition are required' })

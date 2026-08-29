@@ -7,7 +7,7 @@ import { formatDate } from '../../utils'
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ code: '', type: 'percentage', value: 0, minOrderAmount: 0, maxDiscount: 0, usageLimit: 0, expiresAt: '', isActive: true })
+  const [form, setForm] = useState({ code: '', type: 'PERCENTAGE', value: 0, minOrderAmount: 0, maxDiscount: 0, usageLimit: 0, expiresAt: '', isActive: true })
 
   useEffect(() => {
     api.get('/coupons').then(r => { setCoupons(r.data.data || []); setLoading(false) }).catch(() => setLoading(false))
@@ -18,7 +18,7 @@ export default function AdminCouponsPage() {
     try {
       const res = await api.post('/coupons', form)
       setCoupons([...coupons, res.data.data])
-      setForm({ code: '', type: 'percentage', value: 0, minOrderAmount: 0, maxDiscount: 0, usageLimit: 0, expiresAt: '', isActive: true })
+      setForm({ code: '', type: 'PERCENTAGE', value: 0, minOrderAmount: 0, maxDiscount: 0, usageLimit: 0, expiresAt: '', isActive: true })
       toast.success('Coupon created')
     } catch { toast.error('Failed') }
   }
@@ -39,7 +39,7 @@ export default function AdminCouponsPage() {
         <h2 className="font-semibold">Add Coupon</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="Code" className="input" />
-          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="input"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select>
+          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="input"><option value="PERCENTAGE">Percentage</option><option value="FIXED">Fixed</option></select>
           <input type="number" value={form.value || ''} onChange={e => setForm({ ...form, value: Number(e.target.value) })} placeholder="Value" className="input" />
           <input type="number" value={form.minOrderAmount || ''} onChange={e => setForm({ ...form, minOrderAmount: Number(e.target.value) })} placeholder="Min Order Amount" className="input" />
           <input type="number" value={form.maxDiscount || ''} onChange={e => setForm({ ...form, maxDiscount: Number(e.target.value) })} placeholder="Max Discount" className="input" />
@@ -56,7 +56,7 @@ export default function AdminCouponsPage() {
             <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50">
               <td className="px-4 py-3 font-medium">{c.code}</td>
               <td className="px-4 py-3 capitalize">{c.type}</td>
-              <td className="px-4 py-3">{c.type === 'percentage' ? `${c.value}%` : `Rs. ${c.value}`}</td>
+              <td className="px-4 py-3">{c.type === 'PERCENTAGE' ? `${c.value}%` : `Rs. ${c.value}`}</td>
               <td className="px-4 py-3">{c.usedCount}/{c.usageLimit || '∞'}</td>
               <td className="px-4 py-3">{c.expiresAt ? formatDate(c.expiresAt) : 'N/A'}</td>
               <td className="px-4 py-3"><button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></td>

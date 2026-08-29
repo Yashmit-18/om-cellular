@@ -217,7 +217,7 @@ export default function HomePage() {
       </div>
       <div className="mt-10 grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
         {brands.slice(0, 16).map((brand: any) => (
-          <Link key={brand.id || brand._id} to={`/products?brand=${brand.slug || brand.id}`}
+          <Link key={brand.id || brand._id} to={`/products?brandId=${brand.id || brand._id}`}
             className="card-premium flex flex-col items-center gap-2 p-4 text-center">
             {brand.logo ? (
               <img src={brand.logo} alt={brand.name} className="h-10 w-10 object-contain" />
@@ -244,7 +244,7 @@ export default function HomePage() {
         </div>
         <div className="mt-10 grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {items.map((item: any) => (
-            <Link key={item.id || item._id} to={`/products?brand=${item.slug || item.id}`}
+            <Link key={item.id || item._id} to={`/products?${categories.length > 0 ? 'categoryId' : 'brandId'}=${item.id || item._id}`}
               className="card-premium flex flex-col items-center gap-2 p-4 text-center">
               {item.logo ? (
                 <img src={item.logo} alt={item.name} className="h-10 w-10 object-contain" />

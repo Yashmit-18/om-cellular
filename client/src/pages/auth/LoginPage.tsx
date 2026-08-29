@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Phone, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../../stores/authStore'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -16,17 +16,17 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) {
+    if (!identifier || !password) {
       toast.error('Please fill in all fields')
       return
     }
     setLoading(true)
     try {
-      await login(email, password)
+      await login(identifier, password)
       toast.success('Logged in successfully!')
       navigate(redirect)
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid credentials')
+      toast.error(err.response?.data?.message || 'Invalid phone, email, or password')
     } finally {
       setLoading(false)
     }
@@ -39,19 +39,19 @@ export default function LoginPage() {
           <div className="text-center">
             <Link to="/" className="text-2xl font-bold text-brand-600">OM Cellular</Link>
             <h1 className="mt-4 text-xl font-bold text-gray-900">Welcome back</h1>
-            <p className="mt-1 text-sm text-gray-500">Sign in to your account</p>
+            <p className="mt-1 text-sm text-gray-500">Sign in with your phone number or email</p>
           </div>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-gray-700">Phone or Email</label>
               <div className="relative mt-1">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="input !pl-10"
-                  placeholder="you@example.com"
+                  placeholder="+91 98765 43210 or you@example.com"
                   required
                 />
               </div>

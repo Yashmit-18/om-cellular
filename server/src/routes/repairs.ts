@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { RepairBooking, RepairStatusHistory, RepairService } from '../models/repair.model'
-import { authenticate, requireAdmin } from '../middleware/auth'
+import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRepairBookingNumber, paginate } from '../utils/helpers'
 
@@ -53,7 +53,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const repair = await RepairBooking.findById(req.params.id).populate('userId', 'name email phone').populate('serviceId')
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
 
-    if (req.user!.role !== 'ADMIN' && repair.userId._id.toString() !== req.user!.id) {
+    if (req.user!.role !== 'ADMIN' && repair.userId && repair.userId._id.toString() !== req.user!.id) {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
 
@@ -64,21 +64,21 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { serviceId, brand, model, problemDescription, pickupRequired, pickupAddress, appointmentDate, appointmentTime } = req.body
     if (!brand || !model) return res.status(400).json({ success: false, message: 'Brand and model are required' })
 
     const bookingNumber = generateRepairBookingNumber()
     const repair = await RepairBooking.create({
-      bookingNumber, userId: req.user!.id, serviceId, brand, model, problemDescription,
+      bookingNumber, userId: req.user?.id || null, serviceId, brand, model, problemDescription,
       pickupRequired, pickupAddress, appointmentDate: appointmentDate ? new Date(appointmentDate) : undefined,
       appointmentTime,
     })
 
     await RepairStatusHistory.create({ repairId: repair._id, status: 'BOOKING_RECEIVED', note: 'Booking received' })
 
-    return res.status(201).json({ success: true, message: 'Repair booking created', data: repair })
+    return res.status(201).json({ success: true, message: 'Repair booking created', data: { ...repair.toObject(), bookingNumber } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }

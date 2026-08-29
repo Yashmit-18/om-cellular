@@ -7,7 +7,10 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "node scripts/seedAll.js",
-    "seed:phones": "node scripts/seedPhoneCatalog.js"
+    "seed:all": "node scripts/seedAll.js",
+    "seed:phones": "node scripts/seedPhoneCatalog.js",
+    "seed:repairs": "node scripts/seedRepairs.js",
+    "seed:products": "node scripts/seedProducts.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

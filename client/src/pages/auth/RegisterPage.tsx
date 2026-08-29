@@ -17,8 +17,17 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || !email || !password) {
-      toast.error('Please fill in all required fields')
+    if (!name || !phone || !password) {
+      toast.error('Name, phone, and password are required')
+      return
+    }
+    const phoneDigits = phone.replace(/[^0-9]/g, '')
+    if (!/^[6-9]\d{9}$/.test(phoneDigits)) {
+      toast.error('Please enter a valid 10-digit Indian phone number')
+      return
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address')
       return
     }
     if (password !== confirmPassword) {
@@ -31,12 +40,12 @@ export default function RegisterPage() {
     }
     setLoading(true)
     try {
-      await register({ name, email, phone: phone || undefined, password })
-      await login(email, password)
+      await register({ name, phone: phoneDigits, email: email || undefined, password })
+      await login(phoneDigits, password)
       toast.success('Account created successfully!')
       navigate('/')
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Registration failed')
+      toast.error(err.response?.data?.message || 'Registration failed')
     } finally {
       setLoading(false)
     }
@@ -60,17 +69,17 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email *</label>
+              <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
               <div className="relative mt-1">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input !pl-10" placeholder="you@example.com" required />
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input !pl-10" placeholder="+91 98765 43210" required />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Phone (optional)</label>
+              <label className="block text-sm font-medium text-gray-700">Email <span className="text-gray-400">(optional)</span></label>
               <div className="relative mt-1">
-                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input !pl-10" placeholder="+91 98765 43210" />
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input !pl-10" placeholder="you@example.com" />
               </div>
             </div>
             <div>

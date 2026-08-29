@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Wrench, Calendar, ArrowRight, Check, Clock, Shield, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { repairService } from '../../services/repair.service'
@@ -9,7 +10,8 @@ export default function RepairBookPage() {
   const [services, setServices] = useState<RepairService[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedService, setSelectedService] = useState<RepairService | null>(null)
-  const [view, setView] = useState<'catalog' | 'book'>('catalog')
+  const [view, setView] = useState<'catalog' | 'book' | 'success'>('catalog')
+  const [bookingNumber, setBookingNumber] = useState('')
   const [form, setForm] = useState({
     brand: '', model: '', problemDescription: '',
     appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '',
@@ -33,18 +35,41 @@ export default function RepairBookPage() {
     if (!form.brand || !form.model || !form.problemDescription) { toast.error('Please fill in all required fields'); return }
     setSubmitting(true)
     try {
-      await repairService.createRepair({
-        serviceId: selectedService?.id || undefined,
-        ...form,
-      })
-      toast.success('Repair booked successfully!')
-      setView('catalog')
-      setSelectedService(null)
-      setForm({ brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' })
-    } catch { toast.error('Failed to book repair. Please try again.') } finally { setSubmitting(false) }
+      const serviceId = (selectedService as any)?._id || selectedService?.id || undefined
+      const res = await repairService.createRepair({ serviceId, ...form })
+      const number = res?.data?.bookingNumber || res?.bookingNumber || ''
+      setBookingNumber(number)
+      setView('success')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to book repair. Please try again.')
+    } finally { setSubmitting(false) }
   }
 
   if (loading) return <div className="flex h-96 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" /></div>
+
+  if (view === 'success') {
+    return (
+      <div className="container-custom py-16">
+        <div className="mx-auto max-w-xl text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <Check className="h-8 w-8 text-emerald-600" />
+          </div>
+          <h1 className="mt-5 text-2xl font-bold text-gray-900">Repair booked successfully!</h1>
+          <p className="mt-2 text-gray-500">
+            {bookingNumber ? <>Your booking number is <span className="font-semibold text-gray-900">{bookingNumber}</span>. Save it to track your repair status.</> : 'Our team will contact you shortly to confirm your repair.'}
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {bookingNumber && (
+              <Link to={`/repair/track?booking=${encodeURIComponent(bookingNumber)}`} className="btn-primary">
+                Track Repair <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            )}
+            <button onClick={() => { setView('catalog'); setSelectedService(null); setBookingNumber(''); setForm({ brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' }) }} className="btn-secondary">Book Another Repair</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (view === 'book' && selectedService) {
     return (

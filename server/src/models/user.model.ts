@@ -18,11 +18,13 @@ const userSchema = new Schema<IUser>({
   email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
   emailVerified: { type: Date },
   image: { type: String },
-  phone: { type: String, trim: true },
+  phone: { type: String, unique: true, sparse: true, trim: true },
   password: { type: String, select: false },
   role: { type: String, enum: ['ADMIN', 'CUSTOMER'], default: 'CUSTOMER' },
 }, { timestamps: true })
 
 userSchema.index({ role: 1 })
+userSchema.index({ phone: 1 })
+userSchema.index({ email: 1 })
 
 export const User = mongoose.model<IUser>('User', userSchema)

@@ -72,25 +72,19 @@ export function generateTokens(user: AuthUser) {
 
 export function setTokenCookies(res: Response, accessToken: string, refreshToken: string) {
   const isProduction = env.NODE_ENV === 'production'
-
-  res.cookie('accessToken', accessToken, {
+  const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite: isProduction ? 'none' as const : 'lax' as const,
     path: '/',
-  })
+  }
 
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    path: '/',
-  })
+  res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 })
+  res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 })
 }
 
 export function clearTokenCookies(res: Response) {
-  res.cookie('accessToken', '', { httpOnly: true, maxAge: 0, path: '/' })
-  res.cookie('refreshToken', '', { httpOnly: true, maxAge: 0, path: '/' })
+  const isProduction = env.NODE_ENV === 'production'
+  res.cookie('accessToken', '', { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: 0, path: '/' })
+  res.cookie('refreshToken', '', { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: 0, path: '/' })
 }

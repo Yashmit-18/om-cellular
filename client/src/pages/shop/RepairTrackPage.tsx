@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Search, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { repairService } from '../../services/repair.service'
@@ -6,9 +7,19 @@ import { formatDate } from '../../utils'
 import { REPAIR_STATUS_COLORS } from '../../constants'
 
 export default function RepairTrackPage() {
-  const [bookingNumber, setBookingNumber] = useState('')
+  const [searchParams] = useSearchParams()
+  const [bookingNumber, setBookingNumber] = useState(searchParams.get('booking') || '')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const booking = searchParams.get('booking')
+    if (booking) {
+      setBookingNumber(booking)
+      handleTrack()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleTrack = async () => {
     if (!bookingNumber.trim()) { toast.error('Enter booking number'); return }

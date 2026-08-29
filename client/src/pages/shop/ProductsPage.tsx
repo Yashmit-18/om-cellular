@@ -18,9 +18,9 @@ export default function ProductsPage() {
   const currentCategory = searchParams.get('categoryId') || ''
   const currentBrand = searchParams.get('brandId') || ''
   const currentQuery = searchParams.get('query') || ''
+  const currentIsFeatured = searchParams.get('isFeatured') || ''
   const currentPage = parseInt(searchParams.get('page') || '1')
-  const currentSort = searchParams.get('sortBy') || 'createdAt'
-  const currentOrder = searchParams.get('sortOrder') || 'desc'
+  const currentSort = searchParams.get('sort') || 'newest'
 
   useEffect(() => {
     api.get('/categories').then(r => setCategories(r.data.data || [])).catch(() => {})
@@ -31,10 +31,11 @@ export default function ProductsPage() {
     const fetchProducts = async () => {
       setLoading(true)
       try {
-        const params: Record<string, string> = { page: String(currentPage), limit: '12', sortBy: currentSort, sortOrder: currentOrder }
+        const params: Record<string, string> = { page: String(currentPage), limit: '12', sort: currentSort }
         if (currentCategory) params.categoryId = currentCategory
         if (currentBrand) params.brandId = currentBrand
         if (currentQuery) params.query = currentQuery
+        if (currentIsFeatured) params.isFeatured = currentIsFeatured
         const query = new URLSearchParams(params).toString()
         const res = await api.get(`/products?${query}`)
         setProducts(res.data.data || [])
@@ -46,7 +47,7 @@ export default function ProductsPage() {
       }
     }
     fetchProducts()
-  }, [currentCategory, currentBrand, currentQuery, currentPage, currentSort, currentOrder])
+  }, [currentCategory, currentBrand, currentQuery, currentIsFeatured, currentPage, currentSort])
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
@@ -63,6 +64,7 @@ export default function ProductsPage() {
     currentCategory && { key: 'categoryId', value: currentCategory, label: categories.find(c => c.id === currentCategory)?.name || 'Category' },
     currentBrand && { key: 'brandId', value: currentBrand, label: brands.find(b => b.id === currentBrand)?.name || 'Brand' },
     currentQuery && { key: 'query', value: currentQuery, label: currentQuery },
+    currentIsFeatured && { key: 'isFeatured', value: currentIsFeatured, label: 'Featured' },
   ].filter(Boolean) as { key: string; value: string; label: string }[]
 
   return (
@@ -81,19 +83,14 @@ export default function ProductsPage() {
             <button onClick={() => setViewMode('list')} className={cn('rounded p-1.5', viewMode === 'list' && 'bg-gray-100')}><List className="h-4 w-4" /></button>
           </div>
           <select
-            value={`${currentSort}-${currentOrder}`}
-            onChange={(e) => {
-              const [sort, order] = e.target.value.split('-')
-              updateFilter('sortBy', sort)
-              updateFilter('sortOrder', order)
-            }}
+            value={currentSort}
+            onChange={(e) => updateFilter('sort', e.target.value)}
             className="input !w-auto !py-2"
           >
-            <option value="createdAt-desc">Newest</option>
-            <option value="createdAt-asc">Oldest</option>
-            <option value="lowestPrice-asc">Price: Low to High</option>
-            <option value="lowestPrice-desc">Price: High to Low</option>
-            <option value="name-asc">Name: A-Z</option>
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="name">Name: A-Z</option>
           </select>
         </div>
       </div>

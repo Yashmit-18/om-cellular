@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { SellRequest } from '../models/sellRequest.model'
-import { authenticate, requireAdmin } from '../middleware/auth'
+import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate } from '../utils/helpers'
 
@@ -42,7 +42,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, pickupAddress, pickupDate, pickupTime } = req.body
     if (!brand || !model || !condition) return res.status(400).json({ success: false, message: 'Brand, model, and condition are required' })

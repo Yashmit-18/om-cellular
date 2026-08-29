@@ -13,8 +13,8 @@ interface User {
 interface AuthState {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>
+  login: (identifier: string, password: string) => Promise<void>
+  register: (data: { name: string; phone: string; email?: string; password: string }) => Promise<void>
   logout: () => Promise<void>
   fetchUser: () => Promise<void>
   setUser: (user: User | null) => void
@@ -24,8 +24,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
-  login: async (email, password) => {
-    const response = await authService.login({ email, password })
+  login: async (identifier, password) => {
+    const response = await authService.login({ identifier, password })
     if (response.success) {
       set({ user: response.data.user })
     }
