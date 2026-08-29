@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     ])
 
     const ordersWithItems = await Promise.all(orders.map(async (o) => {
-      const items = await OrderItem.find({ orderId: o._id }).populate('variant')
+      const items = await OrderItem.find({ orderId: o._id }).populate('variantId')
       return { ...o.toObject(), items }
     }))
 
@@ -51,7 +51,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
 
-    const items = await OrderItem.find({ orderId: order._id }).populate('variant')
+    const items = await OrderItem.find({ orderId: order._id }).populate('variantId')
     return res.json({ success: true, data: { ...order.toObject(), items } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -180,7 +180,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const result = await Order.findById(order._id).populate('userId', 'name email')
-    const resultItems = await OrderItem.find({ orderId: order._id }).populate('variant')
+    const resultItems = await OrderItem.find({ orderId: order._id }).populate('variantId')
 
     return res.status(201).json({ success: true, message: 'Order created', data: { ...result!.toObject(), items: resultItems } })
   } catch (error) {

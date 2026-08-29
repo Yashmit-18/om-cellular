@@ -71,7 +71,7 @@ export default function AccountOrderDetailPage() {
             <div className="space-y-3">
               {order.items.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between text-sm">
-                  <div><p className="font-medium">{item.variant?.name || item.variantId}</p><p className="text-gray-500">Qty: {item.quantity}</p></div>
+                  <div><p className="font-medium">{item.variant?.name || item.variantId?.name || item.variantId}</p><p className="text-gray-500">Qty: {item.quantity}</p></div>
                   <p className="font-medium">{formatPrice(item.total)}</p>
                 </div>
               ))}
