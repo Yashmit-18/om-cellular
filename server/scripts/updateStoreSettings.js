@@ -21,12 +21,12 @@ if (!MONGODB_URI) {
   process.exit(1)
 }
 
-const STORE_ADDRESS = '1st Floor, Central Square Mall, Kotri Road, Kota, Rajasthan, India'
+const STORE_ADDRESS = 'Shop No. 8, Upper Ground Floor, Center Square Mall, Gumanpura Road, Kota, Rajasthan 324007, India'
 
 const FILL_IF_EMPTY = [
   { key: 'business_address', value: STORE_ADDRESS, group: 'business' },
-  { key: 'google_maps_url', value: 'https://maps.google.com/maps?q=Central%20Square%20Mall%20Kotri%20Road%20Kota%20Rajasthan%20India&z=16&output=embed', group: 'maps' },
-  { key: 'google_maps_link', value: 'https://www.google.com/maps/search/?api=1&query=Central%20Square%20Mall%2C%20Kotri%20Road%2C%20Kota%2C%20Rajasthan%2C%20India', group: 'maps' },
+  { key: 'google_maps_url', value: 'https://maps.google.com/maps?q=Shop%20No.%208%20Upper%20Ground%20Floor%20Center%20Square%20Mall%20Gumanpura%20Road%20Kota%20Rajasthan%20324007%20India&z=16&output=embed', group: 'maps' },
+  { key: 'google_maps_link', value: 'https://www.google.com/maps/search/?api=1&query=Shop%20No.%208%2C%20Upper%20Ground%20Floor%2C%20Center%20Square%20Mall%2C%20Gumanpura%20Road%2C%20Kota%2C%20Rajasthan%20324007%2C%20India', group: 'maps' },
   { key: 'opening_hours', value: 'Mon-Sat: 10:00 AM - 8:00 PM', group: 'business' },
   { key: 'repair_pickup_drop_fee', value: '99', group: 'repair' },
 ]

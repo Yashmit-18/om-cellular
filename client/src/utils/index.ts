@@ -77,15 +77,15 @@ export function isValidImageUrl(url: string): boolean {
 }
 
 export function storeAddressText(): string {
-  return '1st Floor, Central Square Mall, Kotri Road, Kota, Rajasthan, India'
+  return 'Shop No. 8, Upper Ground Floor, Center Square Mall, Gumanpura Road, Kota, Rajasthan 324007, India'
 }
 
 export function googleMapsSearchUrl(): string {
-  const q = encodeURIComponent('Central Square Mall, Kotri Road, Kota, Rajasthan, India')
+  const q = encodeURIComponent('Shop No. 8, Upper Ground Floor, Center Square Mall, Gumanpura Road, Kota, Rajasthan 324007, India')
   return `https://www.google.com/maps/search/?api=1&query=${q}`
 }
 
 export function googleMapsEmbedUrl(): string {
-  const q = encodeURIComponent('Central Square Mall Kotri Road Kota Rajasthan India')
+  const q = encodeURIComponent('Shop No. 8 Upper Ground Floor Center Square Mall Gumanpura Road Kota Rajasthan 324007 India')
   return `https://maps.google.com/maps?q=${q}&z=16&output=embed`
 }
