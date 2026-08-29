@@ -1,4 +1,22 @@
 // Sample products shared between seed scripts.
+// Images use a lightweight placeholder service (placehold.co) so the catalog
+// never renders broken images; admins can replace them with real photos.
+
+function productImages(name) {
+  const palette = [
+    ['1d4ed8', 'ffffff'],
+    ['0f766e', 'ffffff'],
+    ['7c3aed', 'ffffff'],
+    ['d97706', 'ffffff'],
+    ['be123c', 'ffffff'],
+    ['334155', 'ffffff'],
+  ]
+  let hash = 0
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
+  const [fg, bg] = palette[hash % palette.length]
+  const text = encodeURIComponent(name.replace(/&/g, 'and'))
+  return [`https://placehold.co/600x600/${fg}/${bg}/png?text=${text}`]
+}
 
 const sampleProducts = [
   {
@@ -9,6 +27,7 @@ const sampleProducts = [
     isNewArrival: true,
     warranty: '1 Year Apple Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('Apple iPhone 15'),
     variant: {
       name: 'iPhone 15 128GB Black',
       sku: 'APL-IP15-128-BLK',
@@ -28,6 +47,7 @@ const sampleProducts = [
     isNewArrival: true,
     warranty: '1 Year Samsung Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('Samsung Galaxy S24'),
     variant: {
       name: 'Galaxy S24 128GB Onyx Black',
       sku: 'SAM-GS24-128-OBLK',
@@ -47,6 +67,7 @@ const sampleProducts = [
     isNewArrival: false,
     warranty: '1 Year OnePlus Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('OnePlus 12'),
     variant: {
       name: 'OnePlus 12 256GB Flowy Emerald',
       sku: 'OPL-12-256-FEMR',
@@ -66,6 +87,7 @@ const sampleProducts = [
     isNewArrival: false,
     warranty: '1 Year Xiaomi Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('Redmi Note 13 Pro+ 5G'),
     variant: {
       name: 'Redmi Note 13 Pro+ 5G 256GB Fusion Purple',
       sku: 'XIA-RN13PP-256-FPUR',
@@ -85,6 +107,7 @@ const sampleProducts = [
     isNewArrival: true,
     warranty: '1 Year Realme Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('Realme GT 6 Pro'),
     variant: {
       name: 'Realme GT 6 Pro 256GB Razor Green',
       sku: 'REL-GT6P-256-RGRN',
@@ -104,6 +127,7 @@ const sampleProducts = [
     isNewArrival: true,
     warranty: '1 Year Vivo Warranty',
     returnPolicy: '7 Days Return Policy',
+    images: productImages('Vivo V40'),
     variant: {
       name: 'Vivo V40 256GB Lotus Purple',
       sku: 'VIV-V40-256-LPUR',

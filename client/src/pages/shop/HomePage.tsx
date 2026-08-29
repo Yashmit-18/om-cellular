@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
+import ProductImage from '../../components/shop/ProductImage'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection } from '../../types'
 
 const REPAIR_ICONS: Record<string, string> = {
@@ -645,9 +646,12 @@ export default function HomePage() {
 function ProductCard({ product }: { product: ProductWithVariant }) {
   return (
     <Link key={product.id} to={`/products/${product.slug || product.id}`} className="card-premium group p-4">
-      <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-        <img src={product.primaryImage || '/placeholder.svg'} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-      </div>
+      <ProductImage
+        src={product.primaryImage}
+        alt={product.name}
+        className="aspect-square rounded-lg"
+        imgClassName="transition-transform group-hover:scale-105"
+      />
       <div className="mt-4">
         <h3 className="text-sm font-medium text-gray-900 line-clamp-2">{product.name}</h3>
         <div className="mt-2 flex items-baseline gap-2">

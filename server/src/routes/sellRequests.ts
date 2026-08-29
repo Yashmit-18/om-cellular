@@ -44,14 +44,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, pickupAddress, pickupDate, pickupTime } = req.body
+    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, phone, pickupAddress, pickupDate, pickupTime } = req.body
     if (!brand || !model || !condition) return res.status(400).json({ success: false, message: 'Brand, model, and condition are required' })
 
     const requestNumber = generateRequestNumber('sell')
     const userId = req.user?.id || null
 
     const request = await SellRequest.create({
-      requestNumber, userId, brand, model, storage, ram, age, condition,
+      requestNumber, userId, phone, brand, model, storage, ram, age, condition,
       displayCondition, batteryCondition, cameraCondition, bodyCondition,
       accessoriesAvailable: !!accessoriesAvailable, originalBill: !!originalBill, originalBox: !!originalBox,
       pickupAddress, pickupDate: pickupDate ? new Date(pickupDate) : undefined, pickupTime,

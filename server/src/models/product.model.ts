@@ -17,6 +17,7 @@ export interface IProduct extends Document {
   seoTitle?: string
   seoDescription?: string
   seoKeywords?: string
+  images: string[]
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -28,6 +29,7 @@ const productSchema = new Schema<IProduct>({
   description: { type: String },
   brandId: { type: Schema.Types.ObjectId, ref: 'Brand', default: null },
   categoryId: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
+  images: { type: [String], default: [] },
   isFeatured: { type: Boolean, default: false },
   isNewArrival: { type: Boolean, default: false },
   isBestSeller: { type: Boolean, default: false },

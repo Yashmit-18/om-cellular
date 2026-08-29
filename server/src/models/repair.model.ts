@@ -40,6 +40,7 @@ export interface IRepairBooking {
   bookingNumber: string
   userId?: mongoose.Types.ObjectId
   serviceId?: mongoose.Types.ObjectId
+  phone?: string
   brand?: string
   model?: string
   problemDescription?: string
@@ -60,6 +61,7 @@ const repairBookingSchema = new Schema<IRepairBooking>({
   bookingNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   serviceId: { type: Schema.Types.ObjectId, ref: 'RepairService', default: null },
+  phone: { type: String, trim: true },
   brand: { type: String },
   model: { type: String },
   problemDescription: { type: String },

@@ -4,6 +4,7 @@ export interface IExchangeRequest extends Document {
   _id: mongoose.Types.ObjectId
   requestNumber: string
   userId?: mongoose.Types.ObjectId
+  phone?: string
   oldBrand: string
   oldModel: string
   oldStorage?: string
@@ -23,6 +24,7 @@ export interface IExchangeRequest extends Document {
 const exchangeRequestSchema = new Schema<IExchangeRequest>({
   requestNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  phone: { type: String, trim: true },
   oldBrand: { type: String, required: true, trim: true },
   oldModel: { type: String, required: true, trim: true },
   oldStorage: { type: String },

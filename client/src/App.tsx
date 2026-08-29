@@ -1,5 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
 
 import ShopLayout from './layouts/ShopLayout'
 import AdminLayout from './layouts/AdminLayout'
@@ -63,9 +63,16 @@ const AdminRepairServices = lazy(() => import('./pages/admin/RepairServicesPage'
 const AdminPhoneCatalog = lazy(() => import('./pages/admin/PhoneCatalogPage'))
 const AdminBrands = lazy(() => import('./pages/admin/BrandsPage'))
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior }) }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <Suspense fallback={<Loading />}>
+      <ScrollToTop />
       <Routes>
         <Route element={<ShopLayout />}>
           <Route path="/" element={<Home />} />

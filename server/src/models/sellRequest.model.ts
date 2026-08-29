@@ -4,6 +4,7 @@ export interface ISellRequest {
   _id: mongoose.Types.ObjectId
   requestNumber: string
   userId?: mongoose.Types.ObjectId
+  phone?: string
   brand: string
   model: string
   storage?: string
@@ -31,6 +32,7 @@ export interface ISellRequest {
 const sellRequestSchema = new Schema<ISellRequest>({
   requestNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  phone: { type: String, trim: true },
   brand: { type: String, required: true, trim: true },
   model: { type: String, required: true, trim: true },
   storage: { type: String },

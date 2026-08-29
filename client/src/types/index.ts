@@ -73,6 +73,7 @@ export interface Product {
   seoTitle: string | null
   seoDescription: string | null
   seoKeywords: string | null
+  images: string[]
   createdAt: Date
   updatedAt: Date
   category?: Category
@@ -237,6 +238,7 @@ export interface RepairBooking {
   bookingNumber: string
   userId: string
   serviceId: string | null
+  phone: string | null
   brand: string
   model: string
   problemDescription: string
@@ -270,6 +272,7 @@ export interface SellRequest {
   id: string
   requestNumber: string
   userId: string | null
+  phone: string | null
   brand: string
   model: string
   condition: string
@@ -299,6 +302,7 @@ export interface ExchangeRequest {
   id: string
   requestNumber: string
   userId: string | null
+  phone: string | null
   oldBrand: string
   oldModel: string
   oldStorage: string | null

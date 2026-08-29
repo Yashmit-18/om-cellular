@@ -1,21 +1,67 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ShoppingCart, Heart, Truck, Shield, ChevronRight, Star, Minus, Plus } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ShoppingCart, Heart, Truck, Shield, ChevronRight, Minus, Plus, Zap, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { useCartStore } from '../../stores/cartStore'
 import { useWishlistStore } from '../../stores/wishlistStore'
 import { useAuthStore } from '../../stores/authStore'
-import { formatPrice, calculateDiscount, getConditionLabel, cn } from '../../utils'
+import { formatPrice, calculateDiscount, getImageList, cn } from '../../utils'
+import ProductImage from '../../components/shop/ProductImage'
 import type { Product, ProductVariant } from '../../types'
+
+function parseArrayItems(value: unknown): string[] {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value.map(v => (typeof v === 'string' ? v : v && typeof v === 'object' ? (v as any)?.value ?? JSON.stringify(v) : String(v)))
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parseArrayItems(parsed) : value ? [value] : []
+    } catch { return value ? [value] : [] }
+  }
+  return []
+}
+
+function parseSpecs(value: unknown): [string, string][] {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    const entries: [string, string][] = []
+    value.forEach(item => {
+      if (item && typeof item === 'object') {
+        const key = (item as any)?.key ?? (item as any)?.name ?? (item as any)?.label
+        let val: any = (item as any)?.value ?? (item as any)?.description
+        if (val == null) val = ''
+        entries.push([String(key), String(val)])
+      } else if (typeof item === 'string' && item.includes(':')) {
+        const [k, ...rest] = item.split(':')
+        entries.push([k.trim(), rest.join(':').trim()])
+      }
+    })
+    return entries
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, String(v)])
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return parseSpecs(parsed)
+    } catch { return [] }
+  }
+  return []
+}
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [product, setProduct] = useState<Product | null>(null)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const addItem = useCartStore(s => s.addItem)
   const toggleItem = useWishlistStore(s => s.toggleItem)
   const hasItem = useWishlistStore(s => s.hasItem)
@@ -24,14 +70,17 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
+    setError(false)
     api.get(`/products/${id}`).then(r => {
       setProduct(r.data.data)
       const variants = r.data.data?.variants?.filter((v: ProductVariant) => v.isActive) || []
       if (variants.length > 0) {
         setSelectedVariant(variants.find((v: ProductVariant) => v.stock > 0) || variants[0])
       }
+      setSelectedImage(0)
       setLoading(false)
     }).catch(() => {
+      setError(true)
       setLoading(false)
     })
   }, [id])
@@ -42,7 +91,7 @@ export default function ProductDetailPage() {
       toast.error('Not enough stock')
       return
     }
-    const images = JSON.parse(selectedVariant.images || '[]')
+    const images = getImageList(product.images, selectedVariant.images)
     addItem({
       id: product.id,
       variantId: selectedVariant.id,
@@ -58,6 +107,28 @@ export default function ProductDetailPage() {
     toast.success('Added to cart!')
   }
 
+  const handleBuyNow = () => {
+    if (!selectedVariant || !product) return
+    if (selectedVariant.stock < quantity) {
+      toast.error('Not enough stock')
+      return
+    }
+    const images = getImageList(product.images, selectedVariant.images)
+    addItem({
+      id: product.id,
+      variantId: selectedVariant.id,
+      productId: product.id,
+      name: `${product.name} - ${selectedVariant.name}`,
+      slug: product.slug,
+      image: images[0] || '/placeholder.svg',
+      price: selectedVariant.price,
+      discountPrice: selectedVariant.discountPrice,
+      stock: selectedVariant.stock,
+      quantity,
+    })
+    navigate('/checkout')
+  }
+
   const handleWishlist = () => {
     if (!selectedVariant) return
     if (!user) {
@@ -65,126 +136,154 @@ export default function ProductDetailPage() {
       return
     }
     toggleItem(selectedVariant.id)
-    toast.success(hasItem(selectedVariant.id) ? 'Removed from wishlist' : 'Added to wishlist')
+    toast.success(hasItem(selectedVariant.id) ? 'Added to wishlist' : 'Removed from wishlist')
   }
 
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-2">
+          <div className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
+          <div className="space-y-4">
+            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
+            <div className="h-8 w-2/3 animate-pulse rounded bg-gray-100" />
+            <div className="h-10 w-40 animate-pulse rounded bg-gray-100" />
+            <div className="h-24 w-full animate-pulse rounded bg-gray-100" />
+            <div className="h-12 w-full animate-pulse rounded bg-gray-100" />
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12 text-center sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold">Product not found</h1>
-        <Link to="/products" className="mt-4 inline-flex items-center text-brand-600">
-          <ChevronRight className="mr-1 h-4 w-4" /> Back to products
+      <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400"><Zap className="h-7 w-7" /></div>
+        <h1 className="mt-4 text-2xl font-bold text-gray-900">Product unavailable</h1>
+        <p className="mt-2 text-sm text-gray-500">This product could not be found or is no longer available.</p>
+        <Link to="/buy-phones" className="btn-primary mt-6 inline-flex">
+          <ChevronRight className="mr-1 h-4 w-4" /> Browse phones
         </Link>
       </div>
     )
   }
 
   const variants = product.variants?.filter(v => v.isActive) || []
-  const images = selectedVariant ? JSON.parse(selectedVariant.images || '[]') : []
-  const specs = selectedVariant ? JSON.parse(selectedVariant.specifications || '{}') : {}
-  const whatsIncluded = selectedVariant ? JSON.parse(selectedVariant.whatsIncluded || '[]') : []
+  const images = getImageList(product.images, selectedVariant?.images)
+  const specs = parseSpecs(selectedVariant?.specifications)
+  const whatsIncluded = parseArrayItems(selectedVariant?.whatsIncluded)
+  const displayPrice = selectedVariant ? (selectedVariant.discountPrice || selectedVariant.price) : 0
+  const lowestAny = variants.length > 0 ? Math.min(...variants.map(v => v.discountPrice || v.price)) : 0
+  const highestAny = variants.length > 0 ? Math.max(...variants.map(v => v.discountPrice || v.price)) : 0
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500">
+      <nav className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
         <Link to="/" className="hover:text-gray-900">Home</Link>
         <ChevronRight className="h-3 w-3" />
-        <Link to="/products" className="hover:text-gray-900">Products</Link>
+        <Link to="/buy-phones" className="hover:text-gray-900">Buy Phones</Link>
         {product.category && (
           <>
             <ChevronRight className="h-3 w-3" />
-            <Link to={`/products?categoryId=${product.category.id}`} className="hover:text-gray-900">{product.category.name}</Link>
+            <Link to={`/buy-phones?categoryId=${product.category.id}`} className="hover:text-gray-900">{product.category.name}</Link>
           </>
         )}
         <ChevronRight className="h-3 w-3" />
-        <span className="text-gray-900">{product.name}</span>
+        <span className="truncate text-gray-900">{product.name}</span>
       </nav>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-2">
-        {/* Images */}
+      <div className="mt-6 grid gap-10 lg:grid-cols-2">
+        {/* Gallery */}
         <div>
-          <div className="aspect-square overflow-hidden rounded-xl bg-gray-100">
-            <img
-              src={images[selectedImage] || '/placeholder.svg'}
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <ProductImage
+              src={images[selectedImage]}
               alt={product.name}
-              className="h-full w-full object-cover"
+              className="aspect-square rounded-2xl"
+              imgClassName="transition-all duration-300"
             />
           </div>
           {images.length > 1 && (
             <div className="mt-4 grid grid-cols-5 gap-2">
-              {images.map((img: string, i: number) => (
+              {images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={cn('aspect-square overflow-hidden rounded-lg border-2', i === selectedImage ? 'border-brand-500' : 'border-transparent')}
+                  className={cn('overflow-hidden rounded-xl border-2 transition-colors', i === selectedImage ? 'border-brand-600' : 'border-transparent opacity-80 hover:opacity-100')}
+                  aria-label={`View image ${i + 1}`}
                 >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  <ProductImage src={img} alt="" className="aspect-square rounded-xl" />
                 </button>
               ))}
             </div>
+          )}
+          {images.length === 0 && (
+            <p className="mt-3 text-center text-xs text-gray-400">Product imagery coming soon</p>
           )}
         </div>
 
         {/* Details */}
         <div>
-          {product.brand && <p className="text-sm text-gray-500">{product.brand.name}</p>}
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">{product.name}</h1>
+          {product.brand && <p className="text-sm font-medium uppercase tracking-wide text-gray-400">{product.brand.name}</p>}
+          <h1 className="mt-1 text-2xl font-bold leading-tight text-gray-900 md:text-3xl">{product.name}</h1>
 
           {selectedVariant && (
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-brand-600">{formatPrice(selectedVariant.discountPrice || selectedVariant.price)}</span>
-              {selectedVariant.discountPrice && selectedVariant.discountPrice < selectedVariant.price && (
-                <>
-                  <span className="text-lg text-gray-400 line-through">{formatPrice(selectedVariant.price)}</span>
-                  <span className="badge-success badge">{calculateDiscount(selectedVariant.price, selectedVariant.discountPrice)}% off</span>
-                </>
+            <>
+              <div className="mt-4 flex flex-wrap items-baseline gap-3">
+                <span className="text-3xl font-bold text-brand-600">{formatPrice(displayPrice)}</span>
+                {selectedVariant.discountPrice && selectedVariant.discountPrice < selectedVariant.price && (
+                  <>
+                    <span className="text-lg text-gray-400 line-through">{formatPrice(selectedVariant.price)}</span>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                      {calculateDiscount(selectedVariant.price, selectedVariant.discountPrice)}% off
+                    </span>
+                  </>
+                )}
+              </div>
+              {variants.length > 1 && (
+                <p className="mt-1 text-xs text-gray-500">Price range: {formatPrice(lowestAny)} - {formatPrice(highestAny)}</p>
               )}
-            </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                {selectedVariant.stock > 0 ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                      <Check className="h-3 w-3" /> In Stock ({selectedVariant.stock} available)
+                    </span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-500">Free shipping</span>
+                  </>
+                ) : (
+                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">Out of Stock</span>
+                )}
+              </div>
+            </>
           )}
 
-          {selectedVariant && (
-            <div className="mt-4 flex items-center gap-4 text-sm">
-              {selectedVariant.stock > 0 ? (
-                <span className="text-emerald-600 font-medium">In Stock ({selectedVariant.stock} available)</span>
-              ) : (
-                <span className="text-red-600 font-medium">Out of Stock</span>
-              )}
-              {selectedVariant.condition && (
-                <span className="badge-info badge">{getConditionLabel(selectedVariant.condition)}</span>
-              )}
-              {selectedVariant.soldCount > 0 && (
-                <span className="text-gray-500">{selectedVariant.soldCount} sold</span>
-              )}
-            </div>
-          )}
-
-          {/* Variant Selection */}
-          {variants.length > 1 && (
+          {/* Variant selection */}
+          {variants.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900">Select Variant</h3>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">Select variant</h3>
+              <div className="mt-2.5 flex flex-wrap gap-2">
                 {variants.map(variant => (
                   <button
                     key={variant.id}
                     onClick={() => { setSelectedVariant(variant); setSelectedImage(0); setQuantity(1) }}
                     className={cn(
-                      'rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors',
-                      selectedVariant?.id === variant.id ? 'border-brand-500 bg-brand-50 text-brand-600' : 'border-gray-200 hover:border-gray-300'
+                      'rounded-xl border-2 px-3.5 py-2 text-left text-sm font-medium transition-all',
+                      selectedVariant?.id === variant.id
+                        ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     )}
                   >
-                    {variant.name}
-                    {variant.color && ` - ${variant.color}`}
-                    {variant.storage && ` / ${variant.storage}`}
-                    {variant.ram && ` / ${variant.ram}`}
+                    <span className="block">{variant.storage || variant.name}</span>
+                    <span className="block text-xs font-normal text-gray-500">
+                      {[variant.ram, variant.color].filter(Boolean).join(' · ') || variant.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-semibold text-brand-600">
+                      {formatPrice(variant.discountPrice || variant.price)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -193,14 +292,14 @@ export default function ProductDetailPage() {
 
           {/* Quantity */}
           {selectedVariant && selectedVariant.stock > 0 && (
-            <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900">Quantity</h3>
-              <div className="mt-2 flex items-center gap-3">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50">
+            <div className="mt-6 flex items-center gap-4">
+              <h3 className="text-sm font-semibold text-gray-900">Quantity</h3>
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-1.5">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-50" aria-label="Decrease quantity">
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-12 text-center font-medium">{quantity}</span>
-                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50">
+                <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
+                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-50" aria-label="Increase quantity">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
@@ -208,50 +307,62 @@ export default function ProductDetailPage() {
           )}
 
           {/* Actions */}
-          <div className="mt-6 flex gap-3">
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <button
               onClick={handleAddToCart}
               disabled={!selectedVariant || selectedVariant.stock <= 0}
-              className="btn-primary flex-1"
+              className="btn-primary flex-1 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
             </button>
-            <button onClick={handleWishlist} className={cn('rounded-lg border p-3', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-300 bg-red-50 text-red-600' : 'border-gray-300 text-gray-500 hover:bg-gray-50')}>
+            {selectedVariant && selectedVariant.stock > 0 && (
+              <button onClick={handleBuyNow} className="btn-secondary flex-1">
+                <Zap className="mr-2 h-4 w-4 text-amber-500" /> Buy Now
+              </button>
+            )}
+            <button
+              onClick={handleWishlist}
+              disabled={!selectedVariant}
+              className={cn('rounded-xl border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600')}
+              aria-label="Toggle wishlist"
+            >
               <Heart className={cn('h-5 w-5', selectedVariant && hasItem(selectedVariant.id) && 'fill-current')} />
             </button>
           </div>
 
           {/* Badges */}
-          <div className="mt-4 flex gap-2">
-            {product.isFeatured && <span className="badge-info badge">Featured</span>}
-            {product.isNewArrival && <span className="badge badge bg-purple-100 text-purple-800">New Arrival</span>}
-            {product.isBestSeller && <span className="badge badge bg-amber-100 text-amber-800">Best Seller</span>}
-            {selectedVariant?.badge && <span className="badge badge bg-emerald-100 text-emerald-800">{selectedVariant.badge}</span>}
-          </div>
+          {(product.isFeatured || product.isNewArrival || product.isBestSeller || selectedVariant?.badge) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {product.isFeatured && <span className="badge-info badge">Featured</span>}
+              {product.isNewArrival && <span className="badge badge bg-purple-100 text-purple-800">New Arrival</span>}
+              {product.isBestSeller && <span className="badge badge bg-amber-100 text-amber-800">Best Seller</span>}
+              {selectedVariant?.badge && <span className="badge badge bg-emerald-100 text-emerald-800">{selectedVariant.badge}</span>}
+            </div>
+          )}
 
           {/* Trust */}
-          <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-2 text-sm"><Truck className="h-4 w-4 text-brand-500" /> Free Shipping</div>
-            <div className="flex items-center gap-2 text-sm"><Shield className="h-4 w-4 text-brand-500" /> {product.warranty || 'Warranty Included'}</div>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 text-sm"><Truck className="h-4 w-4 shrink-0 text-brand-500" /> Free Shipping</div>
+            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 text-sm"><Shield className="h-4 w-4 shrink-0 text-brand-500" /> {product.warranty || 'Warranty Included'}</div>
           </div>
 
           {/* Description */}
           {product.description && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900">Description</h3>
-              <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{product.description}</p>
+              <h3 className="text-sm font-semibold text-gray-900">Description</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600 whitespace-pre-line">{product.description}</p>
             </div>
           )}
 
           {/* Specifications */}
-          {Object.keys(specs).length > 0 && (
+          {specs.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900">Specifications</h3>
-              <dl className="mt-2 divide-y divide-gray-100">
-                {Object.entries(specs).map(([key, value]) => (
-                  <div key={key} className="flex justify-between py-2 text-sm">
+              <h3 className="text-sm font-semibold text-gray-900">Specifications</h3>
+              <dl className="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-100">
+                {specs.map(([key, value]) => (
+                  <div key={key} className="flex justify-between gap-4 px-4 py-2.5 text-sm">
                     <dt className="text-gray-500">{key}</dt>
-                    <dd className="font-medium text-gray-900">{String(value)}</dd>
+                    <dd className="font-medium text-gray-900">{value}</dd>
                   </div>
                 ))}
               </dl>
@@ -261,9 +372,9 @@ export default function ProductDetailPage() {
           {/* What's Included */}
           {whatsIncluded.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-gray-900">What&apos;s Included</h3>
-              <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                {whatsIncluded.map((item: string, i: number) => (
+              <h3 className="text-sm font-semibold text-gray-900">What&apos;s Included</h3>
+              <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
+                {whatsIncluded.map((item, i) => (
                   <li key={i} className="flex items-center gap-2">
                     <span className="h-1 w-1 rounded-full bg-gray-400" /> {item}
                   </li>
@@ -274,7 +385,7 @@ export default function ProductDetailPage() {
 
           {/* Return Policy */}
           {product.returnPolicy && (
-            <div className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
+            <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
               <strong>Return Policy:</strong> {product.returnPolicy}
             </div>
           )}

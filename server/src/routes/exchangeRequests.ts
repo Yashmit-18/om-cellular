@@ -45,7 +45,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails } = req.body
+    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone } = req.body
     if (!oldBrand || !oldModel || !oldCondition) return res.status(400).json({ success: false, message: 'Old device brand, model, and condition are required' })
 
     if (newVariantId) {
@@ -57,7 +57,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id || null
 
     const request = await ExchangeRequest.create({
-      requestNumber, userId, oldBrand, oldModel, oldStorage, oldRam, oldCondition,
+      requestNumber, userId, phone, oldBrand, oldModel, oldStorage, oldRam, oldCondition,
       newVariantId: newVariantId || null, oldDeviceDetails: oldDeviceDetails || {},
     })
 

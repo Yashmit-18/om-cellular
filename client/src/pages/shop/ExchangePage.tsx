@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowRightLeft, ChevronDown, Check, ArrowRight, Smartphone } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowRightLeft, ChevronDown, Check, ArrowRight, Smartphone, PhoneCall } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { exchangeRequestService } from '../../services/exchangeRequest.service'
@@ -21,10 +22,12 @@ export default function ExchangePage() {
   const modelRef = useRef<HTMLDivElement>(null)
 
   const [form, setForm] = useState({
-    oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '',
+    phone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '',
     newVariantId: '',
   })
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [requestNumber, setRequestNumber] = useState('')
 
   useEffect(() => {
     phoneCatalogService.getBrands().then(r => setBrands(r.data || [])).catch(() => {})
@@ -54,18 +57,54 @@ export default function ExchangePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedBrand || !selectedModel) { toast.error('Please select your old phone brand and model'); return }
+    const digits = form.phone.replace(/[^0-9]/g, '')
+    if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
     setLoading(true)
     try {
-      await exchangeRequestService.createExchangeRequest({
+      const res = await exchangeRequestService.createExchangeRequest({
         oldBrand: selectedBrand, oldModel: selectedModel.modelName,
         oldStorage: form.oldStorage, oldRam: form.oldRam,
         oldCondition: form.oldCondition, oldDeviceDetails: form.oldDeviceDetails,
-        newVariantId: form.newVariantId,
+        newVariantId: form.newVariantId, phone: form.phone,
       })
+      setRequestNumber(res?.data?.requestNumber || res?.requestNumber || '')
+      setSuccess(true)
       toast.success('Exchange request submitted!')
-      setForm({ oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '' })
-      setSelectedBrand(''); setSelectedModel(null); setBrandSearch(''); setModelSearch('')
-    } catch { toast.error('Failed to submit request') } finally { setLoading(false) }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to submit request')
+    } finally { setLoading(false) }
+  }
+
+  const resetAll = () => {
+    setSuccess(false); setRequestNumber('')
+    setForm({ phone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '' })
+    setSelectedBrand(''); setSelectedModel(null); setBrandSearch(''); setModelSearch('')
+  }
+
+  if (success) {
+    return (
+      <div className="container-custom py-16">
+        <div className="mx-auto max-w-xl text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <Check className="h-8 w-8 text-emerald-600" />
+          </div>
+          <h1 className="mt-5 text-2xl font-bold text-gray-900">Exchange request submitted!</h1>
+          <p className="mt-2 text-gray-500">Our team will evaluate your {selectedBrand} {selectedModel?.modelName} and get back to you with the best trade-in value.</p>
+          <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 p-6 text-left text-sm">
+            {requestNumber && (
+              <div className="flex justify-between border-b border-gray-100 pb-3"><span className="text-gray-500">Reference number</span><span className="font-bold text-gray-900">{requestNumber}</span></div>
+            )}
+            <div className="mt-3 flex justify-between"><span className="text-gray-500">Trade-in device</span><span className="font-medium text-gray-900">{selectedBrand} {selectedModel?.modelName}</span></div>
+            <div className="mt-2 flex justify-between"><span className="text-gray-500">Condition</span><span className="font-medium text-gray-900 capitalize">{form.oldCondition.toLowerCase()}</span></div>
+            <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
+          </div>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button onClick={resetAll} className="btn-primary">Submit Another Exchange</button>
+            <Link to="/buy-phones" className="btn-secondary">Browse New Phones</Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -128,6 +167,13 @@ export default function ExchangePage() {
               </div>
             </div>
 
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Contact phone number *</label>
+              <div className="relative mt-1">
+                <PhoneCall className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="input !pl-10" placeholder="e.g. 9876543210" required />
+              </div>
+            </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div><label className="block text-sm font-medium text-gray-700">Storage</label><input value={form.oldStorage} onChange={e => setForm({ ...form, oldStorage: e.target.value })} className="input mt-1" placeholder="e.g. 128GB" /></div>
               <div><label className="block text-sm font-medium text-gray-700">RAM</label><input value={form.oldRam} onChange={e => setForm({ ...form, oldRam: e.target.value })} className="input mt-1" placeholder="e.g. 6GB" /></div>

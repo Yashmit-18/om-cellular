@@ -56,6 +56,7 @@ async function seed() {
         seoDescription: product.description,
         seoKeywords: product.name.toLowerCase(),
         isActive: true,
+        images: product.images || [],
         createdAt: now,
         updatedAt: now,
       })
@@ -77,7 +78,7 @@ async function seed() {
           storage: v.storage,
           color: v.color,
           condition: 'New',
-          images: [],
+          images: product.images || [],
           specifications: [],
           whatsIncluded: [],
           isRefurbished: false,

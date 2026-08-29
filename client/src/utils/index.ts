@@ -42,3 +42,36 @@ export function getConditionLabel(condition: string): string {
   }
   return labels[condition] || condition
 }
+
+function parseImages(value: unknown): string[] {
+  if (!value) return []
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : value ? [value] : []
+    } catch {
+      return value ? [value] : []
+    }
+  }
+  if (Array.isArray(value)) return value.filter(Boolean)
+  return []
+}
+
+export function pickImage(product: { images?: unknown; primaryImage?: string }, variantImages?: unknown): string {
+  const productImgs = parseImages(product?.images)
+  if (productImgs.length > 0) return productImgs[0]
+  const variantImgs = parseImages(variantImages)
+  if (variantImgs.length > 0) return variantImgs[0]
+  if (product?.primaryImage) return product.primaryImage
+  return ''
+}
+
+export function getImageList(productImages: unknown, variantImages?: unknown): string[] {
+  const productImgs = parseImages(productImages)
+  const variantImgs = parseImages(variantImages)
+  return [...productImgs, ...variantImgs].filter(Boolean)
+}
+
+export function isValidImageUrl(url: string): boolean {
+  return typeof url === 'string' && /^https?:\/\/.+/.test(url)
+}

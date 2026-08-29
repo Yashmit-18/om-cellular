@@ -66,12 +66,13 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { serviceId, brand, model, problemDescription, pickupRequired, pickupAddress, appointmentDate, appointmentTime } = req.body
+    const { serviceId, brand, model, problemDescription, phone, pickupRequired, pickupAddress, appointmentDate, appointmentTime } = req.body
     if (!brand || !model) return res.status(400).json({ success: false, message: 'Brand and model are required' })
+    if (!phone || !String(phone).trim()) return res.status(400).json({ success: false, message: 'A contact phone number is required for repair bookings' })
 
     const bookingNumber = generateRepairBookingNumber()
     const repair = await RepairBooking.create({
-      bookingNumber, userId: req.user?.id || null, serviceId, brand, model, problemDescription,
+      bookingNumber, userId: req.user?.id || null, serviceId, brand, model, problemDescription, phone,
       pickupRequired, pickupAddress, appointmentDate: appointmentDate ? new Date(appointmentDate) : undefined,
       appointmentTime,
     })

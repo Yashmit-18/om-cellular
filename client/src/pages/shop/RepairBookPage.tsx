@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Wrench, Calendar, ArrowRight, Check, Clock, Shield, Info } from 'lucide-react'
+import { Wrench, Calendar, ArrowRight, Check, Clock, Shield, Info, ChevronDown, Smartphone, Search as SearchIcon, PhoneCall } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { repairService } from '../../services/repair.service'
+import { phoneCatalogService } from '../../services/phoneCatalog.service'
 import { formatPrice } from '../../utils'
 import type { RepairService } from '../../types'
 
@@ -13,10 +14,22 @@ export default function RepairBookPage() {
   const [view, setView] = useState<'catalog' | 'book' | 'success'>('catalog')
   const [bookingNumber, setBookingNumber] = useState('')
   const [form, setForm] = useState({
-    brand: '', model: '', problemDescription: '',
+    phone: '', brand: '', model: '', problemDescription: '',
     appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '',
   })
   const [submitting, setSubmitting] = useState(false)
+
+  const [brands, setBrands] = useState<string[]>([])
+  const [models, setModels] = useState<{ modelName: string }[]>([])
+  const [selectedBrand, setSelectedBrand] = useState('')
+  const [selectedModel, setSelectedModel] = useState('')
+  const [brandSearch, setBrandSearch] = useState('')
+  const [modelSearch, setModelSearch] = useState('')
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false)
+  const [showModelDropdown, setShowModelDropdown] = useState(false)
+  const [loadingModels, setLoadingModels] = useState(false)
+  const brandRef = useRef<HTMLDivElement>(null)
+  const modelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     repairService.getRepairServices().then(r => {
@@ -25,14 +38,61 @@ export default function RepairBookPage() {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    phoneCatalogService.getBrands().then(r => setBrands(Array.isArray(r.data) ? r.data.filter((b: any) => typeof b === 'string') : [])).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (brandRef.current && !brandRef.current.contains(e.target as Node)) setShowBrandDropdown(false)
+      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setShowModelDropdown(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const filteredBrands = brands.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase()))
+  const filteredModels = models.filter(m => m.modelName.toLowerCase().includes(modelSearch.toLowerCase()))
+
+  const handleBrandSelect = useCallback(async (brand: string) => {
+    setSelectedBrand(brand); setSelectedModel(''); setForm(f => ({ ...f, brand, model: '' }))
+    setBrandSearch(brand); setShowBrandDropdown(false); setModelSearch('')
+    setLoadingModels(true)
+    try {
+      const r = await phoneCatalogService.getModelsByBrand(brand)
+      const data = Array.isArray(r.data) ? r.data : []
+      setModels(data)
+    } catch {
+      setModels([])
+      toast.error('Failed to load models')
+    } finally { setLoadingModels(false) }
+  }, [])
+
   const handleBookService = (service: RepairService) => {
     setSelectedService(service)
     setView('book')
   }
 
+  const goGeneral = () => {
+    const general = services.find(s => s.slug === 'general-repair') || {
+      id: '', slug: 'general', name: 'General Repair', description: 'Not sure what’s wrong? Book a general diagnosis.', startingPrice: 0,
+    }
+    setSelectedService(general as unknown as RepairService)
+    setView('book')
+  }
+
+  const resetBooking = () => {
+    setView('catalog'); setSelectedService(null); setBookingNumber('')
+    setSelectedBrand(''); setSelectedModel(''); setBrandSearch(''); setModelSearch(''); setModels([])
+    setForm({ phone: '', brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.brand || !form.model || !form.problemDescription) { toast.error('Please fill in all required fields'); return }
+    const digits = form.phone.replace(/[^0-9]/g, '')
+    if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
+    if (!form.brand || !form.model) { toast.error('Please select your phone brand and model'); return }
+    if (!form.problemDescription.trim()) { toast.error('Please describe the issue you’re facing'); return }
     setSubmitting(true)
     try {
       const serviceId = (selectedService as any)?._id || selectedService?.id || undefined
@@ -55,16 +115,29 @@ export default function RepairBookPage() {
             <Check className="h-8 w-8 text-emerald-600" />
           </div>
           <h1 className="mt-5 text-2xl font-bold text-gray-900">Repair booked successfully!</h1>
-          <p className="mt-2 text-gray-500">
-            {bookingNumber ? <>Your booking number is <span className="font-semibold text-gray-900">{bookingNumber}</span>. Save it to track your repair status.</> : 'Our team will contact you shortly to confirm your repair.'}
-          </p>
+          <p className="mt-2 text-gray-500">Save your booking number to track your repair status.</p>
+
+          <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 p-6 text-left text-sm">
+            {bookingNumber && (
+              <div className="flex justify-between border-b border-gray-100 pb-3"><span className="text-gray-500">Booking number</span><span className="font-bold text-gray-900">{bookingNumber}</span></div>
+            )}
+            <div className="mt-3 flex justify-between"><span className="text-gray-500">Service</span><span className="font-medium text-gray-900">{selectedService?.name || 'General Repair'}</span></div>
+            <div className="mt-2 flex justify-between"><span className="text-gray-500">Device</span><span className="font-medium text-gray-900">{form.brand} {form.model}</span></div>
+            {selectedService?.startingPrice ? (
+              <div className="mt-2 flex justify-between"><span className="text-gray-500">Starting from</span><span className="font-medium text-brand-700">{formatPrice(selectedService.startingPrice)}</span></div>
+            ) : null}
+            <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
+          </div>
+
+          <p className="mt-4 text-xs text-gray-400">Final pricing is confirmed only after diagnosis of your device.</p>
+
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {bookingNumber && (
               <Link to={`/repair/track?booking=${encodeURIComponent(bookingNumber)}`} className="btn-primary">
                 Track Repair <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             )}
-            <button onClick={() => { setView('catalog'); setSelectedService(null); setBookingNumber(''); setForm({ brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' }) }} className="btn-secondary">Book Another Repair</button>
+            <button onClick={resetBooking} className="btn-secondary">Book Another Repair</button>
           </div>
         </div>
       </div>
@@ -75,25 +148,78 @@ export default function RepairBookPage() {
     return (
       <div className="container-custom py-12">
         <div className="mx-auto max-w-3xl">
-          <button onClick={() => { setView('catalog'); setSelectedService(null) }} className="text-sm font-medium text-brand-600 hover:text-brand-700 mb-4">&larr; Back to Services</button>
-          <div className="card p-8">
-            <div className="flex items-start gap-4 mb-6">
+          <button onClick={resetBooking} className="mb-4 text-sm font-medium text-brand-600 hover:text-brand-700">&larr; Back to Services</button>
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+            <div className="mb-7 flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50"><Wrench className="h-6 w-6 text-amber-600" /></div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{selectedService.name}</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Starting from {formatPrice(selectedService.startingPrice || 0)}
+                <p className="mt-1 text-sm text-gray-500">
+                  {selectedService.startingPrice ? `Starting from ${formatPrice(selectedService.startingPrice)}` : 'Price after free diagnosis'}
                   {selectedService.estimatedDuration && ` · ${selectedService.estimatedDuration}`}
                   {selectedService.warranty && ` · ${selectedService.warranty} warranty`}
                 </p>
               </div>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div><label className="block text-sm font-medium text-gray-700">Brand *</label><input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} className="input mt-1" placeholder="e.g. Samsung" required /></div>
-                <div><label className="block text-sm font-medium text-gray-700">Model *</label><input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} className="input mt-1" placeholder="e.g. Galaxy S23" required /></div>
+                <div className="relative" ref={brandRef}>
+                  <label className="block text-sm font-medium text-gray-700">Brand *</label>
+                  <button type="button" onClick={() => setShowBrandDropdown(!showBrandDropdown)}
+                    className="input mt-1 flex items-center justify-between text-left">
+                    <span className={selectedBrand ? '' : 'text-gray-400'}>{selectedBrand || 'Select brand...'}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                  </button>
+                  {showBrandDropdown && (
+                    <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={brandSearch} onChange={e => setBrandSearch(e.target.value)} className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredBrands.map(b => (
+                          <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+                            <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-bold text-gray-600">{b.charAt(0)}</div>{b}
+                          </button>
+                        ))}
+                        {filteredBrands.length === 0 && <p className="px-3 py-2 text-xs text-gray-500">No brands found</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative" ref={modelRef}>
+                  <label className="block text-sm font-medium text-gray-700">Model *</label>
+                  <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={!selectedBrand}
+                    className="input mt-1 flex items-center justify-between text-left disabled:opacity-50">
+                    <span className={selectedModel ? '' : 'text-gray-400'}>{selectedModel || 'Select model...'}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                  </button>
+                  {showModelDropdown && (
+                    <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={modelSearch} onChange={e => setModelSearch(e.target.value)} className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {loadingModels && <p className="px-3 py-2 text-xs text-gray-500">Loading...</p>}
+                        {filteredModels.map(m => (
+                          <button key={m.modelName} type="button" onClick={() => { setSelectedModel(m.modelName); setForm(f => ({ ...f, model: m.modelName })); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                            <Smartphone className="h-3.5 w-3.5 text-gray-400" />{m.modelName}
+                          </button>
+                        ))}
+                        {!loadingModels && filteredModels.length === 0 && <p className="px-3 py-2 text-xs text-gray-500">No models found</p>}
+                        {!selectedBrand && <p className="px-3 py-2 text-xs text-gray-400">Select a brand first</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div><label className="block text-sm font-medium text-gray-700">Problem Description *</label><textarea value={form.problemDescription} onChange={e => setForm({ ...form, problemDescription: e.target.value })} className="input mt-1" rows={4} placeholder="Describe the issue you're experiencing..." required /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Contact phone number *</label>
+                <div className="relative mt-1">
+                  <PhoneCall className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel"
+                    className="input !pl-10" placeholder="e.g. 9876543210" required />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Problem Description *</label>
+                <textarea value={form.problemDescription} onChange={e => setForm({ ...form, problemDescription: e.target.value })} className="input mt-1" rows={4} placeholder="Describe the issue you're experiencing..." required />
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label className="block text-sm font-medium text-gray-700"><Calendar className="inline h-4 w-4 mr-1" />Preferred Date</label><input type="date" value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} className="input mt-1" /></div>
                 <div><label className="block text-sm font-medium text-gray-700">Preferred Time</label><input value={form.appointmentTime} onChange={e => setForm({ ...form, appointmentTime: e.target.value })} className="input mt-1" placeholder="e.g. 10AM-12PM" /></div>
@@ -116,54 +242,56 @@ export default function RepairBookPage() {
   }
 
   return (
-    <div className="container-custom py-12">
-      <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
-          <Wrench className="h-7 w-7 text-amber-600" />
+    <div className="bg-gradient-to-b from-amber-50/40 via-white to-white">
+      <div className="container-custom py-12">
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
+            <Wrench className="h-7 w-7 text-amber-600" />
+          </div>
+          <h1 className="mt-4 text-3xl font-bold text-gray-900">Repair Services</h1>
+          <p className="mt-2 text-gray-500">Professional phone repair with genuine parts and warranty</p>
         </div>
-        <h1 className="mt-4 text-3xl font-bold text-gray-900">Repair Services</h1>
-        <p className="mt-2 text-gray-500">Professional phone repair with genuine parts and warranty</p>
-      </div>
 
-      {services.length > 0 ? (
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map(service => (
-            <div key={service.id} className="card-premium flex flex-col p-6">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50"><Wrench className="h-5 w-5 text-amber-600" /></div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{service.description || 'Professional repair service'}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {service.estimatedDuration || 'Varies'}</span>
-                {service.warranty && <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {service.warranty}</span>}
-              </div>
-              <div className="mt-auto pt-4 border-t border-gray-100">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500">Starting from</p>
-                    <p className="text-lg font-bold text-brand-600">{formatPrice(service.startingPrice || 0)}</p>
+        {services.length > 0 ? (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map(service => (
+              <div key={service.id} className="card-premium flex flex-col p-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50"><Wrench className="h-5 w-5 text-amber-600" /></div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{service.description || 'Professional repair service'}</p>
                   </div>
-                  <button onClick={() => handleBookService(service)} className="btn-primary !px-4 !py-2 text-sm">
-                    Book Repair <ArrowRight className="ml-1 h-4 w-4" />
-                  </button>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {service.estimatedDuration || 'Varies'}</span>
+                  {service.warranty && <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {service.warranty}</span>}
+                </div>
+                <div className="mt-auto pt-4 border-t border-gray-100">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">{service.startingPrice ? 'Starting from' : 'Diagnosis'}</p>
+                      <p className="text-lg font-bold text-brand-600">{service.startingPrice ? formatPrice(service.startingPrice) : 'Free'}</p>
+                    </div>
+                    <button onClick={() => handleBookService(service)} className="btn-primary !px-4 !py-2 text-sm">
+                      Book Repair <ArrowRight className="ml-1 h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-10 card p-12 text-center">
-          <Wrench className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">No Repair Services Available</h3>
-          <p className="mt-2 text-sm text-gray-500">No repair services are currently listed. Please contact us directly.</p>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div className="mt-10 card p-12 text-center">
+            <Wrench className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">No Repair Services Available</h3>
+            <p className="mt-2 text-sm text-gray-500">No repair services are currently listed. Please contact us directly.</p>
+          </div>
+        )}
 
-      <div className="mt-8 text-center">
-        <p className="text-sm text-gray-500">Can&apos;t find what you&apos;re looking for? <button onClick={() => { setView('book'); setSelectedService({ id: '', name: 'General Repair', slug: 'general', startingPrice: 0, isActive: true, sortOrder: 0, compatibleDevices: '' as any, description: null, estimatedDuration: null, warranty: null, createdAt: new Date(), updatedAt: new Date() } as any) }} className="font-medium text-brand-600 hover:text-brand-700">Book a general repair</button></p>
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500">Can&apos;t find what you&apos;re looking for? <button onClick={goGeneral} className="font-medium text-brand-600 hover:text-brand-700">Book a general repair</button></p>
+        </div>
       </div>
     </div>
   )

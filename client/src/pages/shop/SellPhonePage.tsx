@@ -36,7 +36,7 @@ export default function SellPhonePage() {
   const [modelSearch, setModelSearch] = useState('')
 
   const [form, setForm] = useState({
-    condition: 'GOOD', age: '',
+    phone: '', condition: 'GOOD', age: '',
     displayCondition: 'no_issues', batteryCondition: 'good',
     cameraCondition: 'good', bodyCondition: 'good',
     accessoriesAvailable: false, originalBill: false, originalBox: false,
@@ -47,6 +47,8 @@ export default function SellPhonePage() {
   const [valuationState, setValuationState] = useState<LoadState>('idle')
   const [calculating, setCalculating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [selectingBrand, setSelectingBrand] = useState(false)
+  const [requestNumber, setRequestNumber] = useState('')
 
   useEffect(() => {
     phoneCatalogService.getBrands()
@@ -73,6 +75,7 @@ export default function SellPhonePage() {
 
   const handleBrandSelect = useCallback(async (brand: string) => {
     setSelectedBrand(brand)
+    setSelectingBrand(true)
     setSelectedModel(null)
     setSelectedStorage(null)
     setEstimatedValue(null)
@@ -85,9 +88,12 @@ export default function SellPhonePage() {
       const data = Array.isArray(r.data) ? r.data : []
       setModels(data)
       setModelState(data.length === 0 ? 'empty' : 'ready')
+      setStep(2)
     } catch {
       setModelState('error')
       setModels([])
+    } finally {
+      setSelectingBrand(false)
     }
   }, [])
 
@@ -137,6 +143,10 @@ export default function SellPhonePage() {
 
   const handleSubmit = async () => {
     if (!selectedBrand || !selectedModel || !selectedStorage) { toast.error('Please complete all selections'); return }
+    if (!form.phone.trim() || form.phone.replace(/[^0-9]/g, '').length < 10) {
+      toast.error('Please enter a valid contact phone number')
+      return
+    }
     setSubmitting(true)
     try {
       const response = await sellRequestService.createSellRequest({
@@ -147,6 +157,8 @@ export default function SellPhonePage() {
       if (response && response.success === false) {
         throw new Error(response.message)
       }
+      const number = response?.data?.requestNumber || response?.requestNumber || ''
+      setRequestNumber(number)
       toast.success('Sell request submitted successfully!')
       setStep(5)
     } catch (err: any) {
@@ -158,8 +170,9 @@ export default function SellPhonePage() {
     setStep(1)
     setSelectedBrand(''); setSelectedModel(null); setSelectedStorage(null)
     setEstimatedValue(null); setValuationState('idle')
+    setRequestNumber('')
     setBrandSearch(''); setModelSearch('')
-    setForm({ condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '' })
+    setForm({ phone: '', condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '' })
   }
 
   const brandOptions = selectedModel?.storageVariants || []
@@ -276,13 +289,18 @@ export default function SellPhonePage() {
                             <button
                               key={brand}
                               onClick={() => handleBrandSelect(brand)}
-                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm"
+                              disabled={selectingBrand}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm disabled:cursor-wait disabled:opacity-60"
                             >
                               <span className="flex items-center gap-3">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">{BRAND_INITIALS[brand] || brand.charAt(0)}</span>
                                 <span className="font-medium text-gray-900">{brand}</span>
                               </span>
-                              <ChevronRight className="h-4 w-4 text-gray-300" />
+                              {selectingBrand && selectedBrand === brand ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-300" />
+                              )}
                             </button>
                           ))}
                         </div>
@@ -530,6 +548,18 @@ export default function SellPhonePage() {
                 {/* Pickup */}
                 <section className="space-y-4">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Contact phone number <span className="text-red-500">*</span></label>
+                    <input
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      className="input mt-1"
+                      placeholder="e.g. 9876543210"
+                      inputMode="tel"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-400">We’ll use this number to reach you with an offer.</p>
+                  </div>
+                  <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700"><Package className="h-4 w-4 text-gray-400" /> Pickup address (optional)</label>
                     <textarea value={form.pickupAddress} onChange={e => setForm({ ...form, pickupAddress: e.target.value })} className="input mt-1" rows={2} placeholder="Full address for pickup" />
                   </div>
@@ -556,7 +586,12 @@ export default function SellPhonePage() {
                 </div>
                 <h3 className="mt-5 text-xl font-bold text-gray-900">Request submitted!</h3>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">We’ve received your {selectedBrand} {selectedModel?.modelName} sell request. Our team will evaluate your device and contact you soon.</p>
-                <div className="mt-6 flex justify-center gap-3">
+                <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-gray-100 bg-gray-50/70 p-5 text-left text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Request number</span><span className="font-semibold text-gray-900">{requestNumber || 'Assigned on confirmation'}</span></div>
+                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Estimated value</span><span className="font-semibold text-brand-700">{estimatedValue !== null ? formatPrice(estimatedValue) : 'After inspection'}</span></div>
+                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-semibold text-gray-900">{form.phone}</span></div>
+                </div>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <button onClick={resetAll} className="btn-primary">Sell Another Phone</button>
                   <Link to="/" className="btn-secondary">Back to Home</Link>
                 </div>

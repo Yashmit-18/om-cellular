@@ -44,6 +44,26 @@ export default function AdminProductEditPage() {
           <div><label className="block text-sm font-medium">Slug</label><input value={form.slug || ''} onChange={e => setForm({ ...form, slug: e.target.value })} className="input mt-1" /></div>
         </div>
         <div><label className="block text-sm font-medium">Description</label><textarea value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} className="input mt-1" rows={4} /></div>
+        <div>
+          <label className="block text-sm font-medium">Product Images (image URLs, one per line)</label>
+          <textarea
+            value={(form.images || []).join('\n')}
+            onChange={e => setForm({ ...form, images: e.target.value.split('\n').map((s: string) => s.trim()).filter(Boolean) })}
+            className="input mt-1 font-mono !text-xs"
+            rows={3}
+            placeholder={'https://example.com/phone-1.jpg\nhttps://example.com/phone-2.jpg'}
+          />
+          <p className="mt-1 text-xs text-gray-500">These images are used on product cards and the product detail page. Variant images fall back to these when not set.</p>
+          {Array.isArray(form.images) && form.images.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {form.images.slice(0, 6).map((img: string, i: number) => (
+                <div key={i} className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                  <img src={img} alt="" className="h-full w-full object-cover" onError={e => { (e.target as HTMLImageElement).style.opacity = '0.2' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive ?? true} onChange={e => setForm({ ...form, isActive: e.target.checked })} /> Active</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isFeatured ?? false} onChange={e => setForm({ ...form, isFeatured: e.target.checked })} /> Featured</label>

@@ -26,7 +26,10 @@ function computeProductSummary(p: any, variants: any[]) {
   const noVariants = variants.length === 0
   const lowestPrice = noVariants ? 0 : Math.min(...effectivePrices)
   const highestPrice = noVariants ? 0 : Math.max(...effectivePrices)
-  const anyImage = variants.map(extractVariantImage).find(Boolean) || ''
+  const anyImage =
+    (Array.isArray(p.images) && p.images.find(Boolean)) ||
+    variants.map(extractVariantImage).find(Boolean) ||
+    ''
   return {
     lowestPrice,
     highestPrice,
@@ -123,7 +126,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, brandId, categoryId, isFeatured, isNewArrival, isBestSeller, isRefurbished, condition, warranty, returnPolicy, seoTitle, seoDescription, seoKeywords, variants } = req.body
+    const { name, description, brandId, categoryId, isFeatured, isNewArrival, isBestSeller, isRefurbished, condition, warranty, returnPolicy, seoTitle, seoDescription, seoKeywords, images, variants } = req.body
     if (!name) return res.status(400).json({ success: false, message: 'Product name is required' })
 
     let slug = slugify(name)
@@ -134,6 +137,7 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
       name, slug, description, brandId: brandId || null, categoryId: categoryId || null,
       isFeatured: !!isFeatured, isNewArrival: !!isNewArrival, isBestSeller: !!isBestSeller, isRefurbished: !!isRefurbished,
       condition, warranty, returnPolicy, seoTitle, seoDescription, seoKeywords,
+      images: Array.isArray(images) ? images.filter(Boolean) : [],
     })
 
     if (variants && Array.isArray(variants)) {
@@ -171,6 +175,9 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     const fields = ['name', 'description', 'brandId', 'categoryId', 'isFeatured', 'isNewArrival', 'isBestSeller', 'isRefurbished', 'condition', 'warranty', 'returnPolicy', 'seoTitle', 'seoDescription', 'seoKeywords', 'isActive']
     for (const field of fields) {
       if (req.body[field] !== undefined) updateData[field] = req.body[field]
+    }
+    if (req.body.images !== undefined) {
+      updateData.images = Array.isArray(req.body.images) ? req.body.images.filter(Boolean) : []
     }
 
     if (req.body.name && req.body.name !== existing.name) {
