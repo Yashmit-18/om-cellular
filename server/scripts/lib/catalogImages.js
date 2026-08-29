@@ -17,6 +17,18 @@ const BRAND_KEY = {
   POCO: 'poco',
   iQOO: 'iqoo',
   Honor: 'honor',
+  Motorola: 'moto',
+}
+
+// Hand-verified GSMArena filenames that differ from our slug guessing,
+// used only as a last resort before scraping (each URL is still HTTP-verified).
+const MANUAL_MAP = {
+  'moto:edge 50 ultra': 'https://fdn2.gsmarena.com/vv/bigpic/moto-edge-50-ultra.jpg',
+  'apple:iphone 13 mini': 'https://fdn2.gsmarena.com/vv/bigpic/apple-iphone-13-mini.jpg',
+  'samsung:galaxy z flip6': 'https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-z-flip6.jpg',
+  'samsung:galaxy z fold6': 'https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-z-fold6.jpg',
+  'nothing:nothing phone 1': 'https://fdn2.gsmarena.com/vv/bigpic/nothing-phone-1.jpg',
+  'nokia:nokia 105 4g': 'https://fdn2.gsmarena.com/vv/bigpic/nokia-105-4g.jpg',
 }
 
 function slugify(text) {
@@ -34,6 +46,8 @@ function brandKey(brand) {
 // Build the most likely GSMArena bigpic URLs for a phone.
 // GSMArena filenames are `{manufacturerKey}-{full-model-slug}.jpg`, where
 // sub-brands keep the manufacturer prefix (e.g. redmi -> xiaomi-redmi-13c.jpg).
+// Many SKUs add a `-5g` marker and/or a trailing dash (e.g.
+// `samsung-galaxy-s24-ultra-5g-.jpg`), so we try every reasonable variant.
 function candidateUrls(brand, model) {
   const full = String(model).trim()
   if (!full) return []
@@ -41,10 +55,13 @@ function candidateUrls(brand, model) {
   const mKey = brandKey(brandWord)
   const fullSlug = slugify(full)
   const urls = []
+  const add = (u) => { if (!urls.includes(u)) urls.push(u) }
   if (fullSlug) {
-    urls.push(`${GS_BIGPIC}/${mKey}-${fullSlug}.jpg`)
-    // Some SKUs split into 4G/5G files.
-    urls.push(`${GS_BIGPIC}/${mKey}-${fullSlug}-5g.jpg`)
+    const base = `${GS_BIGPIC}/${mKey}-${fullSlug}`
+    add(`${base}.jpg`)
+    add(`${base}-.jpg`)
+    add(`${base}-5g.jpg`)
+    add(`${base}-5g-.jpg`)
   }
   let stripped = full
   if (brandWord && stripped.toLowerCase().startsWith(brandWord.toLowerCase())) {
@@ -52,11 +69,16 @@ function candidateUrls(brand, model) {
   }
   const strippedSlug = slugify(stripped)
   if (strippedSlug && strippedSlug !== fullSlug) {
-    const u = `${GS_BIGPIC}/${mKey}-${strippedSlug}.jpg`
-    if (!urls.includes(u)) urls.push(u)
+    add(`${GS_BIGPIC}/${mKey}-${strippedSlug}.jpg`)
+    add(`${GS_BIGPIC}/${mKey}-${strippedSlug}-.jpg`)
+    add(`${GS_BIGPIC}/${mKey}-${strippedSlug}-5g.jpg`)
+    add(`${GS_BIGPIC}/${mKey}-${strippedSlug}-5g-.jpg`)
   }
   const literal = `${GS_BIGPIC}/${slugify(brandWord)}-${fullSlug}.jpg`
-  if (!urls.includes(literal)) urls.push(literal)
+  add(literal)
+  add(`${GS_BIGPIC}/${slugify(brandWord)}-${fullSlug}-.jpg`)
+  const manual = MANUAL_MAP[`${slugify(brandWord)}:${fullSlug}`]
+  if (manual) add(manual)
   return urls
 }
 
@@ -99,26 +121,48 @@ async function verifyImageUrl(url) {
 }
 
 // Ask GSMArena's search page for the real bigpic URL of a phone.
+// Retries with exponential backoff when rate-limited (429).
 async function scrapeGsmarenaUrl(query) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 12000)
-  try {
-    const res = await fetch(
-      `https://www.gsmarena.com/res.php3?sSearch=${encodeURIComponent(query)}`,
-      { headers: { 'user-agent': UA, accept: 'text/html' }, signal: controller.signal, redirect: 'follow' }
-    )
-    if (!res.ok) return null
-    const html = await res.text()
-    const match = html.match(/https?:\/\/fdn2\.gsmarena\.com\/vv\/bigpic\/[^"'?#]+\.(?:jpe?g|png)/i)
-    if (match) return match[0]
-    const relative = html.match(/\/\/fdn2\.gsmarena\.com\/vv\/bigpic\/[^"'?#]+\.(?:jpe?g|png)/i)
-    if (relative) return 'https:' + relative[0]
-    return null
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
+  const fetchPage = async (url) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 12000)
+    try {
+      const res = await fetch(url, {
+        headers: { 'user-agent': UA, accept: 'text/html', referer: 'https://www.gsmarena.com/' },
+        signal: controller.signal,
+        redirect: 'follow',
+      })
+      if (res.status === 429) return { rateLimited: true }
+      return { html: await res.text() }
+    } catch {
+      return { rateLimited: false, html: null }
+    } finally {
+      clearTimeout(timer)
+    }
   }
+
+  const matches = (html) => {
+    const out = []
+    const re = /https?:\/\/[a-z0-9.]+gsmarena\.com\/vv\/bigpic\/[^"'?# ]+\.(?:jpe?g|png)/gi
+    let m
+    while ((m = re.exec(html))) out.push(m[0])
+    return out
+  }
+
+  let wait = 4
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const page = await fetchPage(`https://www.gsmarena.com/res.php3?sSearch=${encodeURIComponent(query)}`)
+    if (page.rateLimited) {
+      await new Promise(r => setTimeout(r, wait * 1000))
+      wait *= 2
+      continue
+    }
+    if (!page.html) return null
+    const found = matches(page.html)
+    if (found.length > 0) return found[0]
+    return null
+  }
+  return null
 }
 
 // Resolve a verified image URL for (brand, model). Returns null when none found.
@@ -134,15 +178,23 @@ async function resolveImageUrl(brand, model, existing) {
 }
 
 // Resolve in bulk with a small delay between external requests to be polite.
-async function resolveMany(items, onProgress) {
+async function resolveMany(items, onProgress, { concurrency = 3 } = {}) {
   const results = []
-  for (let i = 0; i < items.length; i++) {
-    const { brand, model, existing } = items[i]
-    const image = await resolveImageUrl(brand, model, existing)
-    results.push({ brand, model, image })
-    if (onProgress) onProgress(i + 1, items.length, brand, model, image)
-    await new Promise(r => setTimeout(r, 120))
+  let cursor = 0
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++
+      const { brand, model, existing } = items[i]
+      const image = await resolveImageUrl(brand, model, existing)
+      results[i] = { brand, model, image }
+      if (onProgress) onProgress(i + 1, items.length, brand, model, image)
+      await new Promise(r => setTimeout(r, 60))
+    }
   }
+  const tasks = []
+  const n = Math.max(1, Math.min(concurrency, items.length || 1))
+  for (let w = 0; w < n; w++) tasks.push(worker())
+  await Promise.all(tasks)
   return results
 }
 

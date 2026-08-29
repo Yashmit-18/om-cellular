@@ -17,6 +17,8 @@ export interface IProduct extends Document {
   seoTitle?: string
   seoDescription?: string
   seoKeywords?: string
+  rating?: number
+  ratingCount?: number
   images: string[]
   isActive: boolean
   createdAt: Date
@@ -40,6 +42,8 @@ const productSchema = new Schema<IProduct>({
   seoTitle: { type: String },
   seoDescription: { type: String },
   seoKeywords: { type: String },
+  rating: { type: Number, default: 0, min: 0, max: 5 },
+  ratingCount: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
 }, {
   timestamps: true,

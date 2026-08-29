@@ -32,30 +32,9 @@ function slugify(text) {
 
 // Realistic starting prices + service catalog, shared with focused seed scripts.
 const { repairServices, REPAIR_PRICES } = require('./data/repairServices')
-const { sampleProducts } = require('./data/sampleProducts')
+const { buildProducts, syncValuationRules } = require('./lib/productCatalog')
 
-// Valuation engine defaults kept in sync with server/src/routes/phoneValuations.ts
-const VALUATION_DEFAULTS = {
-  conditionMultiplier: { NEW: 1, LIKE_NEW: 0.92, EXCELLENT: 0.88, GOOD: 0.78, FAIR: 0.62, POOR: 0.45 },
-  ageDepreciationPct: { less_than_3_months: 0, '3_to_6_months': 0.05, '6_to_12_months': 0.1, '1_to_2_years': 0.18, more_than_2_years: 0.3 },
-  displayDeduction: 5000,
-  batteryDeduction: 1200,
-  bodyDeduction: 1800,
-  cameraDeduction: 900,
-  accessoryDeduction: 500,
-  billDeduction: 0,
-  boxDeduction: 300,
-}
-
-// Popular models that get a full PhoneValuation pricing rule record.
-const VALUATION_SLUGS = new Set([
-  'apple-iphone-11', 'apple-iphone-12', 'apple-iphone-13', 'apple-iphone-14', 'apple-iphone-15',
-  'apple-iphone-15-pro', 'apple-iphone-16', 'apple-iphone-16-pro',
-  'samsung-galaxy-s23', 'samsung-galaxy-s24', 'samsung-galaxy-s24-ultra', 'samsung-galaxy-z-fold6',
-  'samsung-galaxy-a15', 'samsung-galaxy-a35', 'samsung-galaxy-a55',
-  'xiaomi-redmi-note-13-pro-5g', 'oneplus-oneplus-12', 'realme-realme-gt-6-pro',
-  'google-pixel-8-pro', 'google-pixel-8a', 'nothing-nothing-phone-2', 'vivo-vivo-v30-pro',
-])
+// Valuation rules for every catalog model are handled by lib/productCatalog.
 
 // ─── BRANDS ───────────────────────────────────────────────────────────────────
 
@@ -343,7 +322,8 @@ const phoneModels = [
 ]
 
 // ─── SAMPLE PRODUCTS ──────────────────────────────────────────────────────────
-// Defined in scripts/data/sampleProducts.js
+// Premium buy-products are built from the phone catalog by lib/productCatalog
+// (buildProducts). No static sample product data is seeded anymore.
 
 // ─── MAIN SEED FUNCTION ───────────────────────────────────────────────────────
 
@@ -463,130 +443,13 @@ async function seed() {
     }
     console.log(`  Repair services: ${servicesCreated} created, ${servicesSkipped} skipped (already exist)`)
 
-    // ─── 4. SEED SAMPLE PRODUCTS + VARIANTS ─────────────────────────────────
-    console.log('\nSeeding sample products...')
-    const productsCol = db.collection('products')
-    const variantsCol = db.collection('productvariants')
-    let productsCreated = 0, productsSkipped = 0
-
-    for (const product of sampleProducts) {
-      const slug = slugify(product.name)
-      const existing = await productsCol.findOne({ slug })
-
-      if (existing) {
-        productsSkipped++
-        continue
-      }
-
-      const brand = await brandsCol.findOne({ slug: product.brandSlug })
-      const brandId = brand ? brand._id : null
-
-      const now = new Date()
-      const insertResult = await productsCol.insertOne({
-        name: product.name,
-        slug,
-        description: product.description,
-        brandId,
-        categoryId: null,
-        isFeatured: product.isFeatured || false,
-        isNewArrival: product.isNewArrival || false,
-        isBestSeller: false,
-        isRefurbished: false,
-        condition: 'New',
-        warranty: product.warranty || '',
-        returnPolicy: product.returnPolicy || '',
-        seoTitle: product.name,
-        seoDescription: product.description,
-        seoKeywords: product.name.toLowerCase(),
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      })
-
-      const productId = insertResult.insertedId
-      const v = product.variant
-      const variantSku = v.sku
-
-      const variantExists = await variantsCol.findOne({ sku: variantSku })
-      if (!variantExists) {
-        await variantsCol.insertOne({
-          productId,
-          name: v.name,
-          sku: variantSku,
-          price: v.price,
-          discountPrice: v.discountPrice,
-          stock: v.stock,
-          reservedStock: 0,
-          soldCount: 0,
-          ram: v.ram,
-          storage: v.storage,
-          color: v.color,
-          condition: 'New',
-          images: [],
-          specifications: [],
-          whatsIncluded: [],
-          isRefurbished: false,
-          featured: true,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        })
-      }
-
-      productsCreated++
-    }
-    console.log(`  Products: ${productsCreated} created, ${productsSkipped} skipped (already exist)`)
+    // ─── 4. SEED PREMIUM PRODUCTS + VARIANTS ────────────────────────────────
+    console.log('\nSeeding premium products + variants (from phone catalog)...')
+    await buildProducts(db, { log: (m) => console.log(`  ${m}`) })
 
     // ─── 5. SEED PHONE VALUATION RULES ──────────────────────────────────────
     console.log('\nSeeding phone valuation rules...')
-    const valuationCol = db.collection('phonevaluations')
-    let valuationsCreated = 0, valuationsSkipped = 0
-
-    for (const phone of phoneModels) {
-      const slug = slugify(`${phone.brandName} ${phone.modelName}`)
-      if (!VALUATION_SLUGS.has(slug)) continue
-      const baseValue = computeModelBase(phone.brandName, phone.modelName)
-      const ageDepreciation = {}
-      for (const [key, pct] of Object.entries(VALUATION_DEFAULTS.ageDepreciationPct)) {
-        ageDepreciation[key] = Math.round(baseValue * pct)
-      }
-      const storageAdjustment = {}
-      for (const s of phone.storageVariants) {
-        storageAdjustment[s] = storageAdjust(s)
-      }
-
-      const result = await valuationCol.updateOne(
-        { brand: phone.brandName, model: phone.modelName },
-        {
-          $setOnInsert: {
-            brand: phone.brandName,
-            model: phone.modelName,
-            baseValue,
-            storageAdjustment,
-            ramAdjustment: {},
-            ageDepreciation,
-            conditionMultiplier: VALUATION_DEFAULTS.conditionMultiplier,
-            displayDeduction: VALUATION_DEFAULTS.displayDeduction,
-            batteryDeduction: VALUATION_DEFAULTS.batteryDeduction,
-            bodyDeduction: VALUATION_DEFAULTS.bodyDeduction,
-            cameraDeduction: VALUATION_DEFAULTS.cameraDeduction,
-            accessoryDeduction: VALUATION_DEFAULTS.accessoryDeduction,
-            billDeduction: VALUATION_DEFAULTS.billDeduction,
-            boxDeduction: VALUATION_DEFAULTS.boxDeduction,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-        { upsert: true }
-      )
-      if (result.upsertedCount > 0) {
-        valuationsCreated++
-      } else {
-        valuationsSkipped++
-      }
-    }
-    console.log(`  Valuation rules: ${valuationsCreated} created, ${valuationsSkipped} skipped (already exist)`)
+    await syncValuationRules(db, { log: (m) => console.log(`  ${m}`) })
 
     // ─── 6. SEED CATEGORIES ─────────────────────────────────────────────────
     console.log('\nSeeding categories...')
@@ -688,8 +551,8 @@ async function seed() {
     console.log(`  Brands:           ${brandsCreated} created, ${brandsSkipped} skipped`)
     console.log(`  Phone models:     ${modelsCreated} created, ${modelsSkipped} skipped`)
     console.log(`  Repair services:  ${servicesCreated} created, ${servicesSkipped} skipped`)
-    console.log(`  Products:         ${productsCreated} created, ${productsSkipped} skipped`)
-    console.log(`  Valuation rules:  ${valuationsCreated} created, ${valuationsSkipped} skipped`)
+    console.log(`  Products:         synced by buildProducts (see detail above)`)
+    console.log(`  Valuation rules:  synced for all catalog models (see detail above)`)
     console.log(`  Categories:       ${categoriesCreated} created, ${categoriesSkipped} skipped`)
     console.log(`  Settings:         ${settingsCreated} created, ${settingsSkipped} skipped`)
     console.log('='.repeat(50))
