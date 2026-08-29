@@ -3,8 +3,15 @@ import { env } from './env'
 
 export const corsOptions: CorsOptions = {
   origin: function (origin, callback) {
+    const extraOrigins = (process.env.CLIENT_ORIGINS || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+
     const allowedOrigins = [
       env.CLIENT_URL,
+      'https://om-cellular-iota.vercel.app',
+      ...extraOrigins,
       'http://localhost:5173',
       'http://localhost:3000',
     ]
