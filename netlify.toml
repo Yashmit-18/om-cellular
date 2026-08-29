@@ -1,0 +1,11 @@
+# Netlify build configuration for the React + Vite client (client/).
+# Production branch is set in the Netlify site settings (must be "mern-migration").
+# The api service reads VITE_API_URL at build time from [build.environment] above site env.
+
+[build]
+  base = "client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  VITE_API_URL = "https://om-cellular.onrender.com/api/v1"
