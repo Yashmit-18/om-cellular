@@ -32,6 +32,7 @@ export interface User {
 
 export interface Category {
   id: string
+  _id?: string
   name: string
   slug: string
   description: string | null
@@ -41,11 +42,13 @@ export interface Category {
   sortOrder: number
   createdAt: Date
   updatedAt: Date
+  _count?: { products?: number }
   products?: Product[]
 }
 
 export interface Brand {
   id: string
+  _id?: string
   name: string
   slug: string
   logo: string | null
@@ -53,6 +56,7 @@ export interface Brand {
   sortOrder: number
   createdAt: Date
   updatedAt: Date
+  _count?: { products?: number }
 }
 
 export interface Product {
@@ -95,11 +99,11 @@ export interface ProductVariant {
   stock: number
   reservedStock: number
   soldCount: number
-  images: string
+  images: string[]
   condition: string | null
   batteryHealth: number | null
-  specifications: string
-  whatsIncluded: string
+  specifications: unknown
+  whatsIncluded: unknown
   isRefurbished: boolean
   featured: boolean
   badge: string | null

@@ -20,12 +20,12 @@ export default function ProductsPage() {
   const currentBrand = searchParams.get('brandId') || ''
   const currentQuery = searchParams.get('query') || ''
   const currentIsFeatured = searchParams.get('isFeatured') || ''
-  const currentPage = parseInt(searchParams.get('page') || '1')
+  const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
   const currentSort = searchParams.get('sort') || 'newest'
 
   useEffect(() => {
-    api.get('/categories').then(r => setCategories(r.data.data || [])).catch(() => {})
-    api.get('/brands').then(r => setBrands(r.data.data || [])).catch(() => {})
+    api.get('/categories').then(r => setCategories((r.data.data || []).map((c: any) => ({ ...c, id: c.id || c._id })))).catch(() => {})
+    api.get('/brands').then(r => setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))).catch(() => {})
   }, [])
 
   useEffect(() => {

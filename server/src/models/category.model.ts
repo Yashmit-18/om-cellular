@@ -21,7 +21,11 @@ const categorySchema = new Schema<ICategory>({
   icon: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 categorySchema.index({ isActive: 1 })
 categorySchema.index({ sortOrder: 1 })

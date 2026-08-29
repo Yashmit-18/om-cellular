@@ -187,7 +187,7 @@ export default function ProductDetailPage() {
         {product.category && (
           <>
             <ChevronRight className="h-3 w-3" />
-            <Link to={`/buy-phones?categoryId=${product.category.id}`} className="hover:text-gray-900">{product.category.name}</Link>
+            <Link to={`/buy-phones?categoryId=${(product.category as any)?.id || (product.category as any)?._id}`} className="hover:text-gray-900">{product.category.name}</Link>
           </>
         )}
         <ChevronRight className="h-3 w-3" />
@@ -329,6 +329,30 @@ export default function ProductDetailPage() {
               <Heart className={cn('h-5 w-5', selectedVariant && hasItem(selectedVariant.id) && 'fill-current')} />
             </button>
           </div>
+
+          {/* Product details (SKU / condition) */}
+          {(selectedVariant?.sku || selectedVariant?.condition || product.condition) && (
+            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm">
+              {selectedVariant?.sku && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">SKU</dt>
+                  <dd className="truncate font-medium text-gray-900">{selectedVariant.sku}</dd>
+                </div>
+              )}
+              {(selectedVariant?.condition || product.condition) && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">Condition</dt>
+                  <dd className="font-medium text-gray-900">{selectedVariant?.condition || product.condition}</dd>
+                </div>
+              )}
+              {product.brand && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">Brand</dt>
+                  <dd className="font-medium text-gray-900">{product.brand.name}</dd>
+                </div>
+              )}
+            </dl>
+          )}
 
           {/* Badges */}
           {(product.isFeatured || product.isNewArrival || product.isBestSeller || selectedVariant?.badge) && (

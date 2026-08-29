@@ -17,7 +17,11 @@ const brandSchema = new Schema<IBrand>({
   logo: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: true })
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 
 brandSchema.index({ isActive: 1 })
 brandSchema.index({ sortOrder: 1 })

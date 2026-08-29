@@ -30,11 +30,15 @@ export default function BuyPhonesPage() {
   const currentBrand = searchParams.get('brandId') || ''
   const currentQuery = searchParams.get('q') || ''
   const currentSort = searchParams.get('sort') || 'newest'
-  const currentPage = parseInt(searchParams.get('page') || '1')
+  const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
 
   useEffect(() => {
-    api.get('/categories').then(r => setCategories(r.data.data || [])).catch(() => {})
-    api.get('/brands').then(r => setBrands(r.data.data || [])).catch(() => {})
+    api.get('/categories').then(r => {
+      setCategories((r.data.data || []).map((c: any) => ({ ...c, id: c.id || c._id })))
+    }).catch(() => {})
+    api.get('/brands').then(r => {
+      setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))
+    }).catch(() => {})
   }, [])
 
   const fetchProducts = useCallback(async () => {
@@ -66,9 +70,21 @@ export default function BuyPhonesPage() {
     setSearchParams(params)
   }
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const trimmed = searchInput.trim()
+      if (trimmed !== currentQuery) updateFilter('q', trimmed)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(() => {
+    if (currentQuery !== searchInput.trim()) setSearchInput(currentQuery)
+  }, [currentQuery])
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    updateFilter('q', searchInput.trim())
+    if (searchInput.trim() !== currentQuery) updateFilter('q', searchInput.trim())
   }
 
   const clearAll = () => {
@@ -97,18 +113,27 @@ export default function BuyPhonesPage() {
         <h3 className="text-sm font-semibold text-gray-900">Categories</h3>
         <div className="mt-3 space-y-1">
           <button
+            type="button"
             onClick={() => updateFilter('categoryId', '')}
-            className={cn('block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            aria-pressed={!currentCategory}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
           >
-            All Categories
+            <span>All Categories</span>
           </button>
           {categories.map(cat => (
             <button
               key={cat.id}
+              type="button"
               onClick={() => updateFilter('categoryId', cat.id)}
-              className={cn('block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              aria-pressed={currentCategory === cat.id}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
             >
-              {cat.name}
+              <span>{cat.name}</span>
+              {typeof cat._count?.products === 'number' && (
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>
+                  {cat._count.products}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -117,18 +142,27 @@ export default function BuyPhonesPage() {
         <h3 className="text-sm font-semibold text-gray-900">Brands</h3>
         <div className="mt-3 space-y-1">
           <button
+            type="button"
             onClick={() => updateFilter('brandId', '')}
-            className={cn('block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            aria-pressed={!currentBrand}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
           >
-            All Brands
+            <span>All Brands</span>
           </button>
           {brands.map(brand => (
             <button
               key={brand.id}
+              type="button"
               onClick={() => updateFilter('brandId', brand.id)}
-              className={cn('block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              aria-pressed={currentBrand === brand.id}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
             >
-              {brand.name}
+              <span>{brand.name}</span>
+              {typeof brand._count?.products === 'number' && (
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>
+                  {brand._count.products}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -163,7 +197,7 @@ export default function BuyPhonesPage() {
               className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
             {searchInput && (
-              <button type="button" onClick={() => { setSearchInput(''); updateFilter('q', '') }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={() => { setSearchInput(''); updateFilter('q', '') }} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600" aria-label="Clear search">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -192,17 +226,17 @@ export default function BuyPhonesPage() {
         {hasActiveFilters && (
           <div className="mt-4 flex flex-wrap gap-2">
             {currentCategory && (
-              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                 {categories.find(c => c.id === currentCategory)?.name || 'Category'} <X className="h-3 w-3" />
               </button>
             )}
             {currentBrand && (
-              <button onClick={() => updateFilter('brandId', '')} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('brandId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                 {brands.find(b => b.id === currentBrand)?.name || 'Brand'} <X className="h-3 w-3" />
               </button>
             )}
             {currentQuery && (
-              <button onClick={() => updateFilter('q', '')} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('q', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                 “{currentQuery}” <X className="h-3 w-3" />
               </button>
             )}
@@ -290,10 +324,15 @@ export default function BuyPhonesPage() {
                             <span className="text-xs text-gray-400">- {formatPrice(product.highestPrice)}</span>
                           )}
                         </div>
-                        <div className="mt-2.5 flex items-center justify-between">
-                          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', product.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
-                            {product.inStock ? 'In Stock' : 'Out of Stock'}
-                          </span>
+                        <div className="mt-2.5 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', product.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+                              {product.inStock ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                            {product.variantCount > 1 && (
+                              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">{product.variantCount} variants</span>
+                            )}
+                          </div>
                           <span className="text-xs font-medium text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">View details</span>
                         </div>
                       </div>
@@ -307,7 +346,7 @@ export default function BuyPhonesPage() {
                     <button
                       onClick={() => updateFilter('page', String(currentPage - 1))}
                       disabled={!pagination.hasPrev}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Previous page"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -322,7 +361,7 @@ export default function BuyPhonesPage() {
                         <button
                           key={page}
                           onClick={() => updateFilter('page', String(page))}
-                          className={cn('h-10 w-10 rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-brand-600 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
+                          className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-brand-600 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                         >
                           {page}
                         </button>
@@ -331,7 +370,7 @@ export default function BuyPhonesPage() {
                     <button
                       onClick={() => updateFilter('page', String(currentPage + 1))}
                       disabled={!pagination.hasNext}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Next page"
                     >
                       <ChevronRight className="h-4 w-4" />

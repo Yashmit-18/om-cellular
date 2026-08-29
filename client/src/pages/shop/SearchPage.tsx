@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { Search as SearchIcon } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
+import ProductImage from '../../components/shop/ProductImage'
 import type { ProductWithVariant } from '../../types'
 
 export default function SearchPage() {
@@ -19,6 +20,10 @@ export default function SearchPage() {
       setResults(r.data.data || [])
       setLoading(false)
     }).catch(() => { setLoading(false) })
+  }, [query])
+
+  useEffect(() => {
+    setInput(query)
   }, [query])
 
   const handleSearch = (e: React.FormEvent) => {
@@ -41,9 +46,7 @@ export default function SearchPage() {
         <div className="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {results.map(p => (
             <Link key={p.id} to={`/products/${p.slug || p.id}`} className="card-premium group p-4">
-              <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                <img src={p.primaryImage || '/placeholder.svg'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-              </div>
+              <ProductImage src={p.primaryImage} alt={p.name} className="aspect-square rounded-lg" imgClassName="transition-transform group-hover:scale-105" />
               <h3 className="mt-3 text-sm font-medium line-clamp-2">{p.name}</h3>
               <p className="mt-1 font-bold text-brand-600">{formatPrice(p.lowestPrice)}</p>
             </Link>
