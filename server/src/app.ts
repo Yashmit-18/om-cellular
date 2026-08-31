@@ -30,6 +30,7 @@ import auditLogRoutes from './routes/auditLogs'
 import uploadRoutes from './routes/uploads'
 import inventoryRoutes from './routes/inventory'
 import phoneCatalogRoutes from './routes/phoneCatalog'
+import paymentRoutes from './routes/payments'
 
 const app = express()
 
@@ -45,7 +46,14 @@ app.use(rateLimit({
 }))
 
 // Body parsing
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({
+  limit: '10mb',
+  verify: (req: any, _res, buf) => {
+    // Preserve the raw body so payment webhook signatures can be verified
+    // against the exact bytes Razorpay signed.
+    req.rawBody = buf
+  },
+}))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
 
@@ -83,6 +91,7 @@ app.use('/api/v1/audit-logs', auditLogRoutes)
 app.use('/api/v1/uploads', uploadRoutes)
 app.use('/api/v1/inventory', inventoryRoutes)
 app.use('/api/v1/phone-catalog', phoneCatalogRoutes)
+app.use('/api/v1/payments', paymentRoutes)
 
 // Error handler
 app.use(errorHandler)

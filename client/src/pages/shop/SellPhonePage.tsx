@@ -103,6 +103,7 @@ export default function SellPhonePage() {
     setEstimatedValue(null)
     setValuationState('idle')
     setModelSearch('')
+    setStep(3)
   }
 
   const handleStorageSelect = useCallback((variant: { storage: string; ram: string; baseValue: number }) => {

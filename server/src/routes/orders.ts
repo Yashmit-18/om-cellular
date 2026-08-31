@@ -64,7 +64,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id
 
     if (!items || !items.length) return res.status(400).json({ success: false, message: 'Items are required' })
-    if (paymentMethod && !['cod', 'online', 'upi'].includes(paymentMethod)) {
+    if (paymentMethod && !['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'].includes(paymentMethod)) {
       return res.status(400).json({ success: false, message: 'Invalid payment method' })
     }
 

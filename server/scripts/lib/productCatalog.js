@@ -76,7 +76,7 @@ function buildVariantDoc(model, brand, color, storageVariants) {
     ram,
     storage,
     color,
-    condition: 'New',
+    condition: 'Refurbished',
     specifications: specs,
     whatsIncluded: whatsIncluded(),
     badge: /ultra|pro max|rog|fold/.test(norm(model)) ? 'Premium' : undefined,
@@ -101,11 +101,15 @@ async function buildProducts(db, { log = () => {} } = {}) {
   let skippedCustom = 0
   let variantsCreated = 0
   let variantsUpdated = 0
+  let processed = 0
   const liveSlugs = new Set()
   const seenNames = new Map()
 
   for (const model of models) {
     if (!isCatalogProduct(model.brandName, model.modelName)) { skippedCustom++; continue }
+
+    if (processed % 25 === 0 && processed > 0) log(`Processed ${processed}/${models.length} catalog models...`)
+    processed++
 
     const image = model.image || ''
     if (!image) { skippedNoImage++; continue }
@@ -154,8 +158,8 @@ async function buildProducts(db, { log = () => {} } = {}) {
       isFeatured: flags.isFeatured,
       isNewArrival: flags.isNewArrival,
       isBestSeller: flags.isBestSeller,
-      isRefurbished: false,
-      condition: 'New',
+      isRefurbished: true,
+      condition: 'Refurbished',
       warranty: '1 Year OM Cellular Warranty',
       returnPolicy: existingProduct && existingProduct.returnPolicy
         ? existingProduct.returnPolicy
@@ -197,7 +201,8 @@ async function buildProducts(db, { log = () => {} } = {}) {
             ram: v.ram,
             storage: v.storage,
             color: v.color,
-            condition: 'New',
+            condition: 'Refurbished',
+            isRefurbished: true,
             specifications: v.specifications,
             whatsIncluded: v.whatsIncluded,
             badge: v.badge,
@@ -223,11 +228,11 @@ async function buildProducts(db, { log = () => {} } = {}) {
             ram: v.ram,
             storage: v.storage,
             color: v.color,
-            condition: 'New',
+            condition: 'Refurbished',
             images: [image],
             specifications: v.specifications,
             whatsIncluded: v.whatsIncluded,
-            isRefurbished: false,
+            isRefurbished: true,
             featured: true,
             badge: v.badge,
             isActive: true,

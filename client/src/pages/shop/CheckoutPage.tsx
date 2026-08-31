@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, ShieldCheck, Banknote, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCartStore } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { orderService } from '../../services/order.service'
 import { couponService } from '../../services/coupon.service'
 import { settingsService } from '../../services/settings.service'
+import { paymentService, loadRazorpayScript, type OnlinePaymentMethod } from '../../services/payment.service'
 import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
 
-interface UpiConfig {
-  upiId: string
-  displayName: string
-  qrImage: string
-}
+type PaymentMethod = 'cod' | 'upi' | 'netbanking' | 'online'
 
 export default function CheckoutPage() {
   const { items, getTotal, clearCart } = useCartStore()
@@ -24,15 +21,14 @@ export default function CheckoutPage() {
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
   const [selectedAddressId, setSelectedAddressId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
   const [addresses, setAddresses] = useState<any[]>([])
   const [notes, setNotes] = useState('')
   const [taxRate, setTaxRate] = useState(0.18)
   const [shippingConfig, setShippingConfig] = useState({ free: 999, standard: 99 })
-  const [upi, setUpi] = useState<UpiConfig>({ upiId: '', displayName: '', qrImage: '' })
-  const [upiReferenceId, setUpiReferenceId] = useState('')
-  const [upiConfirmed, setUpiConfirmed] = useState(false)
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null)
+  const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false)
+  const [checkingPaymentConfig, setCheckingPaymentConfig] = useState(true)
   const [addressForm, setAddressForm] = useState({
     name: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   })
@@ -41,7 +37,13 @@ export default function CheckoutPage() {
   const shipping = subtotal >= shippingConfig.free ? 0 : shippingConfig.standard
   const tax = Math.round(subtotal * taxRate * 100) / 100
   const total = subtotal + shipping + tax - couponDiscount
-  const upiAvailable = Boolean(upi.upiId)
+
+  useEffect(() => {
+    paymentService.getConfig()
+      .then(r => setOnlinePaymentEnabled(Boolean(r.data?.enabled)))
+      .catch(() => setOnlinePaymentEnabled(false))
+      .finally(() => setCheckingPaymentConfig(false))
+  }, [])
 
   useEffect(() => {
     if (items.length === 0 && !placedOrderId) {
@@ -77,11 +79,6 @@ export default function CheckoutPage() {
         free: parseInt(map.free_shipping_threshold) || 999,
         standard: parseInt(map.standard_shipping_price) || 99,
       })
-      setUpi({
-        upiId: map.upi_id || '',
-        displayName: map.upi_display_name || 'OM Cellular',
-        qrImage: map.upi_qr_image || '',
-      })
     }).catch(() => {})
   }, [user])
 
@@ -105,26 +102,69 @@ export default function CheckoutPage() {
     return null
   }
 
-  const validateUpiPayment = (): string | null => {
-    if (paymentMethod !== 'upi') return null
-    if (!upiConfirmed) return 'Please confirm you have completed the UPI payment'
-    if (upiReferenceId.trim() && !/^[A-Za-z0-9]{6,40}$/.test(upiReferenceId.trim())) {
-      return 'Please enter a valid UPI reference/UTR number'
-    }
-    return null
-  }
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return
+  const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, amount: number) => {
     try {
-      const res = await couponService.validateCoupon(couponCode, subtotal)
-      if (res.success) {
-        setAppliedCoupon(res.data)
-        setCouponDiscount(res.data.discount)
-        toast.success(`Coupon applied! Discount: ${formatPrice(res.data.discount)}`)
+      const init = await paymentService.init(orderId, method)
+      const data = init.data
+      if (!init.success || !data?.razorpayOrderId) {
+        toast.error(init.message || 'Unable to start online payment. Please try again or use Cash on Delivery.')
+        return
       }
+
+      const RazorpayCtor: any = await loadRazorpayScript()
+
+      const razorpayOptions: any = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || 'INR',
+        name: 'OM Cellular',
+        description: `Order payment (${method.toUpperCase()})`,
+        order_id: data.razorpayOrderId,
+        prefill: {
+          name: addressForm.name,
+          contact: addressForm.phone,
+          email: user?.email || undefined,
+        },
+        method: method === 'netbanking' ? { netbanking: true } : method === 'upi' ? { upi: true } : undefined,
+        theme: { color: '#4f46e5' },
+        handler: async (response: any) => {
+          try {
+            const verify = await paymentService.verify({
+              orderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            })
+            if (verify.success) {
+              clearCart()
+              setPlacedOrderId(orderId)
+              toast.success('Payment successful! Your order is confirmed.')
+              navigate('/account/orders/' + orderId)
+            } else {
+              toast.error(verify.message || 'Payment could not be verified. Please contact support.')
+              navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
+            }
+          } catch {
+            toast.error('Payment could not be verified. Please contact support.')
+            navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast('Payment window closed. Your order will remain pending until payment is confirmed.', { icon: 'ℹ️' })
+            navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
+          },
+        },
+      }
+
+      const rzp = new RazorpayCtor(razorpayOptions)
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again or use Cash on Delivery.')
+        navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
+      })
+      rzp.open()
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid coupon')
+      toast.error(err?.response?.data?.message || err?.message || 'Unable to start online payment. Please try again or use Cash on Delivery.')
     }
   }
 
@@ -133,7 +173,7 @@ export default function CheckoutPage() {
       toast.error('Please login to place your order')
       return
     }
-    if (paymentMethod === 'upi' && !upiAvailable) {
+    if (!checkingPaymentConfig && paymentMethod !== 'cod' && !onlinePaymentEnabled) {
       toast.error('Online payment is not configured yet. Please use Cash on Delivery.')
       return
     }
@@ -141,11 +181,6 @@ export default function CheckoutPage() {
     const addressError = validateAddress()
     if (addressError) {
       toast.error(addressError)
-      return
-    }
-    const upiError = validateUpiPayment()
-    if (upiError) {
-      toast.error(upiError)
       return
     }
 
@@ -166,27 +201,43 @@ export default function CheckoutPage() {
           city: addressForm.city, state: addressForm.state, pincode: addressForm.pincode,
         }
       }
-      if (paymentMethod === 'upi') {
-        orderData.upiReferenceId = upiReferenceId.trim() || undefined
-      }
 
       const res = await orderService.createOrder(orderData)
       if (res.success) {
-        clearCart()
         const orderId = res.data.id || res.data._id
-        setPlacedOrderId(orderId)
-        if (paymentMethod === 'upi') {
-          toast.success('Order placed. Payment is being verified.')
-          navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
-        } else {
+
+        if (paymentMethod === 'cod') {
+          clearCart()
+          setPlacedOrderId(orderId)
           toast.success('Order placed successfully!')
           navigate('/account/orders/' + orderId)
+          return
         }
+
+        // Online method: open the secure gateway checkout. The order is only
+        // marked PAID after server-side signature verification, not here.
+        const gateMethod: OnlinePaymentMethod = paymentMethod === 'netbanking' ? 'netbanking' : paymentMethod === 'online' ? 'card' : 'upi'
+        await openGatewayCheckout(orderId, gateMethod, total)
+        // Do not clear the cart here — it is cleared only after payment success.
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return
+    try {
+      const res = await couponService.validateCoupon(couponCode, subtotal)
+      if (res.success) {
+        setAppliedCoupon(res.data)
+        setCouponDiscount(res.data.discount)
+        toast.success(`Coupon applied! Discount: ${formatPrice(res.data.discount)}`)
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid coupon')
     }
   }
 
@@ -290,60 +341,60 @@ export default function CheckoutPage() {
                   paymentMethod === 'cod' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
+                  <Banknote className="h-5 w-5 text-gray-500" />
                   <div className="text-sm">
                     <p className="font-medium">Cash on Delivery</p>
                     <p className="text-gray-500">Pay when you receive the order</p>
                   </div>
                 </label>
 
-                {upiAvailable && (
-                  <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
-                    paymentMethod === 'upi' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} />
-                    <div className="text-sm">
-                      <p className="font-medium">UPI / Online Payment</p>
-                      <p className="text-gray-500">GPay, PhonePe, Paytm by scanning the QR below</p>
-                    </div>
-                  </label>
+                {onlinePaymentEnabled && (
+                  <>
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
+                      paymentMethod === 'upi' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} />
+                      <QrCode className="h-5 w-5 text-gray-500" />
+                      <div className="text-sm">
+                        <p className="font-medium">UPI</p>
+                        <p className="text-gray-500">GPay, PhonePe, Paytm, BHIM and more</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
+                      paymentMethod === 'netbanking' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'netbanking'} onChange={() => setPaymentMethod('netbanking')} />
+                      <Building2 className="h-5 w-5 text-gray-500" />
+                      <div className="text-sm">
+                        <p className="font-medium">Net Banking</p>
+                        <p className="text-gray-500">Pay directly from your bank account</p>
+                      </div>
+                    </label>
+                  </>
                 )}
               </div>
 
-              {upiAvailable && paymentMethod === 'upi' && (
+              {onlinePaymentEnabled && paymentMethod !== 'cod' && (
                 <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50/70 p-5">
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                    <Building2 className="h-4 w-4 text-brand-600" /> Pay {formatPrice(total)} to {upi.displayName || 'store owner'}
+                    <Wallet className="h-4 w-4 text-brand-600" /> Secure {paymentMethod.toUpperCase()} Payment
                   </h3>
-                  <div className="mt-3 flex flex-col items-start gap-4 sm:flex-row">
-                    {upi.qrImage && (
-                      <div className="shrink-0 rounded-xl border border-gray-200 bg-white p-2">
-                        <img src={upi.qrImage} alt="UPI QR Code" className="h-40 w-40 object-contain" />
-                      </div>
-                    )}
-                    <div className="w-full text-sm">
-                      <p className="text-gray-600">Scan the QR or send money to the UPI ID below:</p>
-                      <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 font-mono text-sm font-medium text-gray-900 ring-1 ring-gray-200">
-                        <QrCode className="h-4 w-4 shrink-0 text-brand-600" /> {upi.upiId}
-                      </p>
-                      <ol className="mt-3 list-inside list-decimal space-y-1 text-xs text-gray-500">
-                        <li>Open GPay / PhonePe / Paytm</li>
-                        <li>Pay {formatPrice(total)} to <span className="font-medium text-gray-700">{upi.upiId}</span></li>
-                        <li>Enter the UPI reference (UTR) number below</li>
-                      </ol>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">UPI Reference / UTR number</label>
-                    <input value={upiReferenceId} onChange={e => setUpiReferenceId(e.target.value)} className="input mt-1" placeholder="e.g. 417182930110" />
-                    <p className="mt-1 text-xs text-gray-400">Your order will move to "Paid" after we verify the payment.</p>
-                  </div>
-
-                  <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={upiConfirmed} onChange={e => setUpiConfirmed(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                    <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> I have completed the UPI payment</span>
-                  </label>
+                  <p className="mt-2 text-sm text-gray-600">
+                    You will be redirected to a secure payment page to pay <span className="font-semibold text-gray-900">{formatPrice(total)}</span>.
+                    Your order is confirmed only after the payment is verified by the bank / payment gateway.
+                  </p>
+                  <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-500">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" /> 256-bit encrypted, PCI-DSS compliant gateway
+                  </p>
                 </div>
+              )}
+
+              {checkingPaymentConfig && paymentMethod !== 'cod' && (
+                <p className="mt-3 text-xs text-gray-400">Checking payment options…</p>
+              )}
+              {!checkingPaymentConfig && !onlinePaymentEnabled && paymentMethod !== 'cod' && (
+                <p className="mt-3 text-xs text-amber-600">Online payment is temporarily unavailable. Please use Cash on Delivery.</p>
               )}
             </div>
 
@@ -411,11 +462,11 @@ export default function CheckoutPage() {
               <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
             </div>
 
-            <button onClick={handlePlaceOrder} disabled={loading} className="btn-primary mt-4 w-full">
-              {loading ? 'Placing Order...' : paymentMethod === 'upi' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
+            <button onClick={handlePlaceOrder} disabled={loading || !onlinePaymentEnabled && paymentMethod !== 'cod'} className="btn-primary mt-4 w-full">
+              {loading ? 'Please wait...' : paymentMethod !== 'cod' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
             </button>
             <p className="mt-2 text-center text-xs text-gray-400">
-              {paymentMethod === 'upi' ? 'Order confirmed after payment verification (typically within a few hours).' : 'You will pay on delivery.'}
+              {paymentMethod !== 'cod' ? 'You will be redirected to a secure payment page. Order is confirmed only after payment verification.' : 'You will pay on delivery.'}
             </p>
           </div>
         </div>

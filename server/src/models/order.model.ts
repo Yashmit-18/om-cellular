@@ -19,6 +19,10 @@ export interface IOrder extends Document {
   upiReferenceId?: string
   trackingNumber?: string
   notes?: string
+  razorpayOrderId?: string
+  razorpayPaymentId?: string
+  razorpaySignature?: string
+  paidAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -60,11 +64,15 @@ const orderSchema = new Schema<IOrder>({
   couponDiscount: { type: Number, default: 0, min: 0 },
   status: { type: String, default: 'PENDING', enum: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'] },
   paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'] },
-  paymentMethod: { type: String, enum: ['cod', 'online', 'upi'] },
+  paymentMethod: { type: String, enum: ['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'] },
   shippingAddress: { type: Schema.Types.Mixed, default: null },
   upiReferenceId: { type: String, trim: true },
   trackingNumber: { type: String },
   notes: { type: String },
+  razorpayOrderId: { type: String, trim: true },
+  razorpayPaymentId: { type: String, trim: true },
+  razorpaySignature: { type: String, trim: true },
+  paidAt: { type: Date, default: null },
 }, { timestamps: true })
 
 orderSchema.index({ userId: 1 })

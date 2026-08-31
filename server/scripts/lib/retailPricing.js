@@ -174,13 +174,43 @@ function sellingPrice(brand, model, storage, storageVariants) {
   return round100(resale * ratio + extra * factor)
 }
 
-// Reference (MRP/launch-style) price with discount guidance.
+// Base used / refurbished selling price as a fraction of the original new
+// retail selling price, per brand. Higher-end brands hold value a little
+// better but premium devices still drop fastest in the pre-owned market.
+const BRAND_USED_RATIO = {
+  apple: 0.5, samsung: 0.5, google: 0.55, oneplus: 0.53, xiaomi: 0.6, redmi: 0.67,
+  poco: 0.64, realme: 0.65, vivo: 0.62, oppo: 0.64, motorola: 0.64, nothing: 0.58,
+  iqoo: 0.6, infinix: 0.68, tecno: 0.7, lava: 0.72, nokia: 0.72, honor: 0.66, asus: 0.58,
+}
+
+// Price-tier graduation applied on top of the brand ratio so entry-level phones
+// (which barely lose value used) don't get discounted as hard as flagships.
+function usedPriceRatio(brand, newSelling) {
+  const base = BRAND_USED_RATIO[brandKey(brand)] || 0.65
+  let tier = 0
+  if (newSelling >= 80000) tier = -0.12
+  else if (newSelling >= 50000) tier = -0.08
+  else if (newSelling >= 25000) tier = -0.03
+  else if (newSelling < 10000) tier = 0.06
+  return base + tier
+}
+
+// Realistic pre-owned / refurbished selling price for a given model+storage.
+function usedSellingPrice(brand, model, storage, storageVariants) {
+  const newPrice = sellingPrice(brand, model, storage, storageVariants)
+  return round100(newPrice * usedPriceRatio(brand, newPrice))
+}
+
+// Reference (MRP / launch-style new price) plus the used selling price.
+// `price` is the new retail compare-at price and `discountPrice` is the
+// realistic pre-owned/refurbished price the customer actually pays.
 function retailInfo(brand, model, storage, storageVariants) {
   const selling = sellingPrice(brand, model, storage, storageVariants)
   const pad = BRAND_MRP_PAD[brandKey(brand)] || 1.1
   const mrp = round100(Math.max(selling + 200, Math.round(selling * pad / 100) * 100))
-  const off = Math.round((1 - selling / mrp) * 100)
-  return { price: mrp, discountPrice: selling, discountPercent: off }
+  const used = usedSellingPrice(brand, model, storage, storageVariants)
+  const off = Math.round((1 - used / mrp) * 100)
+  return { price: mrp, discountPrice: used, discountPercent: off }
 }
 
-module.exports = { sellingPrice, retailInfo, referenceStorage, SELLING, STORAGE_EXTRA }
+module.exports = { sellingPrice, usedSellingPrice, retailInfo, referenceStorage, SELLING, STORAGE_EXTRA }
