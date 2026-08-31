@@ -62,6 +62,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [touchX, setTouchX] = useState<number | null>(null)
   const addItem = useCartStore(s => s.addItem)
   const toggleItem = useWishlistStore(s => s.toggleItem)
   const hasItem = useWishlistStore(s => s.hasItem)
@@ -178,7 +179,7 @@ export default function ProductDetailPage() {
   const highestAny = variants.length > 0 ? Math.max(...variants.map(v => v.discountPrice || v.price)) : 0
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
       {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
         <Link to="/" className="hover:text-gray-900">Home</Link>
@@ -197,7 +198,16 @@ export default function ProductDetailPage() {
       <div className="mt-6 grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <div>
-          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div
+            className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+            onTouchStart={e => setTouchX(e.touches[0].clientX)}
+            onTouchEnd={e => {
+              if (touchX == null || images.length <= 1) return
+              const dx = e.changedTouches[0].clientX - touchX
+              if (Math.abs(dx) > 40) setSelectedImage(i => (i + (dx < 0 ? 1 : -1) + images.length) % images.length)
+              setTouchX(null)
+            }}
+          >
             <ProductImage
               src={images[selectedImage]}
               alt={product.name}
@@ -206,15 +216,15 @@ export default function ProductDetailPage() {
             />
           </div>
           {images.length > 1 && (
-            <div className="mt-4 grid grid-cols-5 gap-2">
+            <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar">
               {images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={cn('overflow-hidden rounded-xl border-2 transition-colors', i === selectedImage ? 'border-brand-600' : 'border-transparent opacity-80 hover:opacity-100')}
+                  className={cn('shrink-0 overflow-hidden rounded-xl border-2 transition-colors', i === selectedImage ? 'border-brand-600' : 'border-transparent opacity-80 hover:opacity-100')}
                   aria-label={`View image ${i + 1}`}
                 >
-                  <ProductImage src={img} alt="" className="aspect-square rounded-xl" />
+                  <ProductImage src={img} alt="" className="h-20 w-20 rounded-xl" />
                 </button>
               ))}
             </div>
@@ -295,11 +305,11 @@ export default function ProductDetailPage() {
             <div className="mt-6 flex items-center gap-4">
               <h3 className="text-sm font-semibold text-gray-900">Quantity</h3>
               <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-1.5">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-50" aria-label="Decrease quantity">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50" aria-label="Decrease quantity">
                   <Minus className="h-4 w-4" />
                 </button>
                 <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-50" aria-label="Increase quantity">
+                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50" aria-label="Increase quantity">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
@@ -307,7 +317,7 @@ export default function ProductDetailPage() {
           )}
 
           {/* Actions */}
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-7 hidden flex-col gap-3 sm:flex sm:flex-row">
             <button
               onClick={handleAddToCart}
               disabled={!selectedVariant || selectedVariant.stock <= 0}
@@ -413,6 +423,30 @@ export default function ProductDetailPage() {
               <strong>Return Policy:</strong> {product.returnPolicy}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Mobile sticky action bar (above bottom nav) */}
+      <div className="fixed inset-x-0 bottom-20 z-50 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 pb-safe sm:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-gray-500">{selectedVariant?.name || product.name}</p>
+            <p className="text-lg font-bold text-brand-600">{formatPrice(displayPrice)}</p>
+          </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={!selectedVariant || selectedVariant.stock <= 0}
+            className="btn-secondary min-w-[110px] flex-1 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ShoppingCart className="mr-1.5 h-4 w-4" /> Add to Cart
+          </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={!selectedVariant || selectedVariant.stock <= 0}
+            className="btn-primary min-w-[96px] flex-1 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Zap className="mr-1.5 h-4 w-4 text-amber-300" /> Buy Now
+          </button>
         </div>
       </div>
     </div>

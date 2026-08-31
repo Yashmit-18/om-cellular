@@ -108,7 +108,7 @@ export default function ExchangePage() {
   }
 
   return (
-    <div className="container-custom py-12">
+    <div className="container-custom py-12 pb-28">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50">
@@ -137,7 +137,7 @@ export default function ExchangePage() {
                     <div className="p-2"><input value={brandSearch} onChange={e => setBrandSearch(e.target.value)} className="input !py-2 !text-xs" placeholder="Search..." autoFocus /></div>
                     <div className="max-h-48 overflow-y-auto">
                       {filteredBrands.map(b => (
-                        <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+                        <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
                           <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-bold text-gray-600">{b.charAt(0)}</div>{b}
                         </button>
                       ))}
@@ -158,7 +158,7 @@ export default function ExchangePage() {
                     <div className="p-2"><input value={modelSearch} onChange={e => setModelSearch(e.target.value)} className="input !py-2 !text-xs" placeholder="Search..." autoFocus /></div>
                     <div className="max-h-48 overflow-y-auto">
                       {filteredModels.map(m => (
-                        <button key={(m as any).id || (m as any)._id} type="button" onClick={() => { setSelectedModel(m); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                        <button key={(m as any).id || (m as any)._id} type="button" onClick={() => { setSelectedModel(m); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                           {m.image
                             ? <img src={m.image} alt="" className="h-6 w-6 shrink-0 rounded object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                             : <Smartphone className="h-3.5 w-3.5 shrink-0 text-gray-400" />}

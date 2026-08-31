@@ -39,7 +39,7 @@ export default function CartPage() {
   const total = getTotal() + shipping
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
       <h1 className="text-2xl font-bold">Shopping Cart ({getItemCount()} items)</h1>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -64,12 +64,12 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} className="rounded border p-1 hover:bg-gray-50">
-                      <Minus className="h-3 w-3" />
+                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} aria-label="Decrease quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-gray-50">
+                      <Minus className="h-4 w-4" />
                     </button>
                     <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.variantId, item.quantity + 1)} disabled={item.quantity >= item.stock} className="rounded border p-1 hover:bg-gray-50 disabled:opacity-40">
-                      <Plus className="h-3 w-3" />
+                    <button onClick={() => updateQuantity(item.variantId, item.quantity + 1)} disabled={item.quantity >= item.stock} aria-label="Increase quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-gray-50 disabled:opacity-40">
+                      <Plus className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="flex items-center gap-4">

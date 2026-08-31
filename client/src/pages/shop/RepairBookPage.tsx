@@ -144,7 +144,7 @@ export default function RepairBookPage() {
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
             {serviceMode === 'DOORSTEP_PICKUP' && (
               <>
-                <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Doorstep Pickup</span></div>
+                <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Home Pickup &amp; Drop</span></div>
                 {pickupFee > 0 && (
                   <div className="mt-2 flex justify-between"><span className="text-gray-500">Pickup fee</span><span className="font-medium text-brand-700">{formatPrice(pickupFee)}</span></div>
                 )}
@@ -188,7 +188,7 @@ export default function RepairBookPage() {
 
   if (view === 'book' && selectedService) {
     return (
-      <div className="container-custom py-12">
+      <div className="container-custom py-12 pb-24">
         <div className="mx-auto max-w-3xl">
           <button onClick={resetBooking} className="mb-4 text-sm font-medium text-brand-600 hover:text-brand-700">&larr; Back to Services</button>
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
@@ -217,7 +217,7 @@ export default function RepairBookPage() {
                       <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={brandSearch} onChange={e => setBrandSearch(e.target.value)} className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
                       <div className="max-h-48 overflow-y-auto">
                         {filteredBrands.map(b => (
-                          <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+                          <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
                             <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-bold text-gray-600">{b.charAt(0)}</div>{b}
                           </button>
                         ))}
@@ -239,7 +239,7 @@ export default function RepairBookPage() {
                       <div className="max-h-48 overflow-y-auto">
                         {loadingModels && <p className="px-3 py-2 text-xs text-gray-500">Loading...</p>}
                         {filteredModels.map(m => (
-                          <button key={m.modelName} type="button" onClick={() => { setSelectedModel(m.modelName); setForm(f => ({ ...f, model: m.modelName })); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                          <button key={m.modelName} type="button" onClick={() => { setSelectedModel(m.modelName); setForm(f => ({ ...f, model: m.modelName })); setModelSearch(m.modelName); setShowModelDropdown(false) }} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
                             {m.image
                               ? <img src={m.image} alt="" className="h-6 w-6 shrink-0 rounded object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                               : <Smartphone className="h-3.5 w-3.5 shrink-0 text-gray-400" />}
@@ -275,15 +275,15 @@ export default function RepairBookPage() {
                   <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'STORE_DROP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="serviceMode" checked={serviceMode === 'STORE_DROP'} onChange={() => { setServiceMode('STORE_DROP'); setForm(f => ({ ...f, pickupRequired: false })) }} className="mt-1" />
                     <div>
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="h-4 w-4 text-brand-600" /> Store Drop-off</p>
-                      <p className="mt-0.5 text-xs text-gray-500">Drop your device at our store — no extra fee</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="h-4 w-4 text-brand-600" /> Drop at Store</p>
+                      <p className="mt-0.5 text-xs text-gray-500">Bring your device to our store — no extra fee</p>
                     </div>
                   </label>
                   <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'DOORSTEP_PICKUP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="serviceMode" checked={serviceMode === 'DOORSTEP_PICKUP'} onChange={() => { setServiceMode('DOORSTEP_PICKUP'); setForm(f => ({ ...f, pickupRequired: true })) }} className="mt-1" />
                     <div>
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Truck className="h-4 w-4 text-brand-600" /> Doorstep Pickup</p>
-                      <p className="mt-0.5 text-xs text-gray-500">{pickupFee > 0 ? `Pickup from your address for ${formatPrice(pickupFee)}` : 'Pickup from your address'}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Truck className="h-4 w-4 text-brand-600" /> Pickup &amp; Drop at Home</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{pickupFee > 0 ? `We pick up & drop off your device for ${formatPrice(pickupFee)}` : 'We pick up & drop off your device'}</p>
                     </div>
                   </label>
                 </div>
@@ -316,7 +316,7 @@ export default function RepairBookPage() {
 
   return (
     <div className="bg-gradient-to-b from-amber-50/40 via-white to-white">
-      <div className="container-custom py-12">
+      <div className="container-custom py-12 pb-24">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
             <Wrench className="h-7 w-7 text-amber-600" />

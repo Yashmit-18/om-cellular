@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Shield, Clock, Award, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
-  MapPin, Mail, ExternalLink
+  MapPin, Mail, ExternalLink, ChevronLeft
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
@@ -86,10 +86,24 @@ export default function HomePage() {
 
   // ---- Renderer registry: homepage-section type -> existing section JSX ----
 
+  const advanceBanner = useCallback((dir: 1 | -1) => {
+    if (banners.length <= 1) return
+    setCurrentBanner(p => (p + dir + banners.length) % banners.length)
+  }, [banners.length])
+
+  const [touchX, setTouchX] = useState<number | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => setTouchX(e.touches[0].clientX)
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX == null) return
+    const dx = e.changedTouches[0].clientX - touchX
+    if (Math.abs(dx) > 40) advanceBanner(dx < 0 ? 1 : -1)
+    setTouchX(null)
+  }
+
   const renderHero = () => (
     banners.length > 0 ? (
       <section className="relative overflow-hidden bg-navy-950">
-        <div className="relative h-[420px] md:h-[520px]">
+        <div className="relative h-[360px] md:h-[520px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           {banners.map((banner, i) => (
             <div key={banner.id} className={`absolute inset-0 transition-opacity duration-700 ${i === currentBanner ? 'opacity-100' : 'opacity-0'}`}>
               <img src={banner.image} alt={banner.title} className="h-full w-full object-cover" />
@@ -111,12 +125,22 @@ export default function HomePage() {
           ))}
         </div>
         {banners.length > 1 && (
-          <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">
-            {banners.map((_, i) => (
-              <button key={i} onClick={() => setCurrentBanner(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === currentBanner ? 'w-8 bg-brand-500' : 'w-1.5 bg-white/40 hover:bg-white/60'}`} />
-            ))}
-          </div>
+          <>
+            <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">
+              {banners.map((_, i) => (
+                <button key={i} onClick={() => setCurrentBanner(i)} aria-label={`Go to slide ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === currentBanner ? 'w-8 bg-brand-500' : 'w-1.5 bg-white/40 hover:bg-white/60'}`} />
+              ))}
+            </div>
+            <button onClick={() => advanceBanner(-1)} aria-label="Previous banner"
+              className="absolute left-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/20 md:flex">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button onClick={() => advanceBanner(1)} aria-label="Next banner"
+              className="absolute right-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition-colors hover:bg-white/20 md:flex">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </>
         )}
       </section>
     ) : (
@@ -142,8 +166,18 @@ export default function HomePage() {
     )
   )
 
+  const productRail = (products: ProductWithVariant[]) => (
+    <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 no-scrollbar sm:grid sm:mx-0 sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-4">
+      {products.slice(0, 8).map(product => (
+        <div key={product.id} className="w-[240px] shrink-0 snap-start sm:w-auto">
+          <ProductCard product={product} />
+        </div>
+      ))}
+    </div>
+  )
+
   const renderFeatured = () => featured.length > 0 && (
-    <section className="bg-white py-16">
+    <section className="bg-white py-12 md:py-16">
       <div className="container-custom">
         <div className="flex items-center justify-between">
           <div>
@@ -154,11 +188,7 @@ export default function HomePage() {
             View All <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {featured.slice(0, 8).map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {productRail(featured)}
         <div className="mt-6 text-center sm:hidden">
           <Link to="/products" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600">
             View All Products <ChevronRight className="h-4 w-4" />
@@ -169,7 +199,7 @@ export default function HomePage() {
   )
 
   const renderNewArrivals = (section?: HomepageSection) => newArrivals.length > 0 && (
-    <section className="bg-white py-16">
+    <section className="bg-white py-12 md:py-16">
       <div className="container-custom">
         <div className="flex items-center justify-between">
           <div>
@@ -180,17 +210,13 @@ export default function HomePage() {
             View All <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {newArrivals.slice(0, 8).map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {productRail(newArrivals)}
       </div>
     </section>
   )
 
   const renderBestSellers = (section?: HomepageSection) => bestSellers.length > 0 && (
-    <section className="bg-white py-16">
+    <section className="bg-white py-12 md:py-16">
       <div className="container-custom">
         <div className="flex items-center justify-between">
           <div>
@@ -201,11 +227,7 @@ export default function HomePage() {
             View All <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {bestSellers.slice(0, 8).map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {productRail(bestSellers)}
       </div>
     </section>
   )
@@ -216,10 +238,10 @@ export default function HomePage() {
         <h2 className="section-heading">Popular Brands</h2>
         <p className="section-subheading">We service all major mobile brands</p>
       </div>
-      <div className="mt-10 grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+      <div className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible md:grid-cols-6 lg:grid-cols-8">
         {brands.slice(0, 16).map((brand: any) => (
           <Link key={brand.id || brand._id} to={`/products?brandId=${brand.id || brand._id}`}
-            className="card-premium flex flex-col items-center gap-2 p-4 text-center">
+            className="card-premium flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-auto sm:p-4">
             {brand.logo ? (
               <img src={brand.logo} alt={brand.name} className="h-10 w-10 object-contain" />
             ) : (
@@ -243,10 +265,10 @@ export default function HomePage() {
           <h2 className="section-heading">{section?.title || 'Popular Brands'}</h2>
           <p className="section-subheading">{section?.subtitle || 'We service all major mobile brands'}</p>
         </div>
-        <div className="mt-10 grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+        <div className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible md:grid-cols-6 lg:grid-cols-8">
           {items.map((item: any) => (
             <Link key={item.id || item._id} to={`/products?${categories.length > 0 ? 'categoryId' : 'brandId'}=${item.id || item._id}`}
-              className="card-premium flex flex-col items-center gap-2 p-4 text-center">
+              className="card-premium flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-auto sm:p-4">
               {item.logo ? (
                 <img src={item.logo} alt={item.name} className="h-10 w-10 object-contain" />
               ) : item.image ? (
@@ -634,7 +656,7 @@ export default function HomePage() {
       {/* WhatsApp Floating Button */}
       {whatsAppUrl && (
         <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all hover:bg-emerald-600 hover:shadow-xl hover:scale-110"
+          className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all hover:bg-emerald-600 hover:shadow-xl hover:scale-110 md:bottom-6 md:right-6"
           aria-label="Chat on WhatsApp">
           <MessageCircle className="h-6 w-6" />
         </a>

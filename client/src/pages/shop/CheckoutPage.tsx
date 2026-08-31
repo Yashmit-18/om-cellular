@@ -244,7 +244,7 @@ export default function CheckoutPage() {
   if (items.length === 0 && !placedOrderId) return null
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
       <h1 className="text-2xl font-bold">Checkout</h1>
 
       {!user ? (
