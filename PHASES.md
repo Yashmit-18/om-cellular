@@ -28,7 +28,7 @@ Phase tracker. A phase is marked **done** only when its work is complete and ver
 | 15 | Error/loading/retry states in search & panels | ✅ done |
 | 16 | Phase tracking (this file) | ✅ done |
 | 17 | Build client+server + diff check + 25 flow tests | ✅ client+server build pass, diff clean; manual flow review done |
-| 18 | Git commit + push to `mern-migration` + final report | ⏳ pending |
+| 18 | Git commit + push to `mern-migration` + final report | ✅ committed `c61e657`, pushed |
 
 ## Verification gates
 
