@@ -29,6 +29,7 @@ export default function CheckoutPage() {
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null)
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false)
   const [checkingPaymentConfig, setCheckingPaymentConfig] = useState(true)
+  const [paymentState, setPaymentState] = useState<'idle' | 'creating' | 'initializing' | 'processing'>('idle')
   const [addressForm, setAddressForm] = useState({
     name: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   })
@@ -103,6 +104,7 @@ export default function CheckoutPage() {
   }
 
   const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, amount: number) => {
+    setPaymentState('initializing')
     try {
       const init = await paymentService.init(orderId, method)
       const data = init.data
@@ -129,6 +131,7 @@ export default function CheckoutPage() {
         theme: { color: '#4f46e5' },
         handler: async (response: any) => {
           try {
+            setPaymentState('processing')
             const verify = await paymentService.verify({
               orderId,
               razorpayOrderId: response.razorpay_order_id,
@@ -164,6 +167,7 @@ export default function CheckoutPage() {
       })
       rzp.open()
     } catch (err: any) {
+      setPaymentState('idle')
       toast.error(err?.response?.data?.message || err?.message || 'Unable to start online payment. Please try again or use Cash on Delivery.')
     }
   }
@@ -185,6 +189,7 @@ export default function CheckoutPage() {
     }
 
     setLoading(true)
+    setPaymentState('creating')
     try {
       const orderData: any = {
         items: items.map(item => ({ variantId: item.variantId, quantity: item.quantity, price: item.discountPrice || item.price })),
@@ -221,9 +226,11 @@ export default function CheckoutPage() {
         // Do not clear the cart here — it is cleared only after payment success.
       }
     } catch (err: any) {
+      setPaymentState('idle')
       toast.error(err.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
+      if (paymentState !== 'processing') setPaymentState('idle')
     }
   }
 
@@ -382,6 +389,7 @@ export default function CheckoutPage() {
                   </h3>
                   <p className="mt-2 text-sm text-gray-600">
                     You will be redirected to a secure payment page to pay <span className="font-semibold text-gray-900">{formatPrice(total)}</span>.
+                    {paymentMethod === 'upi' && ' A "Scan QR with any UPI app" option is available in the payment window.'}
                     Your order is confirmed only after the payment is verified by the bank / payment gateway.
                   </p>
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-500">
@@ -463,10 +471,10 @@ export default function CheckoutPage() {
             </div>
 
             <button onClick={handlePlaceOrder} disabled={loading || !onlinePaymentEnabled && paymentMethod !== 'cod'} className="btn-primary mt-4 w-full">
-              {loading ? 'Please wait...' : paymentMethod !== 'cod' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
+              {paymentState === 'creating' ? 'Creating your order...' : paymentState === 'initializing' ? 'Initializing payment...' : paymentState === 'processing' ? 'Verifying payment...' : loading ? 'Please wait...' : paymentMethod !== 'cod' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
             </button>
             <p className="mt-2 text-center text-xs text-gray-400">
-              {paymentMethod !== 'cod' ? 'You will be redirected to a secure payment page. Order is confirmed only after payment verification.' : 'You will pay on delivery.'}
+              {paymentState === 'initializing' ? 'Opening secure payment...' : paymentState === 'processing' ? 'Payment processing — please wait, do not close this window.' : paymentMethod !== 'cod' ? 'You will be redirected to a secure payment page. Order is confirmed only after payment verification.' : 'You will pay on delivery.'}
             </p>
           </div>
         </div>
