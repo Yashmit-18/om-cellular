@@ -85,7 +85,24 @@ router.get('/track/:bookingNumber', async (req, res) => {
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
 
     const statusHistory = await RepairStatusHistory.find({ repairId: repair._id }).sort({ createdAt: -1 })
-    return res.json({ success: true, data: { ...repair.toObject(), statusHistory } })
+    // Public tracking surface: no customer phone/address, no internal
+    // technician/admin notes, no problem description details beyond what the
+    // customer themselves submitted (kept generic here to avoid PII leakage).
+    const data = {
+      bookingNumber: repair.bookingNumber,
+      brand: repair.brand,
+      model: repair.model,
+      status: repair.status,
+      serviceMode: repair.serviceMode,
+      pickupFee: repair.pickupFee,
+      estimatedCost: repair.estimatedCost,
+      technicianName: repair.technicianName || undefined,
+      serviceId: (repair.serviceId as any)?._id || repair.serviceId || null,
+      createdAt: repair.createdAt,
+      updatedAt: repair.updatedAt,
+      statusHistory: statusHistory.map(h => ({ status: h.status, changedAt: h.createdAt })),
+    }
+    return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -96,7 +113,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const repair = await RepairBooking.findById(req.params.id).populate('userId', 'name email phone').populate('serviceId')
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
 
-    if (req.user!.role !== 'ADMIN' && repair.userId && repair.userId._id.toString() !== req.user!.id) {
+    if (req.user!.role !== 'ADMIN' && (!repair.userId || repair.userId._id.toString() !== req.user!.id)) {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
 

@@ -33,6 +33,7 @@ const AccountDashboard = lazy(() => import('./pages/account/DashboardPage'))
 const AccountProfile = lazy(() => import('./pages/account/ProfilePage'))
 const AccountOrders = lazy(() => import('./pages/account/OrdersPage'))
 const AccountOrderDetail = lazy(() => import('./pages/account/OrderDetailPage'))
+const AccountReturns = lazy(() => import('./pages/account/ReturnsPage'))
 const AccountRepairs = lazy(() => import('./pages/account/RepairsPage'))
 const AccountSellRequests = lazy(() => import('./pages/account/SellRequestsPage'))
 const AccountExchangeRequests = lazy(() => import('./pages/account/ExchangeRequestsPage'))
@@ -51,6 +52,7 @@ const AdminRepairs = lazy(() => import('./pages/admin/RepairsPage'))
 const AdminRepairDetail = lazy(() => import('./pages/admin/RepairDetailPage'))
 const AdminSellRequests = lazy(() => import('./pages/admin/SellRequestsPage'))
 const AdminSellDetail = lazy(() => import('./pages/admin/SellDetailPage'))
+const AdminReturns = lazy(() => import('./pages/admin/ReturnsPage'))
 const AdminExchangeRequests = lazy(() => import('./pages/admin/ExchangeRequestsPage'))
 const AdminExchangeDetail = lazy(() => import('./pages/admin/ExchangeDetailPage'))
 const AdminPhoneValuation = lazy(() => import('./pages/admin/PhoneValuationPage'))
@@ -76,10 +78,45 @@ function ScrollToTop() {
   return null
 }
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'OM Cellular - Buy, Sell, Repair & Exchange Phones',
+  '/buy-phones': 'Buy Certified Used & Refurbished Phones | OM Cellular',
+  '/products': 'All Products | OM Cellular',
+  '/sell-phone': 'Sell Your Old Phone for the Best Price | OM Cellular',
+  '/exchange': 'Phone Exchange | OM Cellular',
+  '/repair': 'Book a Phone Repair | OM Cellular',
+  '/repair/track': 'Track Your Repair | OM Cellular',
+  '/cart': 'Your Cart | OM Cellular',
+  '/wishlist': 'Wishlist | OM Cellular',
+  '/faq': 'FAQs | OM Cellular',
+  '/contact': 'Contact Us | OM Cellular',
+  '/track-order': 'Track Your Order | OM Cellular',
+  '/login': 'Login | OM Cellular',
+  '/register': 'Create Account | OM Cellular',
+  '/account': 'My Account | OM Cellular',
+  '/account/orders': 'My Orders | OM Cellular',
+  '/account/returns': 'Returns & Refunds | OM Cellular',
+  '/account/repairs': 'My Repairs | OM Cellular',
+  '/account/sell-requests': 'My Sell Requests | OM Cellular',
+  '/account/exchange-requests': 'My Exchange Requests | OM Cellular',
+  '/account/notifications': 'Notifications | OM Cellular',
+  '/admin': 'Admin Dashboard | OM Cellular',
+}
+
+function RouteTitle() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const exact = PAGE_TITLES[pathname]
+    if (exact) document.title = exact
+  }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <Suspense fallback={<Loading />}>
       <ScrollToTop />
+      <RouteTitle />
       <Routes>
         <Route element={<ShopLayout />}>
           <Route path="/" element={<Home />} />
@@ -108,6 +145,7 @@ export default function App() {
           <Route path="/account/profile" element={<AccountProfile />} />
           <Route path="/account/orders" element={<AccountOrders />} />
           <Route path="/account/orders/:id" element={<AccountOrderDetail />} />
+          <Route path="/account/returns" element={<AccountReturns />} />
           <Route path="/account/repairs" element={<AccountRepairs />} />
           <Route path="/account/sell-requests" element={<AccountSellRequests />} />
           <Route path="/account/exchange-requests" element={<AccountExchangeRequests />} />
@@ -128,6 +166,7 @@ export default function App() {
           <Route path="repairs/:id" element={<AdminRepairDetail />} />
           <Route path="sell-requests" element={<AdminSellRequests />} />
           <Route path="sell-requests/:id" element={<AdminSellDetail />} />
+          <Route path="returns" element={<AdminReturns />} />
           <Route path="exchange-requests" element={<AdminExchangeRequests />} />
           <Route path="exchange-requests/:id" element={<AdminExchangeDetail />} />
           <Route path="phone-valuation" element={<AdminPhoneValuation />} />

@@ -19,6 +19,14 @@ export interface ISellPickupDetails {
   pincode?: string
 }
 
+export interface ISellPayout {
+  amount: number
+  mode?: string
+  reference?: string
+  status: 'PENDING' | 'PAID'
+  paidAt?: Date
+}
+
 export interface ISellRequest {
   _id: mongoose.Types.ObjectId
   requestNumber: string
@@ -42,6 +50,8 @@ export interface ISellRequest {
   valuationSource?: 'phone_valuation' | 'phone_catalog' | 'unavailable'
   estimatedPrice?: number
   finalOfferedPrice?: number
+  inspectionChecklist?: Record<string, 'PASS' | 'FAIL' | 'N/A'>
+  payout?: ISellPayout
   status: string
   statusHistory: ISellRequestStatus[]
   pickupAddress?: string
@@ -72,6 +82,14 @@ const sellPickupDetailsSchema = new Schema<ISellPickupDetails>({
   pincode: { type: String, trim: true },
 })
 
+const sellPayoutSchema = new Schema<ISellPayout>({
+  amount: { type: Number, required: true, min: 0 },
+  mode: { type: String, trim: true },
+  reference: { type: String, trim: true },
+  status: { type: String, enum: ['PENDING', 'PAID'], default: 'PENDING' },
+  paidAt: { type: Date },
+}, { _id: false })
+
 const sellRequestSchema = new Schema<ISellRequest>({
   requestNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
@@ -94,6 +112,8 @@ const sellRequestSchema = new Schema<ISellRequest>({
   valuationSource: { type: String, enum: ['phone_valuation', 'phone_catalog', 'unavailable'] },
   estimatedPrice: { type: Number },
   finalOfferedPrice: { type: Number },
+  inspectionChecklist: { type: Schema.Types.Mixed, default: undefined },
+  payout: { type: sellPayoutSchema, default: null },
   status: {
     type: String,
     default: 'SUBMITTED',

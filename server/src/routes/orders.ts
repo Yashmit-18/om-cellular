@@ -43,7 +43,7 @@ async function decrementStock(variant: any, quantity: number): Promise<boolean> 
     { $inc: { stock: -quantity, soldCount: quantity } }
   )
   if (!updated) return false
-  await syncInventory(variant._id, -quantity).catch(() => {})
+  await syncInventory(variant._id, -quantity, { reason: 'ORDER_PLACED', referenceType: 'order' }).catch(() => {})
   return true
 }
 
@@ -53,11 +53,39 @@ async function loadActiveVariant(variantId: any) {
 
 router.get('/track/:orderNumber', async (req, res) => {
   try {
-    const order = await Order.findOne({ orderNumber: req.params.orderNumber }).populate('userId', 'name email phone')
+    const order = await Order.findOne({ orderNumber: req.params.orderNumber })
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' })
 
     const items = await OrderItem.find({ orderId: order._id }).populate('variantId')
-    return res.json({ success: true, data: { ...order.toObject(), items } })
+    // Public tracking surface: expose only what a courier/ordering customer
+    // needs. No shipping address, no payment/gateway references, no PII.
+    const data = {
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      subtotal: order.subtotal,
+      discount: order.discount,
+      shipping: order.shipping,
+      tax: order.tax,
+      total: order.total,
+      couponCode: order.couponCode || undefined,
+      trackingNumber: order.trackingNumber || undefined,
+      items: items.map(it => {
+        const variant: any = it.variantId
+        return {
+          id: String(it._id),
+          variantId: String(it.variantId._id || it.variantId),
+          name: variant?.name || 'Item',
+          image: variant?.images?.[0] || variant?.primaryImage || undefined,
+          quantity: it.quantity,
+          price: it.price,
+        }
+      }),
+    }
+    return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -143,7 +171,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         // Roll back any stock already decremented earlier in this request.
         for (const d of decremented) {
           await ProductVariant.findByIdAndUpdate(d.variant._id, { $inc: { stock: +d.quantity, soldCount: -d.quantity } }).catch(() => {})
-          await syncInventory(d.variant._id, +d.quantity).catch(() => {})
+          await syncInventory(d.variant._id, +d.quantity, { reason: 'ORDER_CANCELLED', referenceType: 'checkout-rollback' }).catch(() => {})
         }
         return res.status(400).json({ success: false, message: `Insufficient stock for ${variant.name}` })
       }
@@ -246,13 +274,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         }
 
         if (notExpired && withinLimit && meetsMinimum && perUserOk) {
-          if (coupon.type === 'PERCENTAGE') {
-            couponDiscount = subtotal * (coupon.value / 100)
-            if (coupon.maxDiscount && couponDiscount > coupon.maxDiscount) couponDiscount = coupon.maxDiscount
-          } else if (coupon.type === 'FIXED') {
-            couponDiscount = coupon.value
-          }
-          couponDiscount = Math.round(couponDiscount * 100) / 100
+          const { applyCouponDiscount } = await import('../services/coupon.service')
+          couponDiscount = applyCouponDiscount(coupon as any, subtotal)
           couponId = coupon._id
         }
       }
@@ -409,6 +432,11 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
       } else {
         pushOrderStatusHistory(order, status, 'ADMIN', note || `Status updated to ${status}`)
       }
+
+      if (status === 'DELIVERED') {
+        const { issueWarrantyForOrder } = await import('../services/warranty.service')
+        await issueWarrantyForOrder(order).catch((error) => console.error('Warranty issuance failed:', error?.message || error))
+      }
       changed = true
     }
 
@@ -495,10 +523,10 @@ router.post('/:id/refund', requireAdmin, async (req: AuthRequest, res: Response)
     if (order.paymentStatus === 'REFUNDED') {
       return res.status(400).json({ success: false, message: 'This order has already been refunded' })
     }
-    if (order.paymentStatus !== 'PAID') {
+    if (order.paymentStatus !== 'PAID' && order.paymentStatus !== 'REFUND_PENDING') {
       return res.status(400).json({ success: false, message: 'Only paid orders can be refunded' })
     }
-    if (!order.paymentGateway || order.paymentGateway === 'cod' || order.paymentGateway === 'manual') {
+    if (order.paymentGateway === 'cod' || order.paymentGateway === 'manual' || !order.razorpayPaymentId) {
       return res.status(400).json({ success: false, message: 'This order was not paid through an online gateway and needs a manual refund' })
     }
 

@@ -5,20 +5,10 @@ import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { paginate } from '../utils/helpers'
 import { writeAudit, serializeAuditValue } from '../services/audit.service'
+import { applyCouponDiscount, couponApplicabilityError, validateCouponFields } from '../services/coupon.service'
 
 const router = Router()
 type RouteRequest = Request & Partial<AuthRequest>
-
-function validateCouponFields(body: any): string | null {
-  const { type, value, usageLimit, maxPerUser, minOrderAmount, maxDiscount } = body
-  if (type && !['PERCENTAGE', 'FIXED'].includes(type)) return 'type must be PERCENTAGE or FIXED'
-  if (value !== undefined && (!Number.isFinite(Number(value)) || Number(value) < 0)) return 'value must be a non-negative number'
-  if (usageLimit !== undefined && (!Number.isFinite(Number(usageLimit)) || Number(usageLimit) < 1)) return 'usageLimit must be at least 1'
-  if (maxPerUser !== undefined && (!Number.isFinite(Number(maxPerUser)) || Number(maxPerUser) < 1)) return 'maxPerUser must be at least 1'
-  if (minOrderAmount !== undefined && (!Number.isFinite(Number(minOrderAmount)) || Number(minOrderAmount) < 0)) return 'minOrderAmount must be a non-negative number'
-  if (maxDiscount !== undefined && (!Number.isFinite(Number(maxDiscount)) || Number(maxDiscount) < 0)) return 'maxDiscount must be a non-negative number'
-  return null
-}
 
 router.get('/', requireAdmin, async (req: Request, res: Response) => {
   try {
@@ -49,9 +39,8 @@ router.get('/validate/:code', optionalAuth, async (req: RouteRequest, res: Respo
     if (!withinLimit) return res.status(400).json({ success: false, message: 'Coupon usage limit reached' })
 
     const total = Math.max(0, parseFloat(String(req.query.total || '0')) || 0)
-    if (coupon.minOrderAmount && total < coupon.minOrderAmount) {
-      return res.status(400).json({ success: false, message: `This coupon requires a minimum order of ₹${coupon.minOrderAmount}` })
-    }
+    const applicabilityError = couponApplicabilityError(coupon as any, total)
+    if (applicabilityError) return res.status(400).json({ success: false, message: applicabilityError })
 
     if (req.user?.id) {
       const usedByUser = await Order.countDocuments({ userId: req.user.id, couponCode: coupon.code, status: { $ne: 'CANCELLED' } })
@@ -61,10 +50,21 @@ router.get('/validate/:code', optionalAuth, async (req: RouteRequest, res: Respo
       }
     }
 
-    const rawDiscount = coupon.type === 'PERCENTAGE' ? Math.round((total * coupon.value) / 100) : Math.round(coupon.value)
-    const discount = Math.max(0, Math.min(total, coupon.maxDiscount ? Math.min(rawDiscount, coupon.maxDiscount) : rawDiscount))
+    const discount = applyCouponDiscount(coupon as any, total)
 
-    return res.json({ success: true, data: { ...coupon.toObject(), discount } })
+    // Only surface the fields the storefront needs to render the badge; the
+    // internal usage counters and product/category targets stay server-side.
+    const publicCoupon = {
+      id: String(coupon._id),
+      code: coupon.code,
+      type: coupon.type,
+      value: coupon.value,
+      minOrderAmount: coupon.minOrderAmount,
+      maxDiscount: coupon.maxDiscount,
+      description: coupon.description,
+    }
+
+    return res.json({ success: true, data: { ...publicCoupon, discount } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }

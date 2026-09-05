@@ -90,7 +90,7 @@ const orderSchema = new Schema<IOrder>({
     default: 'PENDING',
     enum: ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCEL_REQUESTED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'REFUND_PENDING', 'CANCELLED', 'REFUNDED', 'RETURNED', 'FAILED'],
   },
-  paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'] },
+  paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'REFUND_PENDING', 'FAILED', 'REFUNDED'] },
   paymentMethod: { type: String, enum: ['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'] },
   paymentGateway: { type: String, enum: ['razorpay', 'cod', 'manual'] },
   statusHistory: { type: [orderStatusHistorySchema], default: [] },

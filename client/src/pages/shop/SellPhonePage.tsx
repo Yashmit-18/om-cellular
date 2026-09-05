@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { phoneCatalogService } from '../../services/phoneCatalog.service'
 import { sellRequestService } from '../../services/sellRequest.service'
 import { phoneValuationService } from '../../services/phoneValuation.service'
-import { formatPrice } from '../../utils'
+import { formatPrice, isValidImei } from '../../utils'
 import type { PhoneCatalogModelEntry } from '../../types'
 
 const STEPS = ['Select Phone', 'Phone Details', 'Condition', 'Get Estimate', 'Submit Request']
@@ -40,7 +40,7 @@ export default function SellPhonePage() {
     displayCondition: 'no_issues', batteryCondition: 'good',
     cameraCondition: 'good', bodyCondition: 'good',
     accessoriesAvailable: false, originalBill: false, originalBox: false,
-    pickupAddress: '', pickupDate: '', pickupTime: '',
+    pickupAddress: '', pickupDate: '', pickupTime: '', imei: '',
   })
   const [pickup, setPickup] = useState({
     name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '',
@@ -155,6 +155,11 @@ export default function SellPhonePage() {
       toast.error('Alternate phone must be a valid 10-digit number')
       return
     }
+    const imei = form.imei.replace(/\s+/g, '')
+    if (imei && !isValidImei(imei)) {
+      toast.error('Please enter a valid 15-digit IMEI number (you can find it in Settings > About phone)')
+      return
+    }
     const wantsPickup = Boolean(pickup.addressLine1 || pickup.city || form.pickupAddress)
     if (wantsPickup && (!pickup.addressLine1.trim() || !pickup.city.trim() || !pickup.state.trim() || !pickup.pincode.trim())) {
       toast.error('Please fill the pickup address (address, city, state and PIN code)')
@@ -195,7 +200,7 @@ export default function SellPhonePage() {
     setEstimatedValue(null); setValuationState('idle')
     setRequestNumber('')
     setBrandSearch(''); setModelSearch('')
-    setForm({ phone: '', alternatePhone: '', condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '' })
+    setForm({ phone: '', alternatePhone: '', condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '', imei: '' })
     setPickup({ name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '' })
   }
 
@@ -594,6 +599,19 @@ export default function SellPhonePage() {
                       placeholder="Another contact number (optional)"
                       inputMode="tel"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">IMEI number <span className="text-gray-400">(optional, recommended)</span></label>
+                    <input
+                      value={form.imei}
+                      onChange={e => setForm({ ...form, imei: e.target.value })}
+                      className="input mt-1"
+                      placeholder="15-digit IMEI (Settings → About phone)"
+                      inputMode="numeric"
+                    />
+                    {form.imei.replace(/\s+/g, '') && (isValidImei(form.imei)
+                      ? <p className="mt-1 text-xs text-green-600">Valid IMEI — helps us verify ownership and speed up your offer.</p>
+                      : <p className="mt-1 text-xs text-red-500">Enter a valid 15-digit IMEI to verify this device.</p>)}
                   </div>
                   <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/50 p-4">
                     <p className="flex items-center gap-2 text-sm font-medium text-gray-900"><Package className="h-4 w-4 text-gray-400" /> Pickup address <span className="text-gray-400">(optional)</span></p>

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { applyValuationRules, DEFAULT_VALUATION_ENGINE } from '../src/services/valuation.service'
-import { isValidImei, normalizeImei, normalizePhone, paginate } from '../src/utils/helpers'
+import { isValidImei, normalizeImei, normalizePhone, paginate, generateOrderNumber, generateRepairBookingNumber, generateRequestNumber, generateReturnNumber, slugify, formatPrice } from '../src/utils/helpers'
 
 test('valuations multiplier is applied and never goes negative', () => {
   const result = applyValuationRules({ baseValue: 30000, condition: 'NEW' })
@@ -56,4 +56,29 @@ test('paginate clamps page and limit', () => {
   assert.deepEqual(paginate(0, 0), { skip: 0, limit: 1, page: 1 })
   assert.deepEqual(paginate(3, 1000), { skip: 200, limit: 100, page: 3 })
   assert.deepEqual(paginate(NaN, NaN), { skip: 0, limit: 20, page: 1 })
+})
+
+test('business reference numbers follow the OMC-<year>-<6digit>/OMS/OMX/OMR prefixes', () => {
+  const year = new Date().getFullYear()
+  assert.match(generateOrderNumber(), new RegExp(`^OMC-${year}-\\d{6}$`))
+  assert.match(generateRepairBookingNumber(), new RegExp(`^OMR-${year}-\\d{6}$`))
+  assert.match(generateReturnNumber(), new RegExp(`^OMR-${year}-\\d{6}$`))
+  assert.match(generateRequestNumber('sell'), new RegExp(`^OMS-${year}-\\d{6}$`))
+  assert.match(generateRequestNumber('exchange'), new RegExp(`^OMX-${year}-\\d{6}$`))
+  for (let i = 0; i < 50; i++) {
+    assert.notEqual(generateOrderNumber(), generateOrderNumber())
+  }
+})
+
+test('slugify is lowercase, trimmed and hyphenated', () => {
+  assert.equal(slugify('  iPhone 15 Pro  '), 'iphone-15-pro')
+  assert.equal(slugify('Samsung Galaxy   S24  Ultra!'), 'samsung-galaxy-s24-ultra')
+  assert.equal(slugify('---pre--post---'), 'pre-post')
+  assert.equal(slugify(''), '')
+})
+
+test('formatPrice renders Indian rupee currency', () => {
+  assert.equal(formatPrice(12999), '₹12,999')
+  assert.equal(formatPrice(1000), '₹1,000')
+  assert.equal(formatPrice(0), '₹0')
 })

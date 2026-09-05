@@ -4,6 +4,7 @@ import { ProductVariant } from '../models/productVariant.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate, isValidImei } from '../utils/helpers'
+import { normalizeInspectionChecklist, normalizePayout, autoPayoutForExchange } from '../utils/requestValidation'
 import { EXCHANGE_TRANSITIONS, assertTransition } from '../services/fsm.service'
 import { calculateValuation } from '../services/valuation.service'
 import { notify } from '../services/notification.service'
@@ -40,7 +41,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const request = await ExchangeRequest.findById(req.params.id).populate('userId', 'name email phone').populate('newVariantId')
     if (!request) return res.status(404).json({ success: false, message: 'Exchange request not found' })
 
-    if (req.user!.role !== 'ADMIN' && request.userId && request.userId._id.toString() !== req.user!.id) {
+    if (req.user!.role !== 'ADMIN' && (!request.userId || request.userId._id.toString() !== req.user!.id)) {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
 
@@ -144,7 +145,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, estimatedExchangeValue, finalExchangeValue, difference, adminNotes, note } = req.body
+    const { status, estimatedExchangeValue, finalExchangeValue, difference, adminNotes, note, inspectionChecklist, payout } = req.body
     const request = await ExchangeRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Exchange request not found' })
 
@@ -176,6 +177,28 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
       if (Number.isFinite(parsed) && parsed >= 0) request.difference = parsed
     }
     if (adminNotes !== undefined) request.adminNotes = adminNotes
+    if (inspectionChecklist !== undefined) {
+      const result = normalizeInspectionChecklist(inspectionChecklist)
+      if (!result.ok) return res.status(400).json({ success: false, message: result.message })
+      request.inspectionChecklist = result.value as any
+    }
+    if (payout !== undefined) {
+      const result = normalizePayout(payout, request.payout)
+      if (!result.ok) return res.status(400).json({ success: false, message: result.message })
+      request.payout = result.value as any
+    }
+
+    // Pure buyback payout: when an exchange is completed with no balance due,
+    // the trade-in value is paid out to the customer instead of offsetting a new
+    // purchase. Recorded manually; there is no auto-creation here because most
+    // exchanges settle as store credit.
+    if (status && status === 'COMPLETED' && !request.payout) {
+      const outstanding = request.difference ?? 0
+      const settledInStore = request.newVariantId && request.finalExchangeValue != null
+      if (!settledInStore && (request.finalExchangeValue ?? 0) > 0 && outstanding === 0) {
+        request.payout = autoPayoutForExchange(request.finalExchangeValue ?? undefined, request.estimatedExchangeValue ?? undefined) as any
+      }
+    }
 
     await request.save()
 

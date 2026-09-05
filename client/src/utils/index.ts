@@ -55,6 +55,22 @@ export function getConditionLabel(condition: string): string {
   return labels[condition] || condition
 }
 
+// 15-digit IMEI Luhn check, mirrors the server-side validator in helpers.ts.
+export function isValidImei(imei: string): boolean {
+  const digits = String(imei || '').replace(/\s+/g, '')
+  if (!/^\d{15}$/.test(digits)) return false
+  let sum = 0
+  for (let i = 0; i < digits.length; i++) {
+    let n = parseInt(digits[i], 10)
+    if (i % 2 === 1) {
+      n *= 2
+      if (n > 9) n = (n % 10) + Math.floor(n / 10)
+    }
+    sum += n
+  }
+  return sum % 10 === 0
+}
+
 function parseImages(value: unknown): string[] {
   if (!value) return []
   if (typeof value === 'string') {

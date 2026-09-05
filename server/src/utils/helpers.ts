@@ -17,6 +17,12 @@ export function generateRequestNumber(type: 'sell' | 'exchange'): string {
   return `${prefix}-${year}-${random}`
 }
 
+export function generateReturnNumber(): string {
+  const year = new Date().getFullYear()
+  const random = Math.floor(100000 + Math.random() * 900000)
+  return `OMR-${year}-${random}`
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

@@ -7,6 +7,14 @@ export interface IExchangeRequestStatus {
   note?: string
 }
 
+export interface IExchangePayout {
+  amount: number
+  mode?: string
+  reference?: string
+  status: 'PENDING' | 'PAID'
+  paidAt?: Date
+}
+
 export interface IExchangeRequest extends Document {
   _id: mongoose.Types.ObjectId
   requestNumber: string
@@ -24,6 +32,8 @@ export interface IExchangeRequest extends Document {
   estimatedExchangeValue?: number
   finalExchangeValue?: number
   difference?: number
+  inspectionChecklist?: Record<string, 'PASS' | 'FAIL' | 'N/A'>
+  payout?: IExchangePayout
   status: string
   statusHistory: IExchangeRequestStatus[]
   oldDeviceDetails: any
@@ -38,6 +48,14 @@ const exchangeStatusSchema = new Schema<IExchangeRequestStatus>({
   changedBy: { type: String, enum: ['SYSTEM', 'CUSTOMER', 'ADMIN'], default: 'SYSTEM' },
   note: { type: String },
 })
+
+const exchangePayoutSchema = new Schema<IExchangePayout>({
+  amount: { type: Number, required: true, min: 0 },
+  mode: { type: String, trim: true },
+  reference: { type: String, trim: true },
+  status: { type: String, enum: ['PENDING', 'PAID'], default: 'PENDING' },
+  paidAt: { type: Date },
+}, { _id: false })
 
 const exchangeRequestSchema = new Schema<IExchangeRequest>({
   requestNumber: { type: String, required: true, unique: true },
@@ -55,6 +73,8 @@ const exchangeRequestSchema = new Schema<IExchangeRequest>({
   estimatedExchangeValue: { type: Number },
   finalExchangeValue: { type: Number },
   difference: { type: Number },
+  inspectionChecklist: { type: Schema.Types.Mixed, default: undefined },
+  payout: { type: exchangePayoutSchema, default: null },
   status: {
     type: String,
     default: 'SUBMITTED',

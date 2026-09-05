@@ -388,7 +388,10 @@ router.post('/request-password-reset', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: 'If that phone number or email belongs to an account, a reset link will be sent.',
-      ...(env.isProduction ? {} : { devResetToken: resetToken }),
+      // Developer convenience only — the plaintext token must never leave the
+      // server in any non-development environment (including misconfigured
+      // deploys that leave NODE_ENV unset).
+      ...(env.isDevelopment ? { devResetToken: resetToken } : {}),
     })
   } catch (error) {
     console.error('Request password reset error:', error)

@@ -10,7 +10,7 @@ export interface NotificationInput {
 
 export const NOTIFICATION_TYPES = [
   'ORDER', 'PAYMENT', 'SHIPMENT', 'REFUND', 'CANCELLATION',
-  'REPAIR', 'SELL', 'EXCHANGE', 'SERVICEABILITY', 'ACCOUNT', 'ANNOUNCEMENT',
+  'REPAIR', 'SELL', 'EXCHANGE', 'RETURN', 'SERVICEABILITY', 'ACCOUNT', 'ANNOUNCEMENT',
 ] as const
 
 // Creates a single in-app notification. Best effort — failures are swallowed so

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { exchangeRequestService } from '../../services/exchangeRequest.service'
 import { phoneCatalogService } from '../../services/phoneCatalog.service'
+import { isValidImei } from '../../utils'
 import type { ProductWithVariant, PhoneCatalogModelEntry } from '../../types'
 
 export default function ExchangePage() {
@@ -23,7 +24,7 @@ export default function ExchangePage() {
 
   const [form, setForm] = useState({
     phone: '', alternatePhone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '',
-    newVariantId: '',
+    newVariantId: '', oldImei: '',
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -60,12 +61,15 @@ export default function ExchangePage() {
     const digits = form.phone.replace(/[^0-9]/g, '')
     if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
     if (form.alternatePhone && form.alternatePhone.replace(/[^0-9]/g, '').length < 10) { toast.error('Alternate phone must be a valid 10-digit number'); return }
+    const oldImei = form.oldImei.replace(/\s+/g, '')
+    if (oldImei && !isValidImei(oldImei)) { toast.error('Please enter a valid 15-digit IMEI number (Settings → About phone)'); return }
     setLoading(true)
     try {
       const res = await exchangeRequestService.createExchangeRequest({
         oldBrand: selectedBrand, oldModel: selectedModel.modelName,
         oldStorage: form.oldStorage, oldRam: form.oldRam,
         oldCondition: form.oldCondition, oldDeviceDetails: form.oldDeviceDetails,
+        oldImei: oldImei || undefined,
         newVariantId: form.newVariantId, phone: form.phone,
         alternatePhone: form.alternatePhone || undefined,
       })
@@ -79,7 +83,7 @@ export default function ExchangePage() {
 
   const resetAll = () => {
     setSuccess(false); setRequestNumber('')
-    setForm({ phone: '', alternatePhone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '' })
+    setForm({ phone: '', alternatePhone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '', oldImei: '' })
     setSelectedBrand(''); setSelectedModel(null); setBrandSearch(''); setModelSearch('')
   }
 
@@ -189,15 +193,24 @@ export default function ExchangePage() {
                 <input value={form.alternatePhone} onChange={e => setForm({ ...form, alternatePhone: e.target.value })} inputMode="tel" className="input !pl-10" placeholder="Another contact number (optional)" />
               </div>
             </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div><label className="block text-sm font-medium text-gray-700">Storage</label><input value={form.oldStorage} onChange={e => setForm({ ...form, oldStorage: e.target.value })} className="input mt-1" placeholder="e.g. 128GB" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">RAM</label><input value={form.oldRam} onChange={e => setForm({ ...form, oldRam: e.target.value })} className="input mt-1" placeholder="e.g. 6GB" /></div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">IMEI number <span className="text-gray-400">(optional, recommended)</span></label>
+                <input value={form.oldImei} onChange={e => setForm({ ...form, oldImei: e.target.value })} inputMode="numeric" className="input mt-1" placeholder="15-digit IMEI (Settings → About phone)" />
+                {form.oldImei.replace(/\s+/g, '') && (isValidImei(form.oldImei)
+                  ? <p className="mt-1 text-xs text-green-600">Valid IMEI — helps us verify ownership and speed up your offer.</p>
+                  : <p className="mt-1 text-xs text-red-500">Enter a valid 15-digit IMEI to verify this device.</p>)}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Condition *</label>
                 <select value={form.oldCondition} onChange={e => setForm({ ...form, oldCondition: e.target.value })} className="input mt-1">
                   <option value="NEW">Brand New</option><option value="LIKE_NEW">Like New</option><option value="EXCELLENT">Excellent</option><option value="GOOD">Good</option><option value="FAIR">Fair</option>
                 </select>
               </div>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div><label className="block text-sm font-medium text-gray-700">Storage</label><input value={form.oldStorage} onChange={e => setForm({ ...form, oldStorage: e.target.value })} className="input mt-1" placeholder="e.g. 128GB" /></div>
+              <div><label className="block text-sm font-medium text-gray-700">RAM</label><input value={form.oldRam} onChange={e => setForm({ ...form, oldRam: e.target.value })} className="input mt-1" placeholder="e.g. 6GB" /></div>
             </div>
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700">Device Details / Issues</label>

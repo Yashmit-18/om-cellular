@@ -22,6 +22,7 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -38,9 +39,12 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setNotifications([]); return }
+    if (!user) { setNotifications([]); setUnreadCount(0); return }
     notificationService.getNotifications({ limit: '5' }).then(r => {
       setNotifications(r?.data || [])
+      // Server returns the authoritative full unread count; the list above is
+      // only the latest 5 for the dropdown.
+      setUnreadCount(r?.unreadCount ?? (r?.data || []).filter((n: any) => !n.isRead).length)
     }).catch(() => {})
   }, [user, location.pathname])
 
@@ -52,16 +56,16 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
-
   const handleMarkRead = async (id: string) => {
     await notificationService.markAsRead(id).catch(() => {})
     setNotifications(prev => prev.map(n => (n._id === id || n.id === id ? { ...n, isRead: true } : n)))
+    setUnreadCount(prev => Math.max(0, prev - 1))
   }
 
   const handleMarkAllRead = async () => {
     await notificationService.markAllRead().catch(() => {})
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+    setUnreadCount(0)
   }
 
   const whatsAppNumber = settings.whatsapp_number || ''

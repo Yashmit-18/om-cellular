@@ -155,13 +155,13 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
     order.razorpaySignature = razorpaySignature
     order.paidAt = new Date()
     order.paymentGateway = 'razorpay'
-    if (order.status === 'PENDING') {
+    if (order.status === 'PENDING' || order.status === 'FAILED') {
       order.statusHistory = order.statusHistory || []
       order.statusHistory.push({
         status: 'PAYMENT_CONFIRMED',
         changedAt: new Date(),
         changedBy: 'SYSTEM',
-        note: 'Payment received via Razorpay',
+        note: 'Payment received via Razorpay' + (order.status === 'FAILED' ? ' (recovered after payment was made)' : ''),
       })
       order.status = 'PAYMENT_CONFIRMED'
     }

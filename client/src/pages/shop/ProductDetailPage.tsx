@@ -6,6 +6,7 @@ import api from '../../services/api'
 import { useCartStore } from '../../stores/cartStore'
 import { useWishlistStore } from '../../stores/wishlistStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { formatPrice, calculateDiscount, getImageList, cn } from '../../utils'
 import ProductImage from '../../components/shop/ProductImage'
 import type { Product, ProductVariant } from '../../types'
@@ -85,6 +86,28 @@ export default function ProductDetailPage() {
       setLoading(false)
     })
   }, [id])
+
+  useDocumentMeta({
+    title: product ? `${product.name} - Buy Certified ${product.name} | OM Cellular` : 'Product | OM Cellular',
+    description: product?.description
+      ? String(product.description).slice(0, 155)
+      : 'Shop certified used and refurbished phones at OM Cellular.',
+    canonical: product?.slug ? `https://om-cellular-iota.vercel.app/products/${product.slug}` : undefined,
+    jsonLd: product ? {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: String(product.description || '').slice(0, 300),
+      url: `https://om-cellular-iota.vercel.app/products/${product.slug || product.id}`,
+      image: getImageList(product.images, selectedVariant?.images)[0] || 'https://om-cellular-iota.vercel.app/placeholder.svg',
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: 'INR',
+        availability: (selectedVariant?.stock ?? 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        price: String(selectedVariant?.discountPrice ?? selectedVariant?.price ?? 0),
+      },
+    } : undefined,
+  })
 
   const handleAddToCart = () => {
     if (!selectedVariant || !product) return

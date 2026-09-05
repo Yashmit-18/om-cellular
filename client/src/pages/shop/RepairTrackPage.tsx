@@ -70,13 +70,12 @@ export default function RepairTrackPage() {
               <div>
                 <h3 className="text-sm font-semibold mt-4">Status History</h3>
                 <div className="mt-2 space-y-2">
-                  {result.statusHistory.map((h: any) => (
-                    <div key={h.id} className="flex items-start gap-3 text-sm">
+                  {result.statusHistory.map((h: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3 text-sm">
                       <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
                       <div>
                         <p className="font-medium">{h.status}</p>
-                        {h.note && <p className="text-gray-500">{h.note}</p>}
-                        <p className="text-xs text-gray-400">{formatDate(h.createdAt)}</p>
+                        <p className="text-xs text-gray-400">{formatDate(h.changedAt)}</p>
                       </div>
                     </div>
                   ))}

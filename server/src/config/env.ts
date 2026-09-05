@@ -45,6 +45,7 @@ if (Boolean(razorpayKeyId) !== Boolean(razorpayKeySecret)) {
 export const env = {
   NODE_ENV,
   isProduction,
+  isDevelopment: NODE_ENV === 'development',
   isTest,
   PORT: parseInt(process.env.PORT || '5000', 10),
   MONGODB_URI: required('MONGODB_URI', 'mongodb://localhost:27017/omcellular'),

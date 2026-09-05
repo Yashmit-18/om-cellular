@@ -3,6 +3,7 @@ import { SellRequest } from '../models/sellRequest.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate, isValidImei } from '../utils/helpers'
+import { normalizeInspectionChecklist, normalizePayout, autoPayoutForSell } from '../utils/requestValidation'
 import { checkServiceability } from '../services/serviceability.service'
 import { SELL_TRANSITIONS, assertTransition } from '../services/fsm.service'
 import { calculateValuation } from '../services/valuation.service'
@@ -53,7 +54,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const request = await SellRequest.findById(req.params.id).populate('userId', 'name email phone')
     if (!request) return res.status(404).json({ success: false, message: 'Sell request not found' })
 
-    if (req.user!.role !== 'ADMIN' && request.userId && request.userId._id.toString() !== req.user!.id) {
+    if (req.user!.role !== 'ADMIN' && (!request.userId || request.userId._id.toString() !== req.user!.id)) {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
 
@@ -154,7 +155,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, finalOfferedPrice, estimatedPrice, adminNotes, pickupDate, pickupTime, pickupAddress, pickupDetails, note } = req.body
+    const { status, finalOfferedPrice, estimatedPrice, adminNotes, pickupDate, pickupTime, pickupAddress, pickupDetails, note, inspectionChecklist, payout } = req.body
     const request = await SellRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Sell request not found' })
 
@@ -184,6 +185,22 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (pickupTime !== undefined) request.pickupTime = pickupTime
     if (pickupAddress !== undefined) request.pickupAddress = pickupAddress
     if (pickupDetails !== undefined) request.pickupDetails = pickupDetails || undefined
+    if (inspectionChecklist !== undefined) {
+      const result = normalizeInspectionChecklist(inspectionChecklist)
+      if (!result.ok) return res.status(400).json({ success: false, message: result.message })
+      request.inspectionChecklist = result.value as any
+    }
+    if (payout !== undefined) {
+      const result = normalizePayout(payout, request.payout)
+      if (!result.ok) return res.status(400).json({ success: false, message: result.message })
+      request.payout = result.value as any
+    }
+
+    // Completing the deal always yields a payout record (defaults to the final
+    // offered price) so the money flow is auditable end-to-end.
+    if (status && status === 'PAYMENT_COMPLETED' && !request.payout) {
+      request.payout = autoPayoutForSell(request.finalOfferedPrice ?? undefined, request.estimatedPrice ?? undefined) as any
+    }
 
     await request.save()
 

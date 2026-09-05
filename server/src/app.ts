@@ -13,6 +13,8 @@ import productRoutes from './routes/products'
 import categoryRoutes from './routes/categories'
 import brandRoutes from './routes/brands'
 import orderRoutes from './routes/orders'
+import returnRoutes from './routes/returns'
+import warrantyRoutes from './routes/warranties'
 import repairRoutes from './routes/repairs'
 import sellRequestRoutes from './routes/sellRequests'
 import exchangeRequestRoutes from './routes/exchangeRequests'
@@ -34,6 +36,10 @@ import addressRoutes from './routes/addresses'
 import serviceabilityRoutes from './routes/serviceability'
 
 const app = express()
+
+// Behind Render's reverse proxy, trust exactly one hop so req.ip / rate
+// limiting see the real client address instead of the shared proxy IP.
+app.set('trust proxy', 1)
 
 // Security
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
@@ -72,6 +78,8 @@ app.use('/api/v1/products', productRoutes)
 app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/brands', brandRoutes)
 app.use('/api/v1/orders', orderRoutes)
+app.use('/api/v1/returns', returnRoutes)
+app.use('/api/v1/warranties', warrantyRoutes)
 app.use('/api/v1/repairs', repairRoutes)
 app.use('/api/v1/sell-requests', sellRequestRoutes)
 app.use('/api/v1/exchange-requests', exchangeRequestRoutes)

@@ -1,28 +1,41 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
-import { ChevronRight, Clock, MapPin, FileText, XCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { ChevronRight, Clock, MapPin, FileText, XCircle, RotateCcw, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { orderService } from '../../services/order.service'
+import { returnService, warrantyService } from '../../services/returnRequest.service'
 import { formatDate, formatPrice } from '../../utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 import StatusTimeline from '../../components/StatusTimeline'
 
 export default function AccountOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const location = useLocation()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [cancelNote, setCancelNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const paymentPending = (location.state as any)?.paymentPending
+  const [warranties, setWarranties] = useState<any[]>([])
+  const [returning, setReturning] = useState(false)
+  const [returnReason, setReturnReason] = useState('')
+  const [returnItems, setReturnItems] = useState<string[]>([])
+  const [returnSubmitting, setReturnSubmitting] = useState(false)
+  const [claimingId, setClaimingId] = useState<string | null>(null)
+
+  const itemIds = useMemo(() => (order?.items?.length ? order.items.map((i: any) => String(i.id)) : []), [order])
 
   useEffect(() => {
     if (!id) return
     api.get(`/orders/${id}`).then(r => { setOrder(r.data.data); setLoading(false) }).catch(() => setLoading(false))
   }, [id])
 
-  const CANCELABLE = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED']
+  useEffect(() => {
+    if (!id || !order) return
+    warrantyService.getWarrantiesByOrder(id).then(r => setWarranties(r.data || [])).catch(() => setWarranties([]))
+  }, [id, order])
+
+  const CANCELABLE = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP']
+  const RETURNABLE = ['DELIVERED']
 
   const handleCancelRequest = async () => {
     if (!id) return
@@ -49,9 +62,56 @@ export default function AccountOrderDetailPage() {
       const blob = await orderService.invoice(id)
       const url = URL.createObjectURL(blob as Blob)
       window.open(url, '_blank')
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Could not download invoice')
+    }
+  }
+
+  const handleReturn = async () => {
+    if (!order || !id) return
+    if (!returnReason.trim()) {
+      toast.error('Please provide a reason for the return')
+      return
+    }
+    const selected = order.items
+      .filter((i: any) => returnItems.includes(String(i.id)))
+      .map((i: any) => ({ itemId: String(i.id), quantity: i.quantity }))
+    if (!selected.length) {
+      toast.error('Select at least one item to return')
+      return
+    }
+    setReturnSubmitting(true)
+    try {
+      await returnService.createReturn({
+        orderId: id,
+        reason: returnReason.trim(),
+        items: selected,
+      })
+      setReturning(false)
+      setReturnReason('')
+      setReturnItems([])
+      toast.success('Return requested. Our team will review it shortly.')
+      const res = await orderService.getOrder(id)
+      setOrder(res.data)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not request a return')
+    } finally {
+      setReturnSubmitting(false)
+    }
+  }
+
+  const handleWarrantyClaim = async (warrantyId: string) => {
+    setClaimingId(warrantyId)
+    try {
+      await warrantyService.claimWarranty(warrantyId)
+      toast.success('Warranty claim registered. Our service team will contact you.')
+      const r = await warrantyService.getWarrantiesByOrder(id!)
+      setWarranties(r.data.data || [])
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not register warranty claim')
+    } finally {
+      setClaimingId(null)
     }
   }
 
@@ -91,6 +151,60 @@ export default function AccountOrderDetailPage() {
           <div>
             <p className="font-medium">Payment pending verification</p>
             <p className="mt-0.5 text-xs text-amber-700">We are verifying your UPI payment. Your order will be confirmed and moved to "Paid" shortly.</p>
+          </div>
+        </div>
+      )}
+      {RETURNABLE.includes(order.status) && order.paymentStatus !== 'REFUNDED' && (
+        <div className="mt-4 rounded-lg border border-brand-100 bg-brand-50/40 p-4">
+          {!returning ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-brand-800"><RotateCcw className="mr-1 inline h-4 w-4" /> Return this order</p>
+                <p className="mt-0.5 text-xs text-brand-700">Items delivered can be returned. Refunds are processed after we receive and inspect the return.</p>
+              </div>
+              <button onClick={() => { setReturning(true); setReturnItems(itemIds) }} className="btn-secondary !px-4 !py-2 text-sm">Start Return</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-brand-900">Select items to return</p>
+              {order.items.map((item: any) => (
+                <label key={item.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={returnItems.includes(String(item.id))} onChange={e => setReturnItems(prev => e.target.checked ? [...prev, String(item.id)] : prev.filter(p => p !== String(item.id)))} />
+                  <span>{item.variant?.name || item.variantId?.name || item.variantId} (Qty: {item.quantity})</span>
+                </label>
+              ))}
+              <select value={returnReason} onChange={e => setReturnReason(e.target.value)} className="input !py-2 text-sm">
+                <option value="">Select a reason</option>
+                <option value="damaged">Damaged / defective product received</option>
+                <option value="wrong">Wrong item received</option>
+                <option value="changed">Changed my mind</option>
+                <option value="quality">Quality not as expected</option>
+                <option value="other">Other</option>
+              </select>
+              <div className="flex items-center gap-2">
+                <button onClick={handleReturn} disabled={returnSubmitting} className="btn-primary !px-4 !py-2 text-sm">{returnSubmitting ? 'Submitting…' : 'Submit Return'}</button>
+                <button onClick={() => { setReturning(false); setReturnItems([]); setReturnReason('') }} className="btn-ghost !px-4 !py-2 text-sm">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {warranties.length > 0 && (
+        <div className="mt-4 card p-4">
+          <h3 className="flex items-center gap-2 font-semibold mb-3"><ShieldCheck className="h-4 w-4 text-green-600" /> Warranty</h3>
+          <div className="space-y-3">
+            {warranties.map((w: any) => (
+              <div key={w._id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3 text-sm">
+                <div>
+                  <p className="font-medium">{w.warrantyNumber}</p>
+                  <p className="text-xs text-gray-500">{w.variantName || 'Product'} · {w.durationMonths} months · until {formatDate(w.expiresAt)}</p>
+                </div>
+                <span className={`badge ${w.status === 'ACTIVE' ? 'badge-success' : w.status === 'CLAIMED' ? 'badge-warning' : 'badge-info'}`}>{w.status}</span>
+                {w.status === 'ACTIVE' && (
+                  <button onClick={() => handleWarrantyClaim(w._id)} disabled={claimingId === w._id} className="btn-secondary !px-3 !py-1.5 !text-xs">Claim Warranty</button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
-import { requireAdmin } from '../middleware/auth'
+import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { slugify, paginate } from '../utils/helpers'
 
@@ -47,7 +47,7 @@ function normalizeSearchTerm(value: string): string {
   return escapeRegex(String(value || '').trim().replace(/\s+/g, ' '))
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { page = '1', limit = '20', search, query, brand, brandId, category, categoryId, condition, sort = 'newest', isFeatured, isRefurbished, isNewArrival, isBestSeller, minPrice, maxPrice, includeAll } = req.query
     const { limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
@@ -64,7 +64,10 @@ router.get('/', async (req: Request, res: Response) => {
       return res.json({ success: true, data: [], pagination: emptyPagination })
     }
 
-    const match: any = includeAll === 'true' ? {} : { isActive: true }
+    // Inactive/draft products are only visible to admins; public callers (or
+    // anyone without an admin token) can never list them, even via includeAll.
+    const includeInactive = includeAll === 'true' && req.user?.role === 'ADMIN'
+    const match: any = includeInactive ? {} : { isActive: true }
     const searchTerm = normalizeSearchTerm(((search || query) as string) || '')
     if (searchTerm) match.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
     if (brandRef) match.brandId = new mongoose.Types.ObjectId(brandRef)
@@ -181,7 +184,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     let product: any = null
@@ -194,6 +197,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
+    if (!product.isActive && req.user?.role !== 'ADMIN') {
+      return res.status(404).json({ success: false, message: 'Product not found' })
+    }
 
     const variants = await ProductVariant.find({ productId: product._id, isActive: true })
     return res.json({ success: true, data: { ...product.toObject(), variants, ...computeProductSummary(product, variants) } })
