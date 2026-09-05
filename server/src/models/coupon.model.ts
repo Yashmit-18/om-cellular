@@ -9,6 +9,7 @@ export interface ICoupon extends Document {
   minOrderAmount?: number
   maxDiscount?: number
   usageLimit?: number
+  maxPerUser?: number
   usedCount: number
   applicableTo: string
   applicableProductIds: string[]
@@ -26,6 +27,7 @@ const couponSchema = new Schema<ICoupon>({
   minOrderAmount: { type: Number },
   maxDiscount: { type: Number },
   usageLimit: { type: Number },
+  maxPerUser: { type: Number },
   usedCount: { type: Number, default: 0 },
   applicableTo: { type: String, default: 'ALL' },
   applicableProductIds: { type: [String], default: [] },

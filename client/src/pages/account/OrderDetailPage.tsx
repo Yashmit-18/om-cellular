@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
-import { ChevronRight, Clock, MapPin } from 'lucide-react'
+import { ChevronRight, Clock, MapPin, FileText, XCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import api from '../../services/api'
+import { orderService } from '../../services/order.service'
 import { formatDate, formatPrice } from '../../utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 import StatusTimeline from '../../components/StatusTimeline'
@@ -11,12 +13,47 @@ export default function AccountOrderDetailPage() {
   const location = useLocation()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [cancelNote, setCancelNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const paymentPending = (location.state as any)?.paymentPending
 
   useEffect(() => {
     if (!id) return
     api.get(`/orders/${id}`).then(r => { setOrder(r.data.data); setLoading(false) }).catch(() => setLoading(false))
   }, [id])
+
+  const CANCELABLE = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED']
+
+  const handleCancelRequest = async () => {
+    if (!id) return
+    if (!cancelNote.trim()) {
+      toast.error('Please provide a reason for cancellation')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await orderService.cancelRequest(id, cancelNote.trim())
+      setOrder(res.data)
+      setCancelNote('')
+      toast.success('Cancellation requested. We will confirm shortly.')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not request cancellation')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleInvoice = async () => {
+    if (!id) return
+    try {
+      const blob = await orderService.invoice(id)
+      const url = URL.createObjectURL(blob as Blob)
+      window.open(url, '_blank')
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not download invoice')
+    }
+  }
 
   if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
   if (!order) return <div className="text-center py-12 text-gray-500">Order not found</div>
@@ -30,10 +67,24 @@ export default function AccountOrderDetailPage() {
         <ChevronRight className="h-3 w-3" />
         <span className="text-gray-900">{order.orderNumber}</span>
       </nav>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
-        <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
+        <div className="flex items-center gap-2">
+          <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
+          <button onClick={handleInvoice} className="btn-secondary !px-3 !py-1.5 !text-sm"><FileText className="mr-1 h-4 w-4" /> Invoice</button>
+        </div>
       </div>
+      {CANCELABLE.includes(order.status) && (
+        <div className="mt-4 rounded-lg border border-red-100 bg-red-50/50 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-red-700"><XCircle className="mr-1 inline h-4 w-4" /> Cancel this order</p>
+              <input value={cancelNote} onChange={e => setCancelNote(e.target.value)} className="input mt-2 !py-2 text-sm" placeholder="Reason for cancellation" />
+            </div>
+            <button onClick={handleCancelRequest} disabled={submitting} className="btn-danger !px-4 !py-2 text-sm">{submitting ? 'Requesting…' : 'Request Cancellation'}</button>
+          </div>
+        </div>
+      )}
       {order.paymentStatus === 'PENDING_PAYMENT' && (
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
           <Clock className="mt-0.5 h-4 w-4 shrink-0" />

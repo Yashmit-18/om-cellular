@@ -38,6 +38,8 @@ export interface ISellRequest {
   accessoriesAvailable: boolean
   originalBill: boolean
   originalBox: boolean
+  imei?: string
+  valuationSource?: 'phone_valuation' | 'phone_catalog' | 'unavailable'
   estimatedPrice?: number
   finalOfferedPrice?: number
   status: string
@@ -88,12 +90,14 @@ const sellRequestSchema = new Schema<ISellRequest>({
   accessoriesAvailable: { type: Boolean, default: false },
   originalBill: { type: Boolean, default: false },
   originalBox: { type: Boolean, default: false },
+  imei: { type: String, trim: true },
+  valuationSource: { type: String, enum: ['phone_valuation', 'phone_catalog', 'unavailable'] },
   estimatedPrice: { type: Number },
   finalOfferedPrice: { type: Number },
   status: {
     type: String,
     default: 'SUBMITTED',
-    enum: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'CANCELLED'],
+    enum: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'OFFER_MADE', 'OFFER_ACCEPTED', 'OFFER_DECLINED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'CANCELLED'],
   },
   statusHistory: { type: [sellRequestStatusSchema], default: [] },
   pickupAddress: { type: String },

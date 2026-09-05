@@ -36,6 +36,7 @@ const AccountOrderDetail = lazy(() => import('./pages/account/OrderDetailPage'))
 const AccountRepairs = lazy(() => import('./pages/account/RepairsPage'))
 const AccountSellRequests = lazy(() => import('./pages/account/SellRequestsPage'))
 const AccountExchangeRequests = lazy(() => import('./pages/account/ExchangeRequestsPage'))
+const AccountNotifications = lazy(() => import('./pages/account/NotificationsPage'))
 
 const AdminDashboard = lazy(() => import('./pages/admin/DashboardPage'))
 const AdminProducts = lazy(() => import('./pages/admin/ProductsPage'))
@@ -66,6 +67,7 @@ const AdminContactRequests = lazy(() => import('./pages/admin/ContactRequestsPag
 const AdminRepairServices = lazy(() => import('./pages/admin/RepairServicesPage'))
 const AdminPhoneCatalog = lazy(() => import('./pages/admin/PhoneCatalogPage'))
 const AdminBrands = lazy(() => import('./pages/admin/BrandsPage'))
+const AdminNotifications = lazy(() => import('./pages/admin/NotificationsPage'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLoginPage'))
 
 function ScrollToTop() {
@@ -109,6 +111,7 @@ export default function App() {
           <Route path="/account/repairs" element={<AccountRepairs />} />
           <Route path="/account/sell-requests" element={<AccountSellRequests />} />
           <Route path="/account/exchange-requests" element={<AccountExchangeRequests />} />
+          <Route path="/account/notifications" element={<AccountNotifications />} />
         </Route>
 
         <Route path="/admin" element={<AdminLayout />}>
@@ -135,6 +138,7 @@ export default function App() {
           <Route path="information-cards" element={<AdminInformationCards />} />
           <Route path="coupons" element={<AdminCoupons />} />
           <Route path="brands" element={<AdminBrands />} />
+          <Route path="notifications" element={<AdminNotifications />} />
           <Route path="repair-services" element={<AdminRepairServices />} />
           <Route path="phone-catalog" element={<AdminPhoneCatalog />} />
           <Route path="settings" element={<AdminSettings />} />

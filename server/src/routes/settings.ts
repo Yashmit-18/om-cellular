@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { Setting } from '../models/setting.model'
 import { requireAdmin } from '../middleware/auth'
+import { AuthRequest } from '../types'
+import { writeAudit } from '../services/audit.service'
 
 const router = Router()
 
@@ -31,24 +33,35 @@ router.get('/all', requireAdmin, async (_req: Request, res: Response) => {
   }
 })
 
-router.put('/', requireAdmin, async (req: Request, res: Response) => {
+router.put('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { settings } = req.body
     if (!settings || !Array.isArray(settings)) return res.status(400).json({ success: false, message: 'Settings array is required' })
 
     const results = []
+    const changed: Record<string, string> = {}
     for (const item of settings) {
       if (!item.key) continue
+      const before = await Setting.findOne({ key: item.key })
       const updated = await Setting.findOneAndUpdate(
         { key: item.key },
         { key: item.key, value: item.value, group: item.group },
         { upsert: true, new: true }
       )
+      if (!before || before.value !== item.value) changed[item.key] = String(item.value ?? '')
       results.push(updated)
+    }
+
+    if (Object.keys(changed).length) {
+      await writeAudit({
+        adminId: req.user!.id, action: 'SETTINGS_UPDATED', entity: 'Setting',
+        newValue: JSON.stringify(changed), ipAddress: req.ip,
+      }).catch(() => {})
     }
 
     return res.json({ success: true, message: 'Settings updated', data: results })
   } catch (error) {
+    console.error('PUT /settings error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

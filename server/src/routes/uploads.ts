@@ -1,10 +1,9 @@
-import { Router, Request, Response } from 'express'
+import { Router, Response } from 'express'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
-import { env } from '../config/env'
 
 const router = Router()
 

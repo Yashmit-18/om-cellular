@@ -39,6 +39,14 @@ function computeProductSummary(p: any, variants: any[]) {
   }
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function normalizeSearchTerm(value: string): string {
+  return escapeRegex(String(value || '').trim().replace(/\s+/g, ' '))
+}
+
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { page = '1', limit = '20', search, query, brand, brandId, category, categoryId, condition, sort = 'newest', isFeatured, isRefurbished, isNewArrival, isBestSeller, minPrice, maxPrice, includeAll } = req.query
@@ -56,40 +64,111 @@ router.get('/', async (req: Request, res: Response) => {
       return res.json({ success: true, data: [], pagination: emptyPagination })
     }
 
-    const where: any = includeAll === 'true' ? {} : { isActive: true }
-    const searchTerm = (search || query) as string | undefined
-    if (searchTerm) where.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
-    if (brandRef) where.brandId = brandRef
-    if (categoryRef) where.categoryId = categoryRef
-    if (condition) where.condition = condition
-    if (isFeatured === 'true') where.isFeatured = true
-    if (isRefurbished === 'true') where.isRefurbished = true
-    if (isNewArrival === 'true') where.isNewArrival = true
-    if (isBestSeller === 'true') where.isBestSeller = true
-
-    const products = await Product.find(where).populate('brand').populate('category')
-
-    const withVariants = await Promise.all(products.map(async (p) => {
-      const variants = await ProductVariant.find({ productId: p._id, isActive: true })
-      return { ...p.toObject(), variants, ...computeProductSummary(p, variants) }
-    }))
-
-    let result = withVariants
+    const match: any = includeAll === 'true' ? {} : { isActive: true }
+    const searchTerm = normalizeSearchTerm(((search || query) as string) || '')
+    if (searchTerm) match.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
+    if (brandRef) match.brandId = new mongoose.Types.ObjectId(brandRef)
+    if (categoryRef) match.categoryId = new mongoose.Types.ObjectId(categoryRef)
+    if (condition) match.condition = condition
+    if (isFeatured === 'true') match.isFeatured = true
+    if (isRefurbished === 'true') match.isRefurbished = true
+    if (isNewArrival === 'true') match.isNewArrival = true
+    if (isBestSeller === 'true') match.isBestSeller = true
 
     const min = minPrice ? Number(minPrice) : null
     const max = maxPrice ? Number(maxPrice) : null
-    if (min !== null && !Number.isNaN(min)) result = result.filter(x => x.lowestPrice >= min)
-    if (max !== null && !Number.isNaN(max)) result = result.filter(x => x.lowestPrice <= max)
+    const priceMatch: any = {}
+    if (min !== null && !Number.isNaN(min)) priceMatch.lowestPrice = { ...(priceMatch.lowestPrice || {}), $gte: min }
+    if (max !== null && !Number.isNaN(max)) priceMatch.lowestPrice = { ...(priceMatch.lowestPrice || {}), $lte: max }
 
     const sortBy = sort === 'name' ? 'name' : sort === 'price_asc' ? 'price_asc' : sort === 'price_desc' ? 'price_desc' : 'newest'
-    if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name))
-    else if (sortBy === 'price_asc') result = [...result].sort((a, b) => a.lowestPrice - b.lowestPrice)
-    else if (sortBy === 'price_desc') result = [...result].sort((a, b) => b.lowestPrice - a.lowestPrice)
-    else result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const sortDoc = sortBy === 'name' ? { name: 1 } : sortBy === 'price_asc' ? { lowestPrice: 1, createdAt: -1 } : sortBy === 'price_desc' ? { lowestPrice: -1, createdAt: -1 } : { createdAt: -1 }
 
-    const total = result.length
+    const pipeline: any[] = [
+      { $match: match },
+      {
+        $lookup: {
+          from: 'productvariants',
+          let: { pid: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [{ $eq: ['$productId', '$$pid'] }, { $eq: ['$isActive', true] }] } } },
+          ],
+          as: 'variants',
+        },
+      },
+      {
+        $addFields: {
+          variants: {
+            $map: {
+              input: '$variants',
+              as: 'v',
+              in: {
+                $mergeObjects: [
+                  '$$v',
+                  {
+                    _effectivePrice: {
+                      $cond: [
+                        { $and: [{ $ne: ['$$v.discountPrice', null] }, { $lt: ['$$v.discountPrice', '$$v.price'] }] },
+                        '$$v.discountPrice',
+                        '$$v.price',
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          lowestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $min: '$variants._effectivePrice' }] },
+          highestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $max: '$variants._effectivePrice' }] },
+          variantCount: { $size: '$variants' },
+          inStock: {
+            $in: [
+              true,
+              { $map: { input: '$variants', as: 'v', in: { $gt: [{ $ifNull: ['$$v.stock', 0] }, 0] } } },
+            ],
+          },
+        },
+      },
+      {
+        $lookup: { from: 'brands', localField: 'brandId', foreignField: '_id', as: '_brand' },
+      },
+      {
+        $lookup: { from: 'categories', localField: 'categoryId', foreignField: '_id', as: '_category' },
+      },
+      {
+        $addFields: {
+          brand: { $arrayElemAt: ['$_brand', 0] },
+          category: { $arrayElemAt: ['$_category', 0] },
+        },
+      },
+      ...(Object.keys(priceMatch).length ? [{ $match: priceMatch }] : []),
+      { $sort: sortDoc },
+      {
+        $facet: {
+          docs: [{ $skip: (safePage - 1) * safeLimit }, { $limit: safeLimit }],
+          meta: [{ $count: 'total' }],
+        },
+      },
+    ]
+
+    const [result] = await Product.aggregate(pipeline)
+    const raw = result?.docs || []
+    const total = result?.meta?.[0]?.total || 0
     const totalPages = Math.max(1, Math.ceil(total / safeLimit))
-    const data = result.slice((safePage - 1) * safeLimit, safePage * safeLimit)
+
+    // primaryImage is an output-only computed field; derive it here so the
+    // pipeline stays free of fragile array/string shape handling.
+    const data = raw.map((p: any) => ({
+      ...p,
+      primaryImage:
+        (Array.isArray(p.images) && p.images.find(Boolean)) ||
+        (p.variants || []).map(extractVariantImage).find(Boolean) ||
+        '',
+    }))
 
     return res.json({
       success: true,

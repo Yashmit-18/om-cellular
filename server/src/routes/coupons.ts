@@ -1,9 +1,24 @@
 import { Router, Request, Response } from 'express'
 import { Coupon } from '../models/coupon.model'
-import { requireAdmin } from '../middleware/auth'
+import { Order } from '../models/order.model'
+import { requireAdmin, optionalAuth } from '../middleware/auth'
+import { AuthRequest } from '../types'
 import { paginate } from '../utils/helpers'
+import { writeAudit, serializeAuditValue } from '../services/audit.service'
 
 const router = Router()
+type RouteRequest = Request & Partial<AuthRequest>
+
+function validateCouponFields(body: any): string | null {
+  const { type, value, usageLimit, maxPerUser, minOrderAmount, maxDiscount } = body
+  if (type && !['PERCENTAGE', 'FIXED'].includes(type)) return 'type must be PERCENTAGE or FIXED'
+  if (value !== undefined && (!Number.isFinite(Number(value)) || Number(value) < 0)) return 'value must be a non-negative number'
+  if (usageLimit !== undefined && (!Number.isFinite(Number(usageLimit)) || Number(usageLimit) < 1)) return 'usageLimit must be at least 1'
+  if (maxPerUser !== undefined && (!Number.isFinite(Number(maxPerUser)) || Number(maxPerUser) < 1)) return 'maxPerUser must be at least 1'
+  if (minOrderAmount !== undefined && (!Number.isFinite(Number(minOrderAmount)) || Number(minOrderAmount) < 0)) return 'minOrderAmount must be a non-negative number'
+  if (maxDiscount !== undefined && (!Number.isFinite(Number(maxDiscount)) || Number(maxDiscount) < 0)) return 'maxDiscount must be a non-negative number'
+  return null
+}
 
 router.get('/', requireAdmin, async (req: Request, res: Response) => {
   try {
@@ -24,7 +39,7 @@ router.get('/', requireAdmin, async (req: Request, res: Response) => {
   }
 })
 
-router.get('/validate/:code', async (req: Request, res: Response) => {
+router.get('/validate/:code', optionalAuth, async (req: RouteRequest, res: Response) => {
   try {
     const coupon = await Coupon.findOne({ code: req.params.code.toUpperCase() })
     if (!coupon || !coupon.isActive) return res.status(404).json({ success: false, message: 'Invalid coupon code' })
@@ -32,26 +47,47 @@ router.get('/validate/:code', async (req: Request, res: Response) => {
     const withinLimit = !coupon.usageLimit || coupon.usedCount < coupon.usageLimit
     if (!notExpired) return res.status(400).json({ success: false, message: 'Coupon has expired' })
     if (!withinLimit) return res.status(400).json({ success: false, message: 'Coupon usage limit reached' })
-    return res.json({ success: true, data: coupon })
+
+    const total = Math.max(0, parseFloat(String(req.query.total || '0')) || 0)
+    if (coupon.minOrderAmount && total < coupon.minOrderAmount) {
+      return res.status(400).json({ success: false, message: `This coupon requires a minimum order of ₹${coupon.minOrderAmount}` })
+    }
+
+    if (req.user?.id) {
+      const usedByUser = await Order.countDocuments({ userId: req.user.id, couponCode: coupon.code, status: { $ne: 'CANCELLED' } })
+      const maxPerUser = coupon.maxPerUser || 0
+      if (maxPerUser > 0 && usedByUser >= maxPerUser) {
+        return res.status(400).json({ success: false, message: 'You have already used this coupon the maximum number of times' })
+      }
+    }
+
+    const rawDiscount = coupon.type === 'PERCENTAGE' ? Math.round((total * coupon.value) / 100) : Math.round(coupon.value)
+    const discount = Math.max(0, Math.min(total, coupon.maxDiscount ? Math.min(rawDiscount, coupon.maxDiscount) : rawDiscount))
+
+    return res.json({ success: true, data: { ...coupon.toObject(), discount } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
 
-router.post('/', requireAdmin, async (req: Request, res: Response) => {
+router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { code, description, type, value, minOrderAmount, maxDiscount, usageLimit, applicableTo, applicableProductIds, applicableCategoryIds, expiresAt } = req.body
+    const { code, description, type, value, minOrderAmount, maxDiscount, usageLimit, maxPerUser, applicableTo, applicableProductIds, applicableCategoryIds, expiresAt } = req.body
     if (!code || !type || value === undefined) return res.status(400).json({ success: false, message: 'Code, type, and value are required' })
+    const invalid = validateCouponFields(req.body)
+    if (invalid) return res.status(400).json({ success: false, message: invalid })
 
     const upperCode = code.toUpperCase().trim()
     const existing = await Coupon.findOne({ code: upperCode })
     if (existing) return res.status(409).json({ success: false, message: 'A coupon with this code already exists' })
 
     const coupon = await Coupon.create({
-      code: upperCode, description, type, value, minOrderAmount, maxDiscount, usageLimit,
+      code: upperCode, description, type, value, minOrderAmount, maxDiscount, usageLimit, maxPerUser,
       applicableTo, applicableProductIds, applicableCategoryIds,
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     })
+
+    await writeAudit({ adminId: req.user!.id, action: 'COUPON_CREATED', entity: 'Coupon', entityId: String(coupon._id), newValue: serializeAuditValue({ code: upperCode, type, value }), ipAddress: req.ip })
 
     return res.status(201).json({ success: true, message: 'Coupon created', data: coupon })
   } catch (error) {
@@ -59,21 +95,46 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
   }
 })
 
-router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
+router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const coupon = await Coupon.findById(req.params.id)
     if (!coupon) return res.status(404).json({ success: false, message: 'Coupon not found' })
+    const before = coupon.toObject()
 
-    const updated = await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const invalid = validateCouponFields(req.body)
+    if (invalid) return res.status(400).json({ success: false, message: invalid })
+
+    const restricted = ['usedCount', 'createdAt', '_id', '__v']
+    const editableKeys = ['code', 'description', 'type', 'value', 'minOrderAmount', 'maxDiscount', 'usageLimit', 'maxPerUser', 'applicableTo', 'applicableProductIds', 'applicableCategoryIds', 'expiresAt', 'isActive']
+    const updateBody: any = {}
+    for (const [key, value] of Object.entries(req.body)) {
+      if (editableKeys.includes(key)) updateBody[key] = value
+      else if (!restricted.includes(key)) updateBody[key] = value
+    }
+    if (!Object.keys(updateBody).length) return res.status(400).json({ success: false, message: 'No changes provided' })
+    if (updateBody.code) updateBody.code = String(updateBody.code).toUpperCase().trim()
+
+    const updated = await Coupon.findByIdAndUpdate(req.params.id, updateBody, { new: true })
+
+    await writeAudit({
+      adminId: req.user!.id, action: 'COUPON_UPDATED', entity: 'Coupon', entityId: String(req.params.id),
+      oldValue: serializeAuditValue(before),
+      newValue: serializeAuditValue({ code: updated!.code, type: updated!.type, value: updated!.value, usageLimit: updated!.usageLimit, maxPerUser: updated!.maxPerUser, isActive: updated!.isActive }),
+      ipAddress: req.ip,
+    })
+
     return res.json({ success: true, message: 'Coupon updated', data: updated })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
 
-router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
+    const coupon = await Coupon.findById(req.params.id)
+    if (!coupon) return res.status(404).json({ success: false, message: 'Coupon not found' })
     await Coupon.findByIdAndUpdate(req.params.id, { isActive: false })
+    await writeAudit({ adminId: req.user!.id, action: 'COUPON_DEACTIVATED', entity: 'Coupon', entityId: String(req.params.id), oldValue: coupon.code, newValue: serializeAuditValue({ isActive: false }), ipAddress: req.ip })
     return res.json({ success: true, message: 'Coupon deactivated' })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })

@@ -12,8 +12,8 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 // for MongoDB Atlas SRV records (matches server/src/config/database.ts).
 require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
-const { MongoClient, ObjectId } = require('mongodb')
-const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue, STORAGE_ADJ } = require('./lib/pricing')
+const { MongoClient } = require('mongodb')
+const { computeModelBase, storageAdjust, guessRam, storageVariantBaseValue } = require('./lib/pricing')
 const { resolveImageUrl } = require('./lib/catalogImages')
 
 const MONGODB_URI = process.env.MONGODB_URI

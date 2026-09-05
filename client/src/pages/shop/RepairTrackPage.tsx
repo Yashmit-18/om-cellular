@@ -13,15 +13,6 @@ export default function RepairTrackPage() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    const booking = searchParams.get('booking')
-    if (booking) {
-      setBookingNumber(booking)
-      handleTrack()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
-
   const handleTrack = async () => {
     if (!bookingNumber.trim()) { toast.error('Enter booking number'); return }
     setLoading(true)
@@ -35,6 +26,15 @@ export default function RepairTrackPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const booking = searchParams.get('booking')
+    if (booking) {
+      setBookingNumber(booking)
+      handleTrack()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">

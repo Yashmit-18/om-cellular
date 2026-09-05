@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ShoppingCart, User, ChevronDown, Search, Store, Wrench, Smartphone } from 'lucide-react'
+import { Home, ShoppingCart, User, ChevronDown, Search, Store, Wrench, Smartphone, Bell } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useCartStore } from '../../stores/cartStore'
 import { settingsService } from '../../services/settings.service'
+import { notificationService } from '../../services/notification.service'
+import { formatRelative } from '../../utils'
 import SearchPanel from '../search/SearchPanel'
 
 const mobileNav = [
@@ -19,6 +21,9 @@ export default function Header() {
   const getItemCount = useCartStore(s => s.getItemCount)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settings, setSettings] = useState<Record<string, string>>({})
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -31,6 +36,33 @@ export default function Header() {
       setSettings(map)
     }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!user) { setNotifications([]); return }
+    notificationService.getNotifications({ limit: '5' }).then(r => {
+      setNotifications(r?.data || [])
+    }).catch(() => {})
+  }, [user, location.pathname])
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  const unreadCount = notifications.filter(n => !n.isRead).length
+
+  const handleMarkRead = async (id: string) => {
+    await notificationService.markAsRead(id).catch(() => {})
+    setNotifications(prev => prev.map(n => (n._id === id || n.id === id ? { ...n, isRead: true } : n)))
+  }
+
+  const handleMarkAllRead = async () => {
+    await notificationService.markAllRead().catch(() => {})
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+  }
 
   const whatsAppNumber = settings.whatsapp_number || ''
   const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello OM Cellular, I need help with a mobile phone.')}` : ''
@@ -71,6 +103,46 @@ export default function Header() {
                   </span>
                 )}
               </Link>
+
+              {user && (
+                <div className="relative" ref={notifRef}>
+                  <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-gray-100" aria-label="Notifications">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  {notifOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-xl border border-gray-200 bg-white shadow-lg">
+                      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
+                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                        {unreadCount > 0 && (
+                          <button onClick={handleMarkAllRead} className="text-xs font-medium text-brand-600 hover:underline">Mark all read</button>
+                        )}
+                      </div>
+                      <div className="max-h-72 overflow-y-auto">
+                        {notifications.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</p>}
+                        {notifications.map(n => (
+                          <button key={n._id || n.id} onClick={() => handleMarkRead(n._id || n.id)}
+                            className={`flex w-full gap-2 border-b border-gray-50 px-4 py-3 text-left hover:bg-gray-50 ${!n.isRead ? 'bg-brand-50/50' : ''}`}>
+                            <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!n.isRead ? 'bg-brand-600' : 'bg-gray-200'}`} />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium text-gray-900">{n.title}</span>
+                              <span className="block truncate text-xs text-gray-500">{n.message}</span>
+                              <span className="mt-0.5 block text-[10px] text-gray-400">{formatRelative(n.createdAt)}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <Link to="/account/notifications" onClick={() => setNotifOpen(false)} className="block border-t border-gray-100 py-2.5 text-center text-sm font-medium text-brand-600 hover:bg-gray-50">
+                        View all notifications
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {whatsAppUrl && (
                 <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex rounded-full p-2.5 text-emerald-600 transition-colors hover:bg-emerald-50" aria-label="Chat on WhatsApp">

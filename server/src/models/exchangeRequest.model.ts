@@ -18,6 +18,8 @@ export interface IExchangeRequest extends Document {
   oldStorage?: string
   oldRam?: string
   oldCondition: string
+  oldImei?: string
+  valuationSource?: 'phone_valuation' | 'phone_catalog' | 'unavailable'
   newVariantId?: mongoose.Types.ObjectId
   estimatedExchangeValue?: number
   finalExchangeValue?: number
@@ -47,6 +49,8 @@ const exchangeRequestSchema = new Schema<IExchangeRequest>({
   oldStorage: { type: String },
   oldRam: { type: String },
   oldCondition: { type: String, required: true },
+  oldImei: { type: String, trim: true },
+  valuationSource: { type: String, enum: ['phone_valuation', 'phone_catalog', 'unavailable'] },
   newVariantId: { type: Schema.Types.ObjectId, ref: 'ProductVariant', default: null },
   estimatedExchangeValue: { type: Number },
   finalExchangeValue: { type: Number },
@@ -54,7 +58,7 @@ const exchangeRequestSchema = new Schema<IExchangeRequest>({
   status: {
     type: String,
     default: 'SUBMITTED',
-    enum: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'COMPLETED', 'CANCELLED'],
+    enum: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'OFFER_MADE', 'OFFER_ACCEPTED', 'OFFER_DECLINED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'COMPLETED', 'CANCELLED'],
   },
   statusHistory: { type: [exchangeStatusSchema], default: [] },
   oldDeviceDetails: { type: Schema.Types.Mixed, default: {} },

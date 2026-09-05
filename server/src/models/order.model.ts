@@ -18,6 +18,7 @@ export interface IOrder extends Document {
   tax: number
   total: number
   couponId?: mongoose.Types.ObjectId
+  couponCode?: string
   couponDiscount: number
   status: string
   paymentStatus: string
@@ -31,6 +32,11 @@ export interface IOrder extends Document {
   razorpayOrderId?: string
   razorpayPaymentId?: string
   razorpaySignature?: string
+  razorpayRefundId?: string
+  refundAmount?: number
+  refundedAt?: Date
+  stockRestored: boolean
+  couponRestored: boolean
   paidAt?: Date
   createdAt: Date
   updatedAt: Date
@@ -77,11 +83,12 @@ const orderSchema = new Schema<IOrder>({
   tax: { type: Number, default: 0, min: 0 },
   total: { type: Number, required: true, min: 0 },
   couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', default: null },
+  couponCode: { type: String, trim: true, uppercase: true },
   couponDiscount: { type: Number, default: 0, min: 0 },
   status: {
     type: String,
     default: 'PENDING',
-    enum: ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURN_REQUESTED', 'RETURNED'],
+    enum: ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCEL_REQUESTED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'REFUND_PENDING', 'CANCELLED', 'REFUNDED', 'RETURNED', 'FAILED'],
   },
   paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'] },
   paymentMethod: { type: String, enum: ['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'] },
@@ -94,6 +101,11 @@ const orderSchema = new Schema<IOrder>({
   razorpayOrderId: { type: String, trim: true },
   razorpayPaymentId: { type: String, trim: true },
   razorpaySignature: { type: String, trim: true },
+  razorpayRefundId: { type: String, trim: true },
+  refundAmount: { type: Number },
+  refundedAt: { type: Date, default: null },
+  stockRestored: { type: Boolean, default: false },
+  couponRestored: { type: Boolean, default: false },
   paidAt: { type: Date, default: null },
 }, { timestamps: true })
 

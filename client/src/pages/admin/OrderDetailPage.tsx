@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronRight, MapPin } from 'lucide-react'
+import { ChevronRight, MapPin, RefreshCcw, Undo2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
+import { orderService } from '../../services/order.service'
 import { formatDate, formatPrice } from '../../utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 import StatusTimeline from '../../components/StatusTimeline'
@@ -62,6 +63,37 @@ export default function AdminOrderDetailPage() {
       toast.success(`Payment marked as ${paymentStatus}`)
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Could not update payment status')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleApproveCancellation = async () => {
+    if (!id) return
+    if (!window.confirm('Approve cancellation? Stock and coupon will be restored.')) return
+    setUpdating(true)
+    try {
+      const res = await orderService.adminCancel(id, note.trim() || 'Cancellation approved by admin')
+      setOrder(res.data)
+      setNote('')
+      toast.success('Order cancelled; stock restored')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not cancel order')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleRefund = async () => {
+    if (!id) return
+    if (!window.confirm('Initiate a refund for this order? This charges you gateway fees and cannot be undone.')) return
+    setUpdating(true)
+    try {
+      const res = await orderService.refund(id)
+      setOrder(res.data.data)
+      toast.success('Refund initiated')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not initiate refund')
     } finally {
       setUpdating(false)
     }
@@ -128,13 +160,24 @@ export default function AdminOrderDetailPage() {
                 <button onClick={() => handlePaymentUpdate('FAILED')} disabled={updating} className="btn-ghost mt-2 w-full !text-sm text-red-500">Mark as Failed</button>
               </div>
             )}
+            {order.status === 'CANCEL_REQUESTED' && (
+              <div className="mt-4 rounded-lg bg-amber-50 p-3">
+                <p className="mb-2 text-sm font-medium text-amber-800">Customer requested cancellation</p>
+                <button onClick={handleApproveCancellation} disabled={updating} className="btn-danger w-full !text-sm"><Undo2 className="mr-1 inline h-4 w-4" /> Approve & Cancel</button>
+              </div>
+            )}
+            {(order.paymentStatus === 'PAID' || order.paymentStatus === 'PENDING') && !['CANCELLED', 'REFUNDED', 'FAILED', 'REFUND_PENDING'].includes(order.status) && (
+              <div className="mt-4">
+                <button onClick={handleRefund} disabled={updating} className="btn-secondary w-full !text-sm"><RefreshCcw className="mr-1 inline h-4 w-4" /> Initiate Refund</button>
+              </div>
+            )}
           </div>
           <div className="card p-6">
             <h2 className="font-semibold mb-2">Update Status</h2>
             <p className="mb-3 text-xs text-gray-400">A note is required and saved to the order timeline.</p>
             <input value={note} onChange={e => setNote(e.target.value)} className="input mb-3 !py-2 text-sm" placeholder="Status update note (required)" />
             <div className="flex flex-wrap gap-2">
-              {['PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURNED'].map(s => (
+              {[...['PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURNED'], ...(order.status === 'CANCEL_REQUESTED' ? ['CANCEL_REQUESTED'] : []), ...(['DELIVERED', 'RETURN_REQUESTED'].includes(order.status) ? ['RETURN_APPROVED'] : []), ...(['CANCEL_REQUESTED', 'RETURN_APPROVED', 'DELIVERED'].includes(order.status) ? ['REFUND_PENDING'] : [])].map(s => (
                 <button key={s} onClick={() => handleStatusUpdate(s)} disabled={updating} className={`btn-ghost !text-xs ${order.status === s ? 'bg-brand-50 text-brand-600' : ''}`}>{ORDER_STATUS_LABELS[s] || s}</button>
               ))}
             </div>

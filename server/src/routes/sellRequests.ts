@@ -2,12 +2,16 @@ import { Router, Response } from 'express'
 import { SellRequest } from '../models/sellRequest.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
-import { generateRequestNumber, paginate } from '../utils/helpers'
+import { generateRequestNumber, paginate, isValidImei } from '../utils/helpers'
 import { checkServiceability } from '../services/serviceability.service'
+import { SELL_TRANSITIONS, assertTransition } from '../services/fsm.service'
+import { calculateValuation } from '../services/valuation.service'
+import { notify } from '../services/notification.service'
 
 const router = Router()
 
-const SELL_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'CANCELLED']
+const SELL_STATUSES = Object.keys(SELL_TRANSITIONS)
+const TERMINAL_STATUSES = ['REJECTED', 'CANCELLED', 'PAYMENT_COMPLETED']
 
 function flattenPickup(details: any): string {
   if (!details) return ''
@@ -61,8 +65,25 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, phone, alternatePhone, pickupDetails, pickupAddress, pickupDate, pickupTime, estimatedPrice } = req.body
+    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, phone, alternatePhone, pickupDetails, pickupAddress, pickupDate, pickupTime, imei } = req.body
     if (!brand || !model || !condition) return res.status(400).json({ success: false, message: 'Brand, model, and condition are required' })
+
+    const normalizedImei = imei ? imei.replace(/\s+/g, '') : undefined
+    if (normalizedImei && !isValidImei(normalizedImei)) {
+      return res.status(400).json({ success: false, message: 'IMEI must be a valid 15-digit number' })
+    }
+    if (normalizedImei) {
+      const duplicate = await SellRequest.findOne({
+        imei: normalizedImei,
+        status: { $nin: TERMINAL_STATUSES },
+      })
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `This device (IMEI ${normalizedImei}) already has an active sell request (${duplicate.requestNumber}). You will be able to list it again once the current request is completed or cancelled.`,
+        })
+      }
+    }
 
     const usePickup = !!(pickupDetails?.addressLine1 || pickupAddress)
     if (usePickup) {
@@ -78,6 +99,13 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Server-authoritative estimate. The client-provided value is never used.
+    const valuation = await calculateValuation({
+      brand, model, storage, ram, age, condition,
+      displayCondition, batteryCondition, bodyCondition, cameraCondition,
+      accessoriesAvailable: !!accessoriesAvailable, originalBill: !!originalBill, originalBox: !!originalBox,
+    })
+
     const requestNumber = generateRequestNumber('sell')
     const userId = req.user?.id || null
 
@@ -86,7 +114,9 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       brand, model, storage, ram, age, condition,
       displayCondition, batteryCondition, cameraCondition, bodyCondition,
       accessoriesAvailable: !!accessoriesAvailable, originalBill: !!originalBill, originalBox: !!originalBox,
-      estimatedPrice: estimatedPrice !== undefined && estimatedPrice !== null ? Number(estimatedPrice) || 0 : undefined,
+      imei: normalizedImei || undefined,
+      valuationSource: valuation.source,
+      estimatedPrice: valuation.estimatedValue > 0 ? valuation.estimatedValue : undefined,
       pickupAddress: usePickup ? (pickupAddress || flattenPickup(pickupDetails)) : undefined,
       pickupDetails: usePickup && pickupDetails ? {
         name: pickupDetails.name, phone: pickupDetails.phone || phone, alternatePhone: pickupDetails.alternatePhone || alternatePhone,
@@ -97,8 +127,27 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       statusHistory: [{ status: 'SUBMITTED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Sell request submitted' }],
     })
 
-    return res.status(201).json({ success: true, message: 'Sell request created', data: request })
+    if (req.user?.id) {
+      await notify({
+        userId: req.user.id,
+        type: 'SELL',
+        title: 'Sell request submitted',
+        message: `Your sell request ${requestNumber} for the ${brand} ${model} has been received. We will contact you within 24 hours.`,
+        metadata: { requestId: String(request._id), entity: 'sell_request', status: 'SUBMITTED' },
+      }).catch(() => {})
+    }
+
+    const data = request.toObject()
+    if (valuation.source === 'unavailable') {
+      return res.status(201).json({
+        success: true,
+        message: 'Request submitted. Our team will assess your device and contact you with a final offer.',
+        data,
+      })
+    }
+    return res.status(201).json({ success: true, message: 'Sell request created', data })
   } catch (error) {
+    console.error('POST /sell-requests error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
@@ -109,16 +158,27 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     const request = await SellRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Sell request not found' })
 
+    const beforeStatus = request.status
+
     if (status) {
       if (!SELL_STATUSES.includes(status)) {
         return res.status(400).json({ success: false, message: `Invalid status: ${status}` })
+      }
+      try {
+        assertTransition(request.status, status, SELL_TRANSITIONS, 'sell')
+      } catch (error: any) {
+        return res.status(error?.statusCode || 400).json({ success: false, message: error?.message || 'Invalid status transition' })
       }
       request.statusHistory = request.statusHistory || []
       request.statusHistory.push({ status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Status updated to ${status}` })
       request.status = status
     }
     if (finalOfferedPrice !== undefined) request.finalOfferedPrice = finalOfferedPrice
-    if (estimatedPrice !== undefined) request.estimatedPrice = estimatedPrice
+    if (estimatedPrice !== undefined) {
+      // Admins may adjust the estimate; guard against negative/garbage values.
+      const parsed = Number(estimatedPrice)
+      if (Number.isFinite(parsed) && parsed >= 0) request.estimatedPrice = parsed
+    }
     if (adminNotes !== undefined) request.adminNotes = adminNotes
     if (pickupDate !== undefined) request.pickupDate = new Date(pickupDate)
     if (pickupTime !== undefined) request.pickupTime = pickupTime
@@ -126,8 +186,20 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (pickupDetails !== undefined) request.pickupDetails = pickupDetails || undefined
 
     await request.save()
+
+    if (status && status !== beforeStatus && request.userId) {
+      await notify({
+        userId: String(request.userId),
+        type: 'SELL',
+        title: 'Sell request updated',
+        message: `Your sell request ${request.requestNumber} is now: ${status.split('_').join(' ').toLowerCase()}.`,
+        metadata: { requestId: String(request._id), entity: 'sell_request', status },
+      }).catch(() => {})
+    }
+
     return res.json({ success: true, message: 'Sell request updated', data: request })
   } catch (error) {
+    console.error('PUT /sell-requests/:id error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

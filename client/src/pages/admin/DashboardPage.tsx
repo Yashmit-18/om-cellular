@@ -36,6 +36,16 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
+      {stats.serviceability?.legacyMode && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Serviceability is running in legacy mode</p>
+            <p className="mt-0.5 text-xs text-amber-700">No service areas are enabled, so every PIN code is treated as serviceable. Configure service areas to enable pincode-based delivery and pickup availability.</p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map(card => (
           <Link key={card.label} to={

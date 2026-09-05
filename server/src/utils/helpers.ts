@@ -22,8 +22,8 @@ export function slugify(text: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
     .replace(/^-+/, '')
     .replace(/-+$/, '')
 }
@@ -45,9 +45,31 @@ export function normalizePhone(phone: string): string | null {
   return `+91${bare}`
 }
 
+// Validates a 15-digit IMEI using the Luhn checksum (IMEI, TAC check digit).
+export function isValidImei(imei: string): boolean {
+  const digits = String(imei || '').replace(/\s+/g, '')
+  if (!/^\d{15}$/.test(digits)) return false
+  let sum = 0
+  for (let i = 0; i < digits.length; i++) {
+    let n = parseInt(digits[i], 10)
+    if (i % 2 === 1) {
+      n *= 2
+      if (n > 9) n = (n % 10) + Math.floor(n / 10)
+    }
+    sum += n
+  }
+  return sum % 10 === 0
+}
+
+export function normalizeImei(imei: string): string | null {
+  const digits = String(imei || '').replace(/\s+/g, '')
+  if (!isValidImei(digits)) return null
+  return digits
+}
+
 export function paginate(page: number, limit: number) {
-  const safeLimit = Math.min(Math.max(limit, 1), 100)
-  const safePage = Math.max(page, 1)
+  const safeLimit = Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 20, 1), 100)
+  const safePage = Math.max(Number.isFinite(page) ? Math.floor(page) : 1, 1)
   return {
     skip: (safePage - 1) * safeLimit,
     limit: safeLimit,

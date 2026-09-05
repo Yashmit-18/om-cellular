@@ -5,6 +5,8 @@ import { Order } from '../models/order.model'
 import { env } from '../config/env'
 import { authenticate } from '../middleware/auth'
 import { AuthRequest } from '../types'
+import { notify } from '../services/notification.service'
+import { restoreStockAndCoupon } from '../services/orderLifecycle.service'
 
 const router = Router()
 
@@ -204,6 +206,8 @@ router.post('/webhook', async (req: AuthRequest, res: Response) => {
       const notes = entity.notes || {}
       const razorpayOrderId = entity.order_id
 
+      if (!razorpayOrderId) return res.json({ success: true, received: true })
+
       const where: any = { razorpayOrderId, paymentStatus: { $ne: 'PAID' } }
       if (notes.orderNumber) where.orderNumber = notes.orderNumber
 
@@ -224,6 +228,51 @@ router.post('/webhook', async (req: AuthRequest, res: Response) => {
           order.status = 'PAYMENT_CONFIRMED'
         }
         await order.save()
+        await notify({
+          userId: String(order.userId._id || order.userId),
+          type: 'PAYMENT',
+          title: 'Payment received',
+          message: `Your payment for order ${order.orderNumber} was successful.`,
+          metadata: { orderId: String(order._id), entity: 'order' },
+        }).catch(() => {})
+      }
+    }
+
+    if (event?.event === 'payment.failed' && entity) {
+      const notes = entity.notes || {}
+      const razorpayOrderId = entity.order_id
+
+      if (!razorpayOrderId) return res.json({ success: true, received: true })
+
+      const where: any = { razorpayOrderId, paymentStatus: { $nin: ['PAID', 'REFUNDED'] } }
+      if (notes.orderNumber) where.orderNumber = notes.orderNumber
+
+      const order = await Order.findOne(where)
+      if (order) {
+        const reason = entity.error_description || entity.error_code || 'Payment failed'
+        order.paymentStatus = 'FAILED'
+        if (order.status === 'PENDING' || order.status === 'PAYMENT_CONFIRMED') {
+          order.statusHistory = order.statusHistory || []
+          order.statusHistory.push({
+            status: 'FAILED',
+            changedAt: new Date(),
+            changedBy: 'SYSTEM',
+            note: `Payment failed: ${reason}`,
+          })
+          order.status = 'FAILED'
+        }
+        order.notes = [order.notes, `Payment failed: ${reason}`].filter(Boolean).join(' | ')
+        await order.save()
+        // This order will never be fulfilled — return the reserved stock and
+        // coupon usage. Idempotent via the stockRestored flag.
+        await restoreStockAndCoupon(order).catch(console.error)
+        await notify({
+          userId: String(order.userId._id || order.userId),
+          type: 'PAYMENT',
+          title: 'Payment failed',
+          message: `The payment for order ${order.orderNumber} failed. Please try again or use Cash on Delivery.`,
+          metadata: { orderId: String(order._id), entity: 'order' },
+        }).catch(() => {})
       }
     }
 

@@ -3,11 +3,16 @@ import { ExchangeRequest } from '../models/exchangeRequest.model'
 import { ProductVariant } from '../models/productVariant.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
-import { generateRequestNumber, paginate } from '../utils/helpers'
+import { generateRequestNumber, paginate, isValidImei } from '../utils/helpers'
+import { EXCHANGE_TRANSITIONS, assertTransition } from '../services/fsm.service'
+import { calculateValuation } from '../services/valuation.service'
+import { notify } from '../services/notification.service'
+import { checkServiceability } from '../services/serviceability.service'
 
 const router = Router()
 
-const EXCHANGE_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'COMPLETED', 'CANCELLED']
+const EXCHANGE_STATUSES = Object.keys(EXCHANGE_TRANSITIONS)
+const TERMINAL_STATUSES = ['REJECTED', 'CANCELLED', 'COMPLETED']
 
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -47,13 +52,60 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone, alternatePhone } = req.body
+    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone, alternatePhone, oldImei, oldConditionDetails, pickupPincode } = req.body
     if (!oldBrand || !oldModel || !oldCondition) return res.status(400).json({ success: false, message: 'Old device brand, model, and condition are required' })
 
+    const normalizedImei = oldImei ? oldImei.replace(/\s+/g, '') : undefined
+    if (normalizedImei && !isValidImei(normalizedImei)) {
+      return res.status(400).json({ success: false, message: 'IMEI must be a valid 15-digit number' })
+    }
+    if (normalizedImei) {
+      const duplicate = await ExchangeRequest.findOne({
+        oldImei: normalizedImei,
+        status: { $nin: TERMINAL_STATUSES },
+      })
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `This device (IMEI ${normalizedImei}) already has an active exchange request (${duplicate.requestNumber}).`,
+        })
+      }
+    }
+
+    // Exchange pickups reuse the sell/pickup-drop serviceability gate when a
+    // pincode is supplied.
+    if (pickupPincode) {
+      const serviceability = await checkServiceability(pickupPincode, 'pickupDrop')
+      if (serviceability.configured && !serviceability.serviceable) {
+        return res.status(400).json({
+          success: false,
+          message: `We do not currently offer pickup in PIN code ${pickupPincode}. Please select store drop-off instead.`,
+        })
+      }
+    }
+
+    let variant: any = null
     if (newVariantId) {
-      const variant = await ProductVariant.findById(newVariantId)
+      variant = await ProductVariant.findById(newVariantId)
       if (!variant || !variant.isActive) return res.status(400).json({ success: false, message: 'Selected product variant is not available' })
     }
+
+    // Server-authoritative estimate for the old device.
+    const valuation = await calculateValuation({
+      brand: oldBrand, model: oldModel, storage: oldStorage, ram: oldRam, condition: oldCondition,
+      displayCondition: oldConditionDetails?.displayCondition,
+      batteryCondition: oldConditionDetails?.batteryCondition,
+      bodyCondition: oldConditionDetails?.bodyCondition,
+      cameraCondition: oldConditionDetails?.cameraCondition,
+      accessoriesAvailable: oldConditionDetails?.accessoriesAvailable,
+      originalBill: oldConditionDetails?.originalBill,
+      originalBox: oldConditionDetails?.originalBox,
+    })
+
+    // Difference is always computed server-side (new price minus exchange value).
+    const newPrice = variant ? (variant.discountPrice || variant.price) : null
+    const oldValue = valuation.estimatedValue
+    const difference = newPrice != null ? Math.max(0, Number(newPrice) - oldValue) : undefined
 
     const requestNumber = generateRequestNumber('exchange')
     const userId = req.user?.id || null
@@ -61,12 +113,31 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const request = await ExchangeRequest.create({
       requestNumber, userId, phone, alternatePhone: alternatePhone ? String(alternatePhone).trim() : undefined,
       oldBrand, oldModel, oldStorage, oldRam, oldCondition,
-      newVariantId: newVariantId || null, oldDeviceDetails: oldDeviceDetails || {},
+      oldImei: normalizedImei || undefined,
+      valuationSource: valuation.source,
+      newVariantId: newVariantId || null,
+      oldDeviceDetails: {
+        ...(oldDeviceDetails || {}),
+        ...(oldConditionDetails || {}),
+      },
+      estimatedExchangeValue: oldValue > 0 ? oldValue : undefined,
+      difference,
       statusHistory: [{ status: 'SUBMITTED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Exchange request submitted' }],
     })
 
+    if (req.user?.id) {
+      await notify({
+        userId: req.user.id,
+        type: 'EXCHANGE',
+        title: 'Exchange request submitted',
+        message: `Your exchange request ${requestNumber} for the ${oldBrand} ${oldModel} has been received.`,
+        metadata: { requestId: String(request._id), entity: 'exchange_request', status: 'SUBMITTED' },
+      }).catch(() => {})
+    }
+
     return res.status(201).json({ success: true, message: 'Exchange request created', data: request })
   } catch (error) {
+    console.error('POST /exchange-requests error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
@@ -77,22 +148,50 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     const request = await ExchangeRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Exchange request not found' })
 
+    const beforeStatus = request.status
+
     if (status) {
       if (!EXCHANGE_STATUSES.includes(status)) {
         return res.status(400).json({ success: false, message: `Invalid status: ${status}` })
+      }
+      try {
+        assertTransition(request.status, status, EXCHANGE_TRANSITIONS, 'exchange')
+      } catch (error: any) {
+        return res.status(error?.statusCode || 400).json({ success: false, message: error?.message || 'Invalid status transition' })
       }
       request.statusHistory = request.statusHistory || []
       request.statusHistory.push({ status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Status updated to ${status}` })
       request.status = status
     }
-    if (estimatedExchangeValue !== undefined) request.estimatedExchangeValue = estimatedExchangeValue
-    if (finalExchangeValue !== undefined) request.finalExchangeValue = finalExchangeValue
-    if (difference !== undefined) request.difference = difference
+    if (estimatedExchangeValue !== undefined) {
+      const parsed = Number(estimatedExchangeValue)
+      if (Number.isFinite(parsed) && parsed >= 0) request.estimatedExchangeValue = parsed
+    }
+    if (finalExchangeValue !== undefined) {
+      const parsed = Number(finalExchangeValue)
+      if (Number.isFinite(parsed) && parsed >= 0) request.finalExchangeValue = parsed
+    }
+    if (difference !== undefined) {
+      const parsed = Number(difference)
+      if (Number.isFinite(parsed) && parsed >= 0) request.difference = parsed
+    }
     if (adminNotes !== undefined) request.adminNotes = adminNotes
 
     await request.save()
+
+    if (status && status !== beforeStatus && request.userId) {
+      await notify({
+        userId: String(request.userId),
+        type: 'EXCHANGE',
+        title: 'Exchange request updated',
+        message: `Your exchange request ${request.requestNumber} is now: ${status.split('_').join(' ').toLowerCase()}.`,
+        metadata: { requestId: String(request._id), entity: 'exchange_request', status },
+      }).catch(() => {})
+    }
+
     return res.json({ success: true, message: 'Exchange request updated', data: request })
   } catch (error) {
+    console.error('PUT /exchange-requests/:id error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

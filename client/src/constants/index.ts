@@ -10,9 +10,13 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
+  CANCEL_REQUESTED: 'Cancellation Requested',
   FAILED: 'Failed',
   RETURN_REQUESTED: 'Return Requested',
+  RETURN_APPROVED: 'Return Approved',
   RETURNED: 'Returned',
+  REFUND_PENDING: 'Refund Pending',
+  REFUNDED: 'Refunded',
 }
 
 export const ORDER_STATUS_COLORS: Record<string, string> = {
@@ -25,9 +29,13 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   OUT_FOR_DELIVERY: 'badge-warning',
   DELIVERED: 'badge-success',
   CANCELLED: 'badge-danger',
+  CANCEL_REQUESTED: 'badge-warning',
   FAILED: 'badge-danger',
   RETURN_REQUESTED: 'badge-warning',
+  RETURN_APPROVED: 'badge-info',
   RETURNED: 'badge-danger',
+  REFUND_PENDING: 'badge-warning',
+  REFUNDED: 'badge-info',
 }
 
 export const PAYMENT_STATUS_COLORS: Record<string, string> = {
@@ -73,6 +81,9 @@ export const REQUEST_STATUS_LABELS: Record<string, string> = {
   UNDER_REVIEW: 'Under Review',
   APPROVED: 'Approved',
   INSPECTED: 'Inspected',
+  OFFER_MADE: 'Offer Made',
+  OFFER_ACCEPTED: 'Offer Accepted',
+  OFFER_DECLINED: 'Offer Declined',
   REJECTED: 'Rejected',
   PICKUP_SCHEDULED: 'Pickup Scheduled',
   PICKED_UP: 'Device Picked Up',
@@ -87,6 +98,9 @@ export const REQUEST_STATUS_COLORS: Record<string, string> = {
   UNDER_REVIEW: 'badge-warning',
   APPROVED: 'badge-success',
   INSPECTED: 'badge-info',
+  OFFER_MADE: 'badge-info',
+  OFFER_ACCEPTED: 'badge-success',
+  OFFER_DECLINED: 'badge-danger',
   REJECTED: 'badge-danger',
   PICKUP_SCHEDULED: 'badge-warning',
   PICKED_UP: 'badge-info',

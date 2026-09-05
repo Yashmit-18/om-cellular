@@ -3,6 +3,15 @@ import jwt from 'jsonwebtoken'
 import { env } from '../config/env'
 import { AuthRequest, AuthUser } from '../types'
 
+export interface TokenUser {
+  id: string
+  name: string | null
+  email: string | null
+  phone: string | null
+  role: 'ADMIN' | 'CUSTOMER'
+  tokenVersion: number
+}
+
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const token = req.cookies?.accessToken || req.headers.authorization?.replace('Bearer ', '')
@@ -54,15 +63,15 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   next()
 }
 
-export function generateTokens(user: AuthUser) {
+export function generateTokens(user: TokenUser) {
   const accessToken = jwt.sign(
-    { id: user.id, name: user.name, email: user.email, role: user.role },
+    { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role, tokenVersion: user.tokenVersion },
     env.JWT_SECRET,
     { expiresIn: '7d' }
   )
 
   const refreshToken = jwt.sign(
-    { id: user.id },
+    { id: user.id, tokenVersion: user.tokenVersion },
     env.JWT_REFRESH_SECRET,
     { expiresIn: '30d' }
   )
@@ -71,7 +80,7 @@ export function generateTokens(user: AuthUser) {
 }
 
 export function setTokenCookies(res: Response, accessToken: string, refreshToken: string) {
-  const isProduction = env.NODE_ENV === 'production'
+  const isProduction = env.isProduction
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
@@ -84,7 +93,14 @@ export function setTokenCookies(res: Response, accessToken: string, refreshToken
 }
 
 export function clearTokenCookies(res: Response) {
-  const isProduction = env.NODE_ENV === 'production'
+  const isProduction = env.isProduction
   res.cookie('accessToken', '', { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: 0, path: '/' })
   res.cookie('refreshToken', '', { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: 0, path: '/' })
+}
+
+// Decodes and verifies a refresh token. Callers must then re-check the user's
+// current tokenVersion so revoked (logged-out / password-changed) sessions die.
+export function verifyRefreshToken(token: string): { id: string; tokenVersion: number } {
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as { id: string; tokenVersion?: number }
+  return { id: decoded.id, tokenVersion: decoded.tokenVersion ?? 0 }
 }

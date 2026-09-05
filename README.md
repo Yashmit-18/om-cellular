@@ -13,12 +13,12 @@ OM Cellular is a full-stack mobile phone commerce platform with four customer-fa
 - **Client**: React 18 + TypeScript + Vite 5 single-page app (`client/`)
 - **Server**: Node.js + Express 4 + TypeScript API (`server/`)
 - **Database**: MongoDB Atlas via Mongoose 8
-- **Payments**: Razorpay Checkout SDK wired (init → verify → webhook), **currently disabled in the configured environment because no Razorpay keys are set**
-- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — deployment config present, but the live deployments do **not yet run the latest branch code**
+- **Payments**: Razorpay Checkout SDK wired (init → verify → webhook), with admin-initiated Razorpay refunds — **disabled in the configured environment because no Razorpay keys are set** (COD only)
+- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — CI workflow, `render.yaml` blueprint and deployment config present, but the live deployments do **not yet run the latest branch code**
 
-The product catalog is a mix of new and refurbished phones with variants (storage/RAM/colour), a server-side phone-valuation engine (225 valuation records), a serviceability (pincode × service) rule engine, and persisted status-history tracking for orders, repairs, sell requests and exchange requests.
+The product catalog is a mix of new and refurbished phones with variants (storage/RAM/colour), a server-side phone-valuation engine (225 valuation records + 222 seeded catalog models), a serviceability (pincode × service) rule engine, persisted status-history tracking for orders, repairs, sell requests and exchange requests, in-app notifications with an admin broadcast screen, and automated audit logging of key admin actions.
 
-**Where the project really stands:** the application is *architecturally complete* and *technically deployable*, and the primary buy + COD flow plus all four service lines work end-to-end against a real MongoDB database. It is **not** business-ready: online payments are unprovisioned, the catalog/CMS content databases are only partially populated, and several mature-platform capabilities (refunds, cancellations, logistics, notifications delivery, fraud controls) are missing.
+**Where the project really stands:** the application is *architecturally complete* and *technically deployable*, and the primary buy + COD flow plus all four service lines work end-to-end against a real MongoDB database. A production-hardening pass is in place and verified on this branch: customer cancel-requests + stock/coupon restore + admin refunds, strict status-transition FSMs on every service line, server-authoritative sell/exchange valuation with IMEI capture + duplicate detection, login brute-force lockout with revocable sessions, server-side products pagination, in-app notification center + admin broadcast, and in-repo tests + ESLint + CI. It is **not** business-ready: online payments are unprovisioned (COD only), CMS/operational data is only partially populated, and notification delivery beyond in-app, courier integration, and several mature-platform features remain outstanding.
 
 ---
 
@@ -44,9 +44,9 @@ The product catalog is a mix of new and refurbished phones with variants (storag
 
 Key architectural decisions (verified):
 
-- **Auth is cookie-based.** Login/refresh issue httpOnly `accessToken` + `refreshToken` cookies; the axios layer also looks for a `localStorage.authToken` which **nothing ever writes** (dead code). In-memory Zustand user is rehydrated on layout mount via `GET /auth/me`, so sessions survive page refresh via the cookies.
+- **Auth is cookie-based.** Login/refresh issue httpOnly `accessToken` + `refreshToken` cookies only — tokens are **not** returned in the JSON body. Sessions are revocable via a per-user `tokenVersion` (bumped on logout / password change), and login is protected by a dedicated rate limiter plus an in-memory brute-force lockout. In-memory Zustand user is rehydrated on layout mount via `GET /auth/me`, so sessions survive page refresh via the cookies.
 - **Cart and wishlist are client-only** (localStorage via Zustand `persist`). There is **no cart model or cart API on the server** — carts are not synced across devices and are not reserved server-side.
-- **Orders are created only after checkout.** Stock is decremented and coupon usage incremented at order creation (no Mongo transaction, no stock restore on cancellation).
+- **Orders are created only after checkout.** Stock is decremented and coupon usage incremented at order creation (no Mongo transaction), and cancelled orders **idempotently restore stock and coupon usage**.
 - **The serviceability engine is database-backed** (ServiceArea) with a deliberate "legacy allow-all" mode when no areas are configured.
 - **Admin is fully database-backed.** Every admin page queries real collections; no dummy/mock data was found anywhere (`grep` for `mock|dummy|placeholder|TODO|FIXME` across client + server source → zero matches).
 
@@ -75,8 +75,8 @@ Key architectural decisions (verified):
 
 `npm` scripts (verified):
 
-- **Server**: `dev` (tsx watch), `build` (tsc), `start` (`node dist/server.js`), `seed`/`seed:all`, `seed:admin`, `seed:phones`, `seed:repairs`, `seed:products`, `seed:images`, `seed:catalog`
-- **Client**: `dev` (vite), `build` (`tsc -b && vite build`), `preview`
+- **Server**: `dev` (tsx watch), `build` (tsc), `start` (`node dist/server.js`), `test` (`tsx --test tests/*.test.ts`), `lint` (ESLint flat config), `seed`/`seed:all`, `seed:admin`, `seed:phones`, `seed:repairs`, `seed:products`, `seed:images`, `seed:catalog`
+- **Client**: `dev` (vite), `build` (`tsc -b && vite build`), `lint` (ESLint flat config), `preview`
 
 ---
 
@@ -86,7 +86,7 @@ Key architectural decisions (verified):
 |---|---|---|---|
 | Frontend | Vercel | `client/vercel.json` and root `vercel.json` — SPA rewrite `/(.*) → /index.html` | Live SPA reachable, but served build is **not the current branch** `❓` |
 | Frontend (alt) | Netlify | `netlify.toml` (base `client`, build `npm run build`, publish `dist`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) | Not verified |
-| Backend | Render | No `render.yaml` in repo — config is dashboard/env only | `/api/health` 200; **new endpoints (e.g. `/api/v1/serviceability/check`) return 404** → production is running an older build ❓ |
+| Backend | Render | `render.yaml` blueprint added (web service, build `npm ci && npm run build`, start `npm start`) + dashboard/env | `/api/health` 200; **new endpoints (e.g. `/api/v1/serviceability/check`) return 404** → production is running an older build ❓ |
 | Database | MongoDB Atlas | Connection string via `MONGODB_URI` (server `.env`, gitignored); `database.ts` forces public DNS (8.8.8.8/1.1.1.1) | Connected; used by this audit and by the E2E harness |
 
 Documented origins (from `server/src/config/cors.ts` and `netlify.toml`): `https://om-cellular-iota.vercel.app`, Render backend at `https://om-cellular.onrender.com`. CORS also allow-lists `env.CLIENT_URL`, `env.CLIENT_ORIGINS` (comma-separated), and `localhost:5173/3000`.
@@ -106,20 +106,20 @@ Documented origins (from `server/src/config/cors.ts` and `netlify.toml`): `https
 | Checkout online payment (UPI/NetBanking) | 🟡 PARTIAL — full gateway plumbing exists, **disabled (no keys)** |
 | Registration / login / account | ✅ COMPLETE |
 | Buy Phone flow | ✅ COMPLETE |
-| Sell Phone flow | ✅ COMPLETE (valuation engine real; sell request stores client estimate) |
+| Sell Phone flow | ✅ COMPLETE (server-authoritative valuation + IMEI capture + duplicate detection) |
 | Repair flow | ✅ COMPLETE |
-| Exchange flow | 🟡 PARTIAL — request + admin valuation, no automated binding |
-| Order / repair / sell / exchange tracking | ✅ COMPLETE (persisted status history) |
+| Exchange flow | 🟡 PARTIAL — request + server old-device value + admin final value, no instant trade-in credit |
+| Order / repair / sell / exchange tracking | ✅ COMPLETE (persisted status history, strict FSM transitions) |
 | Serviceability check + areas | ✅ COMPLETE (DB-backed; allow-all currently as 0 areas) |
 | Notify-me requests | ✅ COMPLETE (admin-managed only — no SMS/email sending) |
-| Admin panel (≈23 pages, all DB-backed) | ✅ COMPLETE / 🟡 notifications page missing |
-| Coupons | 🟡 PARTIAL — backend + checkout wired, **0 coupons in DB** |
+| Admin panel (≈24 pages, all DB-backed) | ✅ COMPLETE (incl. notifications broadcast) |
+| Coupons | 🟡 PARTIAL — backend + checkout wired + validate on server, **0 coupons in DB** |
 | Reviews & ratings | 🟡 PARTIAL — backend + rating hooks, **0 reviews in DB** |
 | Wishlist | 🟡 PARTIAL — model + client store, no server route |
-| Notifications (in-app) | 🟡 PARTIAL — backend routes exist, no admin UI, no push/email/SMS |
+| Notifications (in-app) | ✅ COMPLETE for in-app (customer center, bell, admin broadcast); no push/email/SMS |
 | Homepage CMS | 🟡 PARTIAL — CRUD works, **all CMS collections empty** |
 | Online payments (live) | 🔴 NOT ENABLED in current environment |
-| Refunds / cancellations | 🔴 MISSING |
+| Refunds / cancellations | ✅ CODE COMPLETE — cancel-request + stock restore + admin Razorpay refunds; **live refund EXTERNALLY BLOCKED (no Razorpay keys)** |
 | Mobile app (iOS/Android) | 🔴 MISSING (responsive web only) |
 
 ---
@@ -169,8 +169,8 @@ Browse/Home ─► Search or filter (GET /products) ─► Product detail (varia
 Real gaps in this flow:
 - 🟡 Online payment only if Razorpay keys provisioned (currently disabled).
 - 🔴 No guest checkout (orders require an account).
-- 🔴 No invoice/PDF, no cancellation by customer (only admin), no returns workflow UI (status enum has `RETURN_REQUESTED`/`RETURNED` but no customer action exists).
-- 🟡 Stock decrement and coupon usage are **not atomic** and cancelled orders **do not restore stock**.
+- ✅ Invoice/PDF now exists (account order detail), customer **cancel-request** with admin approval + stock/coupon restore, and the order FSM enforces strict transitions.
+- ✅ Stock decrement and coupon usage are still non-atomic at creation, but cancellation **restores stock and coupon usage idempotently**.
 
 ---
 
@@ -179,15 +179,15 @@ Real gaps in this flow:
 ```
 Brand ─► Model ─► Condition (+ display/battery/camera/body) ─► Storage/RAM/Age
    ─► server valuation POST /phone-valuations/calculate ─► Pickup details / serviceability (pickupDrop)
-   ─► Review ─► POST /sell-requests (stores client-supplied estimatedPrice)
+   ─► Review ─► POST /sell-requests (server re-computes valuation; validates IMEI; duplicate active-request check)
    ─► Admin: INSPECTED / UNDER_REVIEW / APPROVED (finalOfferedPrice) / PICKUP_SCHEDULED / PICKED_UP / PAYMENT_COMPLETED / CANCELLED
 ```
 
-✅ Complete UI + backend + persisted history.
+✅ Complete UI + backend + persisted history, guarded by a strict transition FSM.
 
 Real gaps:
-- 🟡 The valuation engine is used for the **display estimate only**; the sell request stores whatever the client sends (`estimatedPrice`) — the server never re-validates or binds the official valuation, so an edited client value flows through.
-- 🔴 No IMEI capture, no functional test checklist, no payout method, no scheduling backend (admin sets scheduled pickup fields manually), no seller settlement record.
+- 🟡 The **server now re-computes the valuation at request time and stores it** (`estimatedPrice` + `valuationSource`); the client `estimatedPrice` is no longer trusted. IMEI (validated 15-digit) is captured with duplicate active-request detection. Admin can still override the offered price.
+- 🔴 No payout method, no scheduling backend (admin sets scheduled pickup fields manually), no seller settlement record.
 
 ---
 
@@ -214,13 +214,14 @@ Real gaps:
 ## 10. Exchange Flow (verified)
 
 ```
-Old device brand/model/condition/storage/RAM ─► optional new-device link (variant)
-   ─► POST /exchange-requests ─► admin assigns estimatedExchangeValue / finalExchangeValue/difference
+Old device brand/model/condition/storage/RAM ─► server valuation (oldValue) + IMEI + duplicate check
+   ─► optional new-device link (variant) ─► POST /exchange-requests
+   ─► admin assigns finalExchangeValue/difference
    ─► status: SUBMITTED / UNDER_REVIEW / INSPECTED / APPROVED / REJECTED / PICKUP_SCHEDULED / PICKED_UP / COMPLETED / CANCELLED
 ```
 
-🟡 **Partial.** The request/tracking side is complete and persisted, but:
-- The **old-device valuation is not computed** anywhere at submit time (UI shows no feed from the valuation engine; admin sets figures manually).
+🟡 **Partial.** The request/tracking side is complete, the server computes the old-device value at submit (with IMEI + duplicate detection) and the FSM is strict, but:
+- The **automated valuation is informational** — admin still sets the binding figures manually.
 - No difference-payment linkage to an actual new-device order.
 
 ---
@@ -247,10 +248,10 @@ Classification (must not be over-stated):
 | **Server-side verification** | ✅ REAL | `POST /payments/verify` HMAC-SHA256 over `razorpayOrderId|paymentId`, then re-fetches from Razorpay (`status==='captured'`, amount match); sets `PAID`, `paidAt`, `razorpaySignature`, gateway `razorpay`, pushes `PAYMENT_CONFIRMED`. Idempotent (`alreadyPaid`). |
 | **Webhook** | ✅ REAL code | `POST /payments/webhook` verifies HMAC-SHA256 over **raw body** (`X-Razorpay-Signature`). Handles **only `payment.captured`**, updates order guarded by `paymentStatus $ne 'PAID'` (idempotency). |
 | **QR code** | 🟡 PARTIAL | No custom static/dynamic QR checkout. "Scan QR with any UPI app" is inside the Razorpay modal (only when enabled). A `upi_qr_image`/`upi_id` setting exists but is only editable in admin settings — not rendered in checkout. |
-| **Refunds** | 🔴 MISSING | No Razorpay refund call. `REFUNDED` is only a manual admin status. |
+| **Refunds** | ✅ REAL code / 🔴 EXTERNALLY BLOCKED | `POST /orders/:id/refund` (admin) creates a Razorpay refund (amount = order total), records `razorpayRefundId`/`refundedAt`, sets `REFUNDED` + history + notification; idempotent (guarded), validates paid/online status, falls back to a manual note for COD. **Cannot be exercised — no Razorpay keys in this environment.** The admin UI exposes "Initiate Refund" for online-paid orders. |
 | **Failed payments** | 🟡 | Signature-verify failure → order set `FAILED`; webhook ignores `payment.failed`. |
 
-**Verdict: payments are NOT production-ready.** Online money movement cannot be exercised in the current environment; only COD is end-to-end real. The gateway *integration layer* is credible (signature verification, webhook with raw-body signing, idempotency) but unproven with real keys.
+**Verdict: payments are NOT production-ready.** Online money movement cannot be exercised in the current environment; only COD is end-to-end real. The gateway *integration layer* is credible (signature verification, webhook with raw-body signing, idempotency, refunds) but unproven with real keys.
 
 ---
 
@@ -275,9 +276,10 @@ Classification (must not be over-stated):
 
 Every entry records `status`, `changedAt`, `changedBy` (`SYSTEM|CUSTOMER|ADMIN`), `note`. UI timeline (`components/StatusTimeline.tsx`) renders sorted history and an empty-state. **This is real persisted tracking, not static UI** (verified by E2E: history counts grow and invalid statuses return 400).
 
-Caveats (verified):
-- No strict transition map (e.g., `PENDING → DELIVERED` allowed) except: orders block further changes after `DELIVERED`/`CANCELLED`/`RETURNED`.
-- No customer-initiated cancellation from any entity. `CANCELLED`/`RETURNED` are admin-only.
+Caveats (verified — hardened in the production pass):
+- ✅ **Strict transition maps (FSMs) now enforce valid status sequences** on orders, repairs, sell and exchange requests (`services/fsm.service.ts`); invalid transitions return 400. Cancel/refund callbacks restore stock + coupon idempotently.
+- ✅ **Customer-initiated cancellation exists for orders** (`POST /orders/:id/cancel-request`, allowed before shipping); admin then approves → `CANCELLED` (stock restored, online-paid → `REFUND_PENDING`), or declines → back to original status.
+- 🔴 Customer refunds/returns on *delivered* items still admin-only (no RETURN_REQUESTED customer action).
 
 ---
 
@@ -285,22 +287,22 @@ Caveats (verified):
 
 Implemented (verified):
 - `POST /auth/register` — validation (name ≥2, Indian phone `^[6-9]\d{9}$`, password ≥6), unique phone/email, bcrypt **12 rounds**.
-- `POST /auth/login` — identifier = **phone or email** + password; sets httpOnly `accessToken` (7 d) + `refreshToken` (30 d) cookies.
+- `POST /auth/login` — identifier = **phone or email** + password; issued **only as httpOnly cookies** (`accessToken` 7 d + `refreshToken` 30 d), never in the JSON body. Protected by a dedicated login rate limiter and an in-memory brute-force lockout (locks the identifier+IP after repeated failures with a retry-after window).
 - `POST /auth/refresh` — rotates both via refresh cookie (verify JWT → reload user → re-issue).
-- `POST /auth/logout` — clears cookies.
+- `POST /auth/logout` — clears cookies **and bumps `tokenVersion`** so all outstanding refresh tokens are revoked; `/logout-all` does the same.
 - `GET /auth/me` — current user incl. `addresses[]`; `PUT /auth/me` — name/email/alternatePhone only (phone immutable by design; admin account rejected).
-- `requireAdmin` middleware enforces `decoded.role === 'ADMIN'` on ~all `/api/v1/customers`, `/analytics`, `/orders` (PUT), `/repairs` (admin), `/sell-requests`, `/exchange-requests`, `/serviceability/areas`, `/settings/all`, `/payments` (n/a), etc.
+- `POST /auth/change-password` — requires current password; bumps `tokenVersion` on success (revokes other sessions).
+- `POST /auth/change-phone` — requires current password; bumps `tokenVersion` and clears sessions.
+- `POST /auth/request-password-reset` + `POST /auth/complete-password-reset` — SHA-256-hashed, 1-hour-expiry token, enumeration-safe responses. **Delivery provider is NOT configured** (`services/notifier` referenced by the code does not exist yet), so in production nothing is emailed/SMS'd; in dev the API returns a `devResetToken` for testing.
+- `requireAdmin` middleware enforces `decoded.role === 'ADMIN'` on ~all `/api/v1/customers`, `/analytics`, `/orders` (PUT/refund), `/repairs` (admin), `/sell-requests`, `/exchange-requests`, `/serviceability/areas`, `/settings/all`, `/payments` (n/a), etc.
 - Customer ownership checks on order/sell/repair/exchange detail + addresses.
 - Cookies: `secure` + `sameSite='none'` in production, `lax` in dev; CORS `credentials:true` with an origin allow-list.
 
 Limitations (verified, none of this is hidden):
-- 🔴 No password-change / forgot-password / reset endpoints.
-- 🟡 Login has **no dedicated rate limit** (only app-wide 500 req/15 min).
-- 🟡 Access token is also returned in the JSON body (cookies are the primary channel, but this widens XSS surface).
-- 🟡 Refresh tokens are not versioned/blacklisted server-side → not revocable.
+- 🟡 Forgot-password flow is code-complete (hashed token, expiry, enumeration-safe) but has **no delivery provider** — the reset link cannot actually be sent yet (dev-only `devResetToken` works).
+- 🟡 Login lockout is in-memory (per-process) — a multi-instance deployment needs a shared store.
 - 🟡 `JWT_SECRET`/`JWT_REFRESH_SECRET` fall back to default dev strings if env is unset (safe only in dev).
 - 🟡 Application-wide rate limit `max:500` per 15 min may be tight for production traffic.
-- 🟡 Client: `localStorage.authToken` is read but never written (dead code, harmless).
 - ⚠️ CMS "includeAll" endpoints hand-roll JWT verification instead of reusing `requireAdmin`.
 - 🟡 `validation.ts` (zod) middleware is defined but never used; most validation is manual.
 
@@ -322,13 +324,13 @@ Limitations (verified, none of this is hidden):
 | Exchange Requests (+detail) | `/admin/exchange-requests` | real; exchange value entry |
 | Service Areas / Requests | `/admin/service-areas`, `/admin/service-requests` | real; area CRUD + notify-me queue |
 | Phone Catalog / Valuation | `/admin/phone-catalog`, `/admin/phone-valuation` | real CRUD + valuation rule editor |
-| Coupons | `/admin/coupons` | real CRUD (**0 coupons currently in DB**) |
+| Coupons | `/admin/coupons` | real CRUD (**0 coupons currently in DB**) with server-side field validation, `maxPerUser`, and change audit logging |
 | Inventory | `/admin/inventory` | real — **note: `inventories` collection is empty in current DB**, so the page shows nothing until inventory docs are created (stock lives on ProductVariant) |
-| Audit Logs | `/admin/audit-logs` | real (`auditlogs` empty; logs are only written manually) |
+| Audit Logs | `/admin/audit-logs` | real — key admin actions (coupon create/update/deactivate, settings update, notification broadcast, order refund) are **written automatically**; filter by entity/action with pagination |
 | Contact Requests | `/admin/contact-requests` | real |
-| Settings | `/admin/settings` | real key/value editor (19 settings keys seeded) |
+| Settings | `/admin/settings` | real key/value editor (19 settings keys seeded); every admin save is audit-logged |
 | CMS (banners/homepage/tests/FAQs/cards) | `/admin/*` | real shared CRUD component; **collections currently empty** |
-| Notifications admin UI | — | 🔴 **missing** (bell in admin header is decorative; backend notifications routes exist) |
+| Notifications | `/admin/notifications` | **broadcast compose** (all users or selected user IDs, with a notification type) + send history list |
 
 Admin UX notes: lazy-loaded pages, per-row edit/delete/toggle with inline forms on CMS, note-required status updates, disabled loading states, toast errors. Some pages (ProductEdit, CustomerDetail) are leaner than the rest.
 
@@ -347,7 +349,7 @@ Admin UX notes: lazy-loaded pages, per-row edit/delete/toggle with inline forms 
 | `categories` | 4 (all active) | |
 | `repairservices` | 30 | e.g. screen/fix/water listings with pricing + warranty |
 | `phonevaluations` | 225 (all active) | valuation rule records |
-| `phonecatalogmodels` | 0 | ⚠️ empty → search "models" suggestions empty; catalog page empty. Seed scripts exist (`seed:phones`). |
+| `phonecatalogmodels` | 222 (158 with images) | seeded catalog → search model suggestions + admin Phone Catalog **now populated** (seed scripts exist) |
 | `serviceareas` | 0 | engine in allow-all mode |
 | `serviceabilityrequests` | 6 (2 WAITING) | |
 | `orders` / `orderitems` | 12 / 12 | 3 paid, 4 COD—includes E2E-generated orders |
@@ -367,10 +369,8 @@ Product model: name, slug, brand category, images[], condition, rating, feature 
 
 ## 18. Search
 
-- ✅ Full results: `SearchPage` → `GET /products?query=` (name/description/slug) + filters (brand/category/condition/price range/sort). Real pagination (`total/totalPages/hasNext`).
-- ✅ Search overlay: product suggestions (`/products?query=&limit=8`) work.
-- 🟡 Search overlay: model suggestions (`/phone-catalog?search=`) correct code-path but the model catalog is **empty** → no suggestions; brand chips fall back to a hardcoded list.
-- ⚠️ Pagination is implemented **in memory** (loads all matches + slices); fine for the current catalog, poor at scale.
+- ✅ Full results: `SearchPage` → `GET /products?query=` (name/description/slug) + filters (brand/category/condition/price range/sort). Real pagination (`total/totalPages/hasNext`) done **server-side** (`$facet` aggregation with `$skip`/`$limit`).
+- ✅ Search overlay: product suggestions (`/products?query=&limit=8`) work; model suggestions (`/phone-catalog?search=`) work now that the catalog is seeded (222 models).
 - 🔴 No full-text index, no typo-tolerance, no trending/facet counts, no SEO product pages (SPA).
 
 ---
@@ -420,7 +420,7 @@ All under `/api/v1`. Auth legend: **pub** = public, **auth** = any logged-in use
 | auth | `POST /register, /login, /logout, /refresh`, `GET /me`, `PUT /me` | pub / pub / pub / pub / auth / auth |
 | products | `GET /` (search/filter/sort/paginate), `GET /:id`, variants CRUD | pub; write+delete admin |
 | brands / categories | CRUD | pub read; admin write |
-| orders | `POST /`, `GET /`, `GET /:id`, `GET /track/:orderNumber`, `PUT /:id` | auth; track pub; PUT admin |
+| orders | `POST /`, `GET /`, `GET /:id`, `GET /track/:orderNumber`, `POST /:id/cancel-request`, `GET /:id/invoice`, `POST /:id/refund`, `PUT /:id` | auth; track pub; cancel-request auth; refund+PUT admin |
 | repairs | services CRUD, `POST /` (book), `GET /`, track, `POST /:id/status`, `PUT /:id` | opt book; track pub; admin manage |
 | sell-requests | `POST /`, `GET /`, `GET /:id`, `PUT /:id` | opt; admin manage |
 | exchange-requests | `POST /`, `GET /`, `GET /:id`, `PUT /:id` | opt; admin manage |
@@ -432,9 +432,9 @@ All under `/api/v1`. Auth legend: **pub** = public, **auth** = any logged-in use
 | customers | `GET /`, `GET /:id` | admin |
 | analytics | `GET /` | admin |
 | settings | `GET /` (public subset), `GET /all`, `PUT /` | pub / admin / admin |
-| coupons | `GET /`, `GET /validate/:code`, CRUD | admin / pub / admin |
+| coupons | `GET /` (admin), `GET /validate/:code` (pub, optionalAuth — enforces min order + per-user usage + computes discount), CRUD | admin |
 | cms (5 modules) | CRUD | pub read; admin write |
-| notifications | `GET /`, `POST /`, `PUT /:id/read`, `PUT /read-all`, `DELETE /:id` | auth / admin / auth |
+| notifications | `GET /`, `POST /` (admin: targeted or broadcast `audience:'all'`), `PUT /:id/read`, `PUT /read-all`, `DELETE /:id` | auth / admin / auth |
 | contact-requests | `POST /`, admin list + `PUT /:id` | opt / admin |
 | audit-logs | `GET /`, `POST /` | admin |
 | uploads | `POST /` (image) | admin |
@@ -451,7 +451,8 @@ Client-side freshness note: `services/analytics.service.ts` calls `/analytics/da
 - **Backend build/start**: `tsc` → `node dist/server.js`; serves `/uploads` statically.
 - **Env (server)**: `PORT, MONGODB_URI, JWT_SECRET, JWT_REFRESH_SECRET, CLIENT_URL, NODE_ENV, UPLOAD_DIR, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, CLIENT_ORIGINS`. See `server/.env.example` for all keys with comments (values are placeholders, never committed).
 - **Env (client)**: `VITE_API_URL` (`client/.env.example`). Netlify sets `https://om-cellular.onrender.com/api/v1` at build time.
-- No `render.yaml` — Render is configured via its dashboard.
+- **CI**: `.github/workflows/ci.yml` — on push/PR to `main`/`mern-migration`, runs server lint + tests + build and client lint + build on Node 20.
+- **Render blueprint**: `render.yaml` (web service, root `server`, build `npm ci && npm run build`, start `npm start`, required env vars marked `sync:false` for dashboard entry).
 - Production deploy state: ❓ backend running an older build (new routes 404); frontend reachable but not verified as current.
 
 ---
@@ -479,8 +480,9 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 | Server TypeScript build (`npm run build` = `tsc`) | ✅ **PASS** (05 Sep 2026) |
 | Client build (`npm run build` = `tsc -b && vite build`) | ✅ **PASS** (05 Sep 2026, 2524 modules) |
 | `git diff --check` | ✅ **PASS** (no whitespace errors) |
-| Lint | ❌ **NOT CONFIGURED** (no ESLint setup in either package) |
-| Automated unit/integration tests in repo | ❌ **NOT CONFIGURED** (no test framework or `test` script) |
+| Server ESLint (`npm run lint`) | ✅ **PASS** (0 errors, 0 warnings) |
+| Client ESLint (`npm run lint`) | ✅ **PASS** (0 errors; 16 pre-existing warnings) |
+| Server unit tests (`npm test` = `tsx --test`) | ✅ **PASS 12/12** — FSM transition guards (orders/repairs/sell/exchange), cancel/refund callback behavior, valuation engine edge cases, slugify/paginate/Luhn-IMEI/normalize helpers. Found + fixed a real bug: `paginate` returned `NaN` for non-numeric input |
 | Ad-hoc E2E integration harness (temporary, outside repo) | ✅ **PASS 43/43** against live Atlas: serviceability check/gate, notify-me, area CRUD, register/login, addresses, auth/me, sell/exchange/repair with status history, COD order → public tracking → admin mark paid/ship, delivery-gate block/allow, customers enrichment, analytics. This harness is not part of the repository. |
 | Production API (`GET /api/health`) | ✅ REACHABLE (200) — but running an older build (`/api/v1/serviceability/check` → 404) |
 
@@ -488,31 +490,31 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 
 ## 25. Known Issues (verified)
 
-1. **Live deployments do not run the current branch** — new backend routes (e.g. `/api/v1/serviceability/check`) return 404 on Render; Vercel frontend did not update. Deploy config/branch binding must be fixed.
-2. **Online payments disabled** — Razorpay keys not provisioned; checkout correctly hides online methods.
-3. **`phonecatalogmodels` empty** → search model-suggestions and the admin Phone Catalog yield no data (seed script exists).
+1. **Live deployments do not run the current branch** — new backend routes (e.g. `/api/v1/serviceability/check`) return 404 on Render; Vercel frontend did not update. Deploy config/branch binding must be fixed (CI + `render.yaml` exist but the dashboards still serve older builds).
+2. **Online payments disabled** — Razorpay keys not provisioned; checkout correctly hides online methods. Consequently **live refunds cannot be exercised** (code + admin UI complete).
+3. **Forgot-password flow has no delivery provider** — the reset endpoint/token logic exists but nothing sends the link.
 4. **All CMS collections empty** → homepage/campaign content is default only.
-5. **No refunds, no cancellation endpoint, no stock restore on cancel, non-atomic stock/coupon updates.**
-6. **Products list pagination is in-memory** (full load + slice) — degrades at scale.
-7. **Sell/exchange requests do not bind the server valuation** (estimates are client-supplied / admin-entered).
-8. **Customer account gaps**: no password change/reset, no phone change, no guest checkout, no invoice, no returns flow.
-9. **Notifications incomplete**: backend routes exist, admin UI missing, no push/email/SMS provider, notify-me is admin-managed only.
-10. **Auth hardening**: no login rate limit, access token also in JSON body, refresh tokens not revocable, dev JWT fallbacks.
-11. **Dead/inert code**: `localStorage.authToken` read but never written; `validation.ts` (zod) unused; `Wishlist` model unused server-side; `services/analytics.service.ts` targets a non-existent route.
-12. **Admin `Inventory` page empty** because the `inventories` collection has no docs (stock lives on variants).
-13. Random flakiness of MongoDB Atlas connectivity on the audit network (intermittent `PoolClearedError`) — environmental, worked around with retries.
+5. **Admin `Inventory` page empty** because the `inventories` collection has no docs (stock lives on variants).
+6. **Login brute-force lockout is in-memory per-instance** — needs a shared store for multi-instance deployments.
+7. **Guest checkout missing** — orders require an account (hard conversion wall).
+8. **No customer-initiated return/refund on delivered items** — only pre-shipment cancel-requests; post-delivery returns are admin-only.
+9. **Sell/exchange still lack** inspection checklists, payout/settlement, and instant trade-in credit.
+10. **No push/email/SMS notifications** — in-app + admin broadcast only; notify-me is admin-managed only.
+11. **Dead/inert code**: `validation.ts` (zod) unused; `Wishlist` model unused server-side; `services/analytics.service.ts` targets a non-existent route; CMS "includeAll" hand-rolls JWT.
+12. Random flakiness of MongoDB Atlas connectivity on the audit network (intermittent `PoolClearedError`) — environmental, worked around with retries.
 
 ---
 
 ## 26. Incomplete / Partial Features
 
-- **Online payments** — gateway code complete; operationally disabled and unproven.
-- **Exchange** — no automated old-device valuation or difference-payment checkout.
-- **Sell** — estimate not validated server-side; no inspection checklist/IMEI/payout.
-- **Coupons / Reviews / Wishlist / Notifications / CMS content** — code complete, data empty or UI missing.
-- **Search suggestions** — model catalog empty.
-- **Warranty / Returns** — only status labels, no return/refund workflow.
+- **Online payments** — gateway code complete (incl. refunds); operationally disabled and unproven (no keys).
+- **Forgot-password delivery** — endpoint + token logic complete; no email/SMS provider wired.
+- **Exchange** — server computes old-device value at submit but there is no instant trade-in credit difference-payment checkout.
+- **Sell** — server-authoritative valuation + IMEI + duplicate detection in place; no inspection checklist/payout.
+- **Coupons / Reviews / Wishlist / CMS content** — code complete (coupons now fully validated + audited), data empty.
+- **Warranty / Returns** — only status labels, no post-delivery return/refund workflow.
 - **Logistics** — no courier integration, delivery tracking is a manually-entered `trackingNumber`.
+- **Notifications** — in-app complete; push/email/SMS delivery missing.
 
 ---
 
@@ -521,30 +523,30 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 Scored on **functional completeness** (backend → API → persistence), not visual completeness.
 
 | Category | Status | % | Explanation |
-|---|---|---|---|
-| Architecture | ✅ | 90% | Clean layered MERN; cookie auth; env-driven; scalable structure. Gaps: in-memory pagination, no transactions. |
-| Authentication | 🟡 | 70% | Register/login/refresh/roles solid. Missing: password reset, phone change, login rate limit, revocable refresh. |
-| Customer Account | 🟡 | 75% | Profile, addresses, orders/repairs/sell/exchange lists + detail with timelines. No invoice, returns, phone change. |
-| Phone Catalog | 🟡 | 70% | 246 products/670 variants/19 brands real. Model catalog (`phonecatalogmodels`) empty; CMS empty. |
-| Buy Flow | ✅ | 85% | Browse→detail→cart→checkout→COD order→track all work. Online payment disabled; no guest checkout. |
-| Sell Flow | 🟡 | 65% | Full UI + real valuation engine + tracking. Value not server-bound; no IMEI/inspection/payout. |
-| Repair Flow | ✅ | 80% | Service catalog, booking, dual status persistence, admin workflow, tracking. No technician app/parts mgmt. |
-| Exchange Flow | 🟡 | 55% | Request + admin valuation + tracking only; no automated valuation or payment-of-difference. |
+|---|---|---|---|---|
+| Architecture | ✅ | 90% | Clean layered MERN; cookie auth; env-driven; scalable structure. Gaps: no MongoDB transactions, some shared admin-shared components lean. |
+| Authentication | ✅ | 88% | Register/login/refresh/roles/change-password/change-phone/reset-token logic all present; brute-force lockout, revocable sessions, token out of body. Gaps: reset delivery provider, shared lockout store. |
+| Customer Account | 🟡 | 82% | Profile, addresses, orders/repairs/sell/exchange lists + detail with timelines, invoice, cancel-request. No guest checkout, no post-delivery returns. |
+| Phone Catalog | 🟡 | 82% | 246 products/670 variants/19 brands real; **222 model catalog seeded** (158 with images). CMS content still empty. |
+| Buy Flow | ✅ | 90% | Browse→detail→cart→checkout→COD order→track all work; cancel-request + invoice + refunds code-complete. Online payment disabled; no guest checkout. |
+| Sell Flow | 🟡 | 82% | Full UI + real valuation engine + IMEI + duplicate detection + server-bound value + tracking. No inspection checklist/payout. |
+| Repair Flow | ✅ | 85% | Service catalog, booking, dual status persistence, FSM, admin workflow, tracking. No technician app/parts mgmt. |
+| Exchange Flow | 🟡 | 68% | Request + server old-device value + IMEI + FSM + tracking; no instant trade-in credit or difference checkout. |
 | Cart | 🟡 | 75% | Works client-side. No server sync/reservation. |
-| Checkout | 🟡 | 70% | Address/serviceability/coupon/tax/shipping complete. No invoice; online payment disabled. |
-| Payments | 🟡 | 45% | COD real; Razorpay wiring credible but disabled; no refunds/failed-event handling. |
+| Checkout | 🟡 | 82% | Address/serviceability/coupon (server-validated)/tax/shipping complete; invoice exists. No guest checkout; online payment disabled. |
+| Payments | 🟡 | 62% | COD real; Razorpay wiring credible (verify + webhook + refunds) but disabled; no failed-event handling. |
 | Serviceability | ✅ | 90% | DB areas + per-service rules + gates + notify-me. No real notify delivery. |
-| Order Tracking | ✅ | 85% | Persisted history everywhere + public track + admin transitions. No strict transitions/cancel flow. |
-| Admin | 🟡 | 80% | All DB-backed (no dummy data), analytics real. No notifications page; inventory empty; audit logs manual. |
-| Search | 🟡 | 60% | Full search works; suggestions degraded (empty model catalog); in-memory pagination. |
+| Order Tracking | ✅ | 90% | Persisted history + public track + strict FSM + customer cancel-request + stock/coupon restore. No post-delivery returns flow. |
+| Admin | ✅ | 88% | All DB-backed (no dummy data), analytics real, notifications broadcast page, automated audit logs on key actions. Inventory empty; manual logs elsewhere. |
+| Search | 🟡 | 75% | Full search works server-side paginated; model suggestions live (catalog seeded). No typo-tolerance/full-text/SEO. |
 | Mobile UX | 🟡 | 75% | Bottom nav, tap targets, responsive; admin less polished; some silent errors. |
-| Security | 🟡 | 55% | Helmet/CORS/rate-limit/bcrypt/cookies present. Gaps: login limit, token exposure, refresh revoke, zod unused. |
-| Production Deployment | 🟡 | 35% | Config present but live deployments not current; online payments unprovisioned. |
-| Testing | 🟡 | 40% | Builds pass; 43/43 E2E (external harness); no in-repo automated tests or lint. |
+| Security | ✅ | 80% | Helmet/CORS/rate-limits/bcrypt/httpOnly-cookie auth/brute-force lockout/revocable sessions. Gaps: in-memory lockout store, zod unused, CMS hand-rolled JWT. |
+| Production Deployment | 🟡 | 35% | CI + render.yaml present but live deployments not current; online payments unprovisioned. |
+| Testing | ✅ | 80% | Builds pass; 12/12 in-repo unit tests; ESLint clean; 43/43 E2E (external harness). |
 
-**Overall estimated completion: ≈ 68%**
+**Overall estimated completion: ≈ 78%**
 
-(The number reflects that this is a real, working system with genuine e-commerce depth — but the "make it production-grade" layer: provisioning payments, catalog/CMS data, refunds/cancellations, notifications delivery, and deployment wiring — is still outstanding.)
+(The number reflects that this is a real, working system with genuine e-commerce depth, now hardened across auth, order lifecycle, FSMs, valuation authority, notifications and testing — but the "operational cut-over" layer: provisioning Razorpay, seeding CMS/operational data, delivery providers, courier integration, and deployment wiring, is still outstanding.)
 
 ---
 
@@ -556,54 +558,54 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 |---|---|---|
 | A. Buy Phones | 🟡 | Store works; used-brand catalog depth and watchlists/price-drop alerts missing. |
 | B. Sell Phones | 🟡 | Request + valuation estimate; no seller payout, no inspection scheduling automation. |
-| C. Phone Valuation Engine | 🟡 | Real rule engine (225 records) used for estimates; not authoritative at request time; catalog rows empty. |
-| D. Repair | 🟡 | Booking + status + costs solid; no technician mobile flow, parts tracking, repair warranty records. |
-| E. Exchange | 🔴→🟡 | Request flow + admin valuation only; no instant trade-in credit toward a new order. |
-| F. Product Catalog | 🟡 | 246 products/670 variants; model catalog + images/specs coverage for used phones incomplete. |
-| G. Payments | 🟡 | COD real; Razorpay wired but disabled; no refunds, no failed-event handling, no payouts. |
+| C. Phone Valuation Engine | 🟡 | Real rule engine (225 records) used for estimates; **now authoritative at request time** for sell/exchange + IMEI capture; catalog rows seeded (222). |
+| D. Repair | 🟡 | Booking + status + costs solid; strict FSM; no technician mobile flow, parts tracking, repair warranty records. |
+| E. Exchange | 🔴→🟡 | Request + server old-device value + admin final value; no instant trade-in credit toward a new order. |
+| F. Product Catalog | 🟡 | 246 products/670 variants; **222-model catalog seeded** (158 with images); used-phone imagery/specs coverage incomplete. |
+| G. Payments | 🟡 | COD real; Razorpay wired incl. refunds but disabled; no failed-event handling, no payouts. |
 | H. Logistics | 🔴 | No courier integration; only manual tracking numbers; pickup scheduling is manual admin fields. |
 | I. Serviceability | 🟡 | Engine is excellent; operational data (areas) empty; no delivery SLA/per-area pricing. |
-| J. Customer Account | 🟡 | Solid; missing phone change, password reset, invoices, returns. |
-| K. Order Tracking | 🟡 | Persisted & public; no strict transition FSM, no cancellation flow, no delivery provider events. |
-| L. Notifications | 🔴→🟡 | In-app model + routes; no customer UI, no push/email/SMS; notify-me is admin-only. |
-| M. Admin & Operations | 🟡 | Excellent DB-backed panel; no tiered roles, no inventory movement/audit automation, no queueing. |
+| J. Customer Account | 🟡 | Solid; change-password/phone + reset-token logic present (delivery unprovisioned), invoice, cancel-request. No guest checkout, no post-delivery returns. |
+| K. Order Tracking | ✅ | Persisted & public; **strict FSM + customer cancel-request + stock/coupon restore**; no delivery provider events. |
+| L. Notifications | 🟡 | **Customer center + admin broadcast complete**; no push/email/SMS; notify-me is admin-only. |
+| M. Admin & Operations | 🟡 | Excellent DB-backed panel + notification broadcast + automated audit logs on key actions; no tiered roles/inventory audit automation. |
 | N. Inventory | 🟡 | Variant stock + admin bulk stock; separate inventory ledger empty; no reserve-on-cart or adjustments audit. |
 | O. Pricing | 🟡 | Tax/shipping/coupon pricing complete; no dynamic/condition-grade pricing on sell, no price-drop alerts. |
-| P. Offers/Coupons | 🟡 | Full coupon engine; zero coupons currently in DB; no referral/applied-offers automation. |
+| P. Offers/Coupons | 🟡 | Full coupon engine (server-validated, audited); zero coupons currently in DB; no referral/applied-offers automation. |
 | Q. Reviews/Ratings | 🟡 | Backend + DELIVERED-gated reviews; no reviews in DB; aggregate rating on product exists. |
-| R. Warranty/Returns | 🔴 | Only status enums; no return/refund/warranty claim workflow. |
-| S. Fraud/Risk | 🔴 | None (no IMEI blacklist, device condition validation, payout verification, velocity checks). |
+| R. Warranty/Returns | 🔴 | Only status enums; no post-delivery return/refund workflow (pre-shipment cancel exists). |
+| S. Fraud/Risk | 🟡 | IMEI validation + duplicate-request detection on sell/exchange; brute-force login lockout; no payout verification system. |
 | T. Analytics | 🟡 | Strong real dashboard; limited to 7-day charts; no funnel/cohort/CSV export. |
 | U. SEO | 🔴 | SPA without per-product meta/prerendering; needs SSR/SSG or prerender. |
-| V. Performance | 🟡 | Fine at current size; in-memory pagination + no image CDN + no caching are ceiling. |
+| V. Performance | 🟡 | **Server-side products pagination added**; no image CDN + no caching remain the ceiling. |
 | W. Mobile UX | 🟡 | Good responsive web; no PWA/offline, no native app. |
-| X. Security | 🟡 | Good baseline; needs login limits, token hardening, audit automation, secret rotation. |
-| Y. Production Operations | 🔴 | Deploy wiring not current, no monitoring/error tracking (Sentry), no CI pipeline, no staging parity. |
+| X. Security | 🟡 | Good baseline **hardened** (httpOnly-only tokens, revocable sessions, brute-force lockout); needs shared store + zod + audit automation expansion. |
+| Y. Production Operations | 🔴 | **CI + render.yaml added**, but live deploys not current; no monitoring/error tracking, no staging parity. |
 
 ---
 
 ## 29. Recommended Next Development Phases
 
 **P0 — Critical / blocking production**
-1. Fix deployment wiring so `mern-migration` is what renders on Render + Vercel; verify the new routes live. *Impact:* everything else depends on a real environment.
-2. Provision Razorpay keys + webhook secret; run a live UPI payment. *Impact:* unlocks the entire online-payment line; currently that revenue path is disabled.
-3. Add seed data / admin onboarding for the empty table-stakes collections: phone catalog models, coupons, reviews, CMS content. *Impact:* homepage, search suggestions, and marketing levers go live.
-4. Implement **refunds + cancellation** (admin) and **stock restore on cancel**; atomic stock/coupon updates. *Impact:* fundamental commerce trust and correctness.
+1. Fix deployment wiring so `mern-migration` is what renders on Render + Vercel; verify the new routes live. *Impact:* everything else depends on a real environment. *(CI + `render.yaml` are now in place; the dashboards are not yet pointed at this branch.)*
+2. Provision Razorpay keys + webhook secret; run a live UPI payment and a live refund. *Impact:* unlocks the online-payment + refund line; currently that revenue path is disabled (code is whole).
+3. Add seed data / admin onboarding for the remaining empty collections: coupons, reviews, CMS content. *Impact:* homepage, offers, and marketing levers go live.
+4. *(Done)* Refunds + cancellations + stock restore + strict FSMs + server-side valuation authority — shipped in the production-hardening pass.
 
 **P1 — Important business functionality**
-5. Make the phone valuation engine **authoritative** for sell/exchange (server computes and stores value; client edits reviewed by admin afterward).
-6. Customer-initiated **returns/refunds** with order flow (RETURN_REQUESTED → approved → REFUNDED via Razorpay).
-7. **In-app notification center UI** for customers (backend routes already exist) and an admin broadcast screen.
-8. Strict **status transition FSMs** for order/repair/sell/exchange + customer cancellation (with stock restore).
-9. **Password reset / change**, login rate-limit, revocable refresh tokens, move token out of the response body.
+5. *(Done)* Phone valuation engine is now **authoritative** for sell/exchange (server computes + stores value at submit; client edits reviewed by admin afterward).
+6. Customer-initiated **returns/refunds for delivered items** (RETURN_REQUESTED → approved → REFUNDED via Razorpay) — pre-shipment cancel-requests exist; post-delivery returns remain admin-only.
+7. *(Done)* In-app **notification center UI** for customers + admin **broadcast screen**.
+8. *(Done)* Strict status-transition FSMs + customer cancellation (with stock restore) — implemented and unit-tested.
+9. *(Done)* Password change/phone change, login rate-limit + brute-force lockout, revocable refresh tokens, tokens moved out of the response body. Remaining: wire the reset-token delivery provider (email/SMS) and make the lockout store shared.
 10. Fill the **inventory ledger** (use the existing model/route) so admin stock + low-stock alerts work.
 
 **P2 — Growth & UX**
-11. Server-side pagination for products (`$skip`/`$limit`) + search suggestions from the phone catalog once seeded.
+11. *(Done)* Server-side pagination for products ($facet `$skip`/`$limit`). Remaining: search suggestions already live; add typo-tolerance/full-text once catalog data matures.
 12. Guest checkout (order created then linked to account at login) — currently a hard conversion wall.
 13. Real **courier integration** (e.g., Delhivery/Shiprocket) or at least pickup-slot scheduling; replace manual tracking numbers.
 14. PWA (offline shell, install), richer product detail (specs tables, image gallery), SEO prerender for product pages.
-15. Email/SMS for notifications + notify-me (a provider + templates).
+15. Email/SMS for notifications + notify-me + password-reset delivery (a provider + templates).
 
 **P3 — Advanced features**
 16. Exchange with instant trade-in credit applied to a new order; sell with inspection review app + payout reconciliation.
@@ -617,22 +619,22 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 ## 30. Current Production Readiness
 
 ```
-Technically deployable:   YES   (builds pass; E2E runs green vs Atlas; no runtime blockers)
-Business-ready:           NO    (online payments disabled; catalog/CMS/loyalty data empty;
-                                 no refunds/cancellations/logistics; deploy not live)
-Cashify-level mature:     NO    (see Gap Analysis — F, G, H, L, S, U, Y are the big distances)
+Technically deployable:   YES   (builds, 12/12 unit tests, lint all pass; E2E green vs Atlas; CI + render.yaml included)
+Business-ready:           NO     (online payments disabled; CMS/loyalty data empty; live deploys not current;
+                                  delivery providers + courier integration still missing)
+Cashify-level mature:     NO     (see Gap Analysis — H, R, U, and parts of G, T, Y are the big distances)
 Overall verdict:          CONDITIONALLY READY
 ```
 
-Conditionally ready means: **if** the P0 items above are completed (deploy wiring, Razorpay provisioning, critical data seeding, refund/cancel basics) the platform could support real customers for the COD + buy/sell/repair/exchange lines. Until then it is a *well-built, well-tested system that has not yet been cut over to production traffic*.
+Conditionally ready means: **if** the remaining P0 items above are completed (deploy wiring so this branch is live, Razorpay provisioning + a live pay/refund test, and CMS/coupon/review data seeding), the platform could support real customers for the COD + buy/sell/repair/exchange lines. The hardening pass has already closed the refund/cancellation, FSM, valuation-authority, auth-hardening, notifications-center, and testing gaps; what remains is operational cut-over rather than code.
 
 ---
 
 ## 31. Final Audit Summary
 
-- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth, serviceability, valuation engine, and persisted tracking. 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed.
-- **What it is not yet:** production-provisioned commerce. Payments are unprovisioned, deployments lag the branch, and maturity features (refunds, logistics, notifications delivery, fraud controls, SEO, native apps) are ahead.
-- **Single biggest lever:** cut over the deployment to this branch and provision Razorpay — after that, the honest "completeness" climbs immediately from ~68% toward ~80%+ because the remaining gaps are incremental rather than architectural.
+- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth hardening (brute-force lockout, revocable sessions), strict status FSMs, customer cancellations with stock restore, server-authoritative sell/exchange valuation, in-app notifications with admin broadcast, automated audit logging, and 12/12 in-repo unit tests + clean ESLint + CI. 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed.
+- **What it is not yet:** production-provisioned commerce. Payments are unprovisioned (so refunds are code-complete but unexercised), deployments lag the branch, and maturity features (delivery providers, courier integration, post-delivery returns, fraud expansion, SEO, native apps) are ahead.
+- **Single biggest lever:** cut over the deployment to this branch and provision Razorpay + run one live pay/refund — after that, the honest "completeness" climbs immediately from ~78% toward ~85%+ because the remaining gaps are incremental rather than architectural.
 
 ---
 

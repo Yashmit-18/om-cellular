@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import { Router, Response } from 'express'
 import { AuditLog } from '../models/auditLog.model'
 import { requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'

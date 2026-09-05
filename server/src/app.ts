@@ -5,7 +5,6 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
 import { corsOptions } from './config/cors'
-import { env } from './config/env'
 import { errorHandler } from './middleware/error'
 
 // Route imports

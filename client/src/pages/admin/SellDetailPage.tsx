@@ -7,7 +7,7 @@ import { formatDate, formatPrice } from '../../utils'
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS } from '../../constants'
 import StatusTimeline from '../../components/StatusTimeline'
 
-const STATUS_OPTIONS = ['SUBMITTED', 'INSPECTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'COMPLETED', 'CANCELLED']
+const STATUS_OPTIONS = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'OFFER_MADE', 'OFFER_ACCEPTED', 'OFFER_DECLINED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'COMPLETED', 'CANCELLED']
 
 export default function AdminSellDetailPage() {
   const { id } = useParams<{ id: string }>()

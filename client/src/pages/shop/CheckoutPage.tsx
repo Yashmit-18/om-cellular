@@ -311,7 +311,7 @@ export default function CheckoutPage() {
         toast.success(`Coupon applied! Discount: ${formatPrice(res.data.discount)}`)
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid coupon')
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Invalid coupon')
     }
   }
 

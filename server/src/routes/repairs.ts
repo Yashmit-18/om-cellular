@@ -5,10 +5,12 @@ import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRepairBookingNumber, paginate } from '../utils/helpers'
 import { checkServiceability } from '../services/serviceability.service'
+import { REPAIR_TRANSITIONS, assertTransition } from '../services/fsm.service'
+import { notify } from '../services/notification.service'
 
 const router = Router()
 
-const REPAIR_STATUSES = ['BOOKING_RECEIVED', 'APPROVED', 'IN_DIAGNOSIS', 'DIAGNOSED', 'REJECTED', 'IN_REPAIR', 'AWAITING_PARTS', 'COMPLETED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']
+const REPAIR_STATUSES = Object.keys(REPAIR_TRANSITIONS)
 
 function flattenPickup(details: any): string {
   if (!details) return ''
@@ -29,10 +31,22 @@ async function recordRepairStatus(repair: any, status: string, changedBy: 'SYSTE
   if (!REPAIR_STATUSES.includes(status)) {
     throw { statusCode: 400, message: `Invalid repair status: ${status}` }
   }
+  assertTransition(repair.status, status, REPAIR_TRANSITIONS, 'repair')
   await RepairStatusHistory.create({ repairId: repair._id, status, note })
   repair.statusHistory = repair.statusHistory || []
   repair.statusHistory.push({ status, changedAt: new Date(), changedBy, note })
   repair.status = status
+}
+
+async function notifyRepairCustomer(repair: any) {
+  if (!repair.userId) return
+  await notify({
+    userId: String(repair.userId._id || repair.userId),
+    type: 'REPAIR',
+    title: 'Repair status updated',
+    message: `Your repair booking ${repair.bookingNumber} is now: ${repair.status.split('_').join(' ').toLowerCase()}.`,
+    metadata: { repairId: String(repair._id), entity: 'repair', status: repair.status },
+  }).catch(() => {})
 }
 
 router.get('/services', async (_req, res) => {
@@ -142,6 +156,16 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     repair.statusHistory = [{ status: 'BOOKING_RECEIVED', changedAt: new Date(), changedBy: 'SYSTEM', note: historyNote }]
     await repair.save()
 
+    if (req.user?.id) {
+      await notify({
+        userId: req.user.id,
+        type: 'REPAIR',
+        title: 'Repair booking received',
+        message: `Your repair booking ${bookingNumber} for the ${brand} ${model} has been received.`,
+        metadata: { repairId: String(repair._id), entity: 'repair', status: 'BOOKING_RECEIVED' },
+      }).catch(() => {})
+    }
+
     return res.status(201).json({ success: true, message: 'Repair booking created', data: { ...repair.toObject(), bookingNumber } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -157,6 +181,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (status) {
       try {
         await recordRepairStatus(repair, status, 'ADMIN', note || `Status updated to ${status}`)
+        await notifyRepairCustomer(repair)
       } catch (error: any) {
         return res.status(error?.statusCode || 500).json({ success: false, message: error?.message || 'Internal server error' })
       }
@@ -184,6 +209,7 @@ router.post('/:id/status', requireAdmin, async (req: AuthRequest, res: Response)
 
     try {
       await recordRepairStatus(repair, status, 'ADMIN', note || `Status updated to ${status}`)
+      await notifyRepairCustomer(repair)
     } catch (error: any) {
       return res.status(error?.statusCode || 500).json({ success: false, message: error?.message || 'Internal server error' })
     }

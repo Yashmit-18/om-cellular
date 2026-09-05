@@ -3,8 +3,14 @@ import { Notification } from '../models/notification.model'
 import { authenticate, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { paginate } from '../utils/helpers'
+import { notify, broadcastNotification, NOTIFICATION_TYPES } from '../services/notification.service'
+import { writeAudit, serializeAuditValue } from '../services/audit.service'
 
 const router = Router()
+
+function serializeValue(value: unknown): string {
+  return serializeAuditValue(value) || ''
+}
 
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -27,12 +33,28 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { userId, type, title, message, metadata } = req.body
-    if (!userId || !type || !title || !message) return res.status(400).json({ success: false, message: 'userId, type, title, and message are required' })
+    const { userId, audience, type, title, message, metadata } = req.body
+    if (!type || !title || !message) return res.status(400).json({ success: false, message: 'type, title, and message are required' })
+    if (type && !NOTIFICATION_TYPES.includes(type)) {
+      return res.status(400).json({ success: false, message: `Invalid notification type. Allowed: ${NOTIFICATION_TYPES.join(', ')}` })
+    }
 
-    const notification = await Notification.create({ userId, type, title, message, metadata })
-    return res.status(201).json({ success: true, message: 'Notification created', data: notification })
+    // Broadcast to all customers: audience 'all' or a literal userId of 'all'.
+    if (audience === 'all' || userId === 'all') {
+      const result = await broadcastNotification({ type, title, message, metadata })
+      await writeAudit({
+        adminId: req.user!.id, action: 'NOTIFICATION_BROADCAST', entity: 'Notification',
+        newValue: serializeValue(result.delivered), ipAddress: req.ip,
+      })
+      return res.status(201).json({ success: true, message: `Announcement sent to ${result.delivered} customers`, data: { delivered: result.delivered } })
+    }
+
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required, or use audience: "all" to broadcast' })
+
+    await notify({ userId, type, title, message, metadata })
+    return res.status(201).json({ success: true, message: 'Notification created' })
   } catch (error) {
+    console.error('POST /notifications error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

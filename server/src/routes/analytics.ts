@@ -126,6 +126,9 @@ router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
           enabledServiceAreas,
           pendingServiceRequests,
           totalServiceRequests,
+          // When no service areas are enabled the store runs in legacy mode and
+          // every PIN code is treated as serviceable.
+          legacyMode: enabledServiceAreas === 0,
         },
         salesChart,
         ordersChart,

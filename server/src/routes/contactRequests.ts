@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { ContactRequest } from '../models/contactRequest.model'
-import { authenticate, requireAdmin, optionalAuth } from '../middleware/auth'
+import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { paginate } from '../utils/helpers'
 

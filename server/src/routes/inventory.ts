@@ -11,7 +11,7 @@ router.get('/', requireAdmin, async (req: Request, res: Response) => {
     const { page = '1', limit = '20', lowStock } = req.query
     const { skip, limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
-    let where: any = {}
+    const where: any = {}
     if (lowStock === 'true') {
       const lowStockVariants = await ProductVariant.find({ isActive: true }).select('_id stock')
       const lowStockIds = lowStockVariants
