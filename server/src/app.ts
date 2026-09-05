@@ -31,6 +31,8 @@ import uploadRoutes from './routes/uploads'
 import inventoryRoutes from './routes/inventory'
 import phoneCatalogRoutes from './routes/phoneCatalog'
 import paymentRoutes from './routes/payments'
+import addressRoutes from './routes/addresses'
+import serviceabilityRoutes from './routes/serviceability'
 
 const app = express()
 
@@ -92,6 +94,8 @@ app.use('/api/v1/uploads', uploadRoutes)
 app.use('/api/v1/inventory', inventoryRoutes)
 app.use('/api/v1/phone-catalog', phoneCatalogRoutes)
 app.use('/api/v1/payments', paymentRoutes)
+app.use('/api/v1/addresses', addressRoutes)
+app.use('/api/v1/serviceability', serviceabilityRoutes)
 
 // Error handler
 app.use(errorHandler)

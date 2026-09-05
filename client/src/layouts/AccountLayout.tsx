@@ -5,6 +5,7 @@ import { User, Package, Wrench, ArrowRightLeft, Smartphone } from 'lucide-react'
 
 const accountLinks = [
   { to: '/account', label: 'My Account', icon: User },
+  { to: '/account/profile', label: 'Profile & Addresses', icon: User },
   { to: '/account/orders', label: 'Orders', icon: Package },
   { to: '/account/repairs', label: 'Repairs', icon: Wrench },
   { to: '/account/sell-requests', label: 'Sell Requests', icon: Smartphone },

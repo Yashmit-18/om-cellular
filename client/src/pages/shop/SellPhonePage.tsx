@@ -36,11 +36,14 @@ export default function SellPhonePage() {
   const [modelSearch, setModelSearch] = useState('')
 
   const [form, setForm] = useState({
-    phone: '', condition: 'GOOD', age: '',
+    phone: '', alternatePhone: '', condition: 'GOOD', age: '',
     displayCondition: 'no_issues', batteryCondition: 'good',
     cameraCondition: 'good', bodyCondition: 'good',
     accessoriesAvailable: false, originalBill: false, originalBox: false,
     pickupAddress: '', pickupDate: '', pickupTime: '',
+  })
+  const [pickup, setPickup] = useState({
+    name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '',
   })
 
   const [estimatedValue, setEstimatedValue] = useState<number | null>(null)
@@ -148,12 +151,31 @@ export default function SellPhonePage() {
       toast.error('Please enter a valid contact phone number')
       return
     }
+    if (form.alternatePhone && form.alternatePhone.replace(/[^0-9]/g, '').length < 10) {
+      toast.error('Alternate phone must be a valid 10-digit number')
+      return
+    }
+    const wantsPickup = Boolean(pickup.addressLine1 || pickup.city || form.pickupAddress)
+    if (wantsPickup && (!pickup.addressLine1.trim() || !pickup.city.trim() || !pickup.state.trim() || !pickup.pincode.trim())) {
+      toast.error('Please fill the pickup address (address, city, state and PIN code)')
+      return
+    }
+    if (wantsPickup && !/^\d{6}$/.test(pickup.pincode.trim())) {
+      toast.error('Please enter a valid 6-digit PIN code')
+      return
+    }
     setSubmitting(true)
     try {
+      const pickupDetails = wantsPickup ? {
+        name: pickup.name.trim() || 'Customer', phone: pickup.phone.trim() || form.phone,
+        alternatePhone: pickup.phone.trim() ? undefined : form.alternatePhone || undefined,
+        addressLine1: pickup.addressLine1.trim(), addressLine2: pickup.addressLine2.trim() || undefined,
+        landmark: pickup.landmark.trim() || undefined, city: pickup.city.trim(), state: pickup.state.trim(), pincode: pickup.pincode.trim(),
+      } : undefined
       const response = await sellRequestService.createSellRequest({
         brand: selectedBrand, model: selectedModel.modelName,
         storage: selectedStorage.storage, ram: selectedStorage.ram,
-        ...form, estimatedPrice: estimatedValue ?? undefined,
+        ...form, alternatePhone: form.alternatePhone || undefined, pickupDetails, estimatedPrice: estimatedValue ?? undefined,
       })
       if (response && response.success === false) {
         throw new Error(response.message)
@@ -173,7 +195,8 @@ export default function SellPhonePage() {
     setEstimatedValue(null); setValuationState('idle')
     setRequestNumber('')
     setBrandSearch(''); setModelSearch('')
-    setForm({ phone: '', condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '' })
+    setForm({ phone: '', alternatePhone: '', condition: 'GOOD', age: '', displayCondition: 'no_issues', batteryCondition: 'good', cameraCondition: 'good', bodyCondition: 'good', accessoriesAvailable: false, originalBill: false, originalBox: false, pickupAddress: '', pickupDate: '', pickupTime: '' })
+    setPickup({ name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '' })
   }
 
   const brandOptions = selectedModel?.storageVariants || []
@@ -563,9 +586,32 @@ export default function SellPhonePage() {
                     <p className="mt-1 text-xs text-gray-400">We’ll use this number to reach you with an offer.</p>
                   </div>
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700"><Package className="h-4 w-4 text-gray-400" /> Pickup address (optional)</label>
-                    <textarea value={form.pickupAddress} onChange={e => setForm({ ...form, pickupAddress: e.target.value })} className="input mt-1" rows={2} placeholder="Full address for pickup" />
+                    <label className="block text-sm font-medium text-gray-700">Alternate phone <span className="text-gray-400">(optional)</span></label>
+                    <input
+                      value={form.alternatePhone}
+                      onChange={e => setForm({ ...form, alternatePhone: e.target.value })}
+                      className="input mt-1"
+                      placeholder="Another contact number (optional)"
+                      inputMode="tel"
+                    />
                   </div>
+                  <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                    <p className="flex items-center gap-2 text-sm font-medium text-gray-900"><Package className="h-4 w-4 text-gray-400" /> Pickup address <span className="text-gray-400">(optional)</span></p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div><label className="block text-xs font-medium text-gray-600">Contact Name</label><input value={pickup.name} onChange={e => setPickup({ ...pickup, name: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="Name for pickup" /></div>
+                      <div><label className="block text-xs font-medium text-gray-600">Pickup Phone</label><input value={pickup.phone} onChange={e => setPickup({ ...pickup, phone: e.target.value })} inputMode="tel" className="input mt-1 !py-2 text-sm" placeholder="Defaults to contact number" /></div>
+                    </div>
+                    <div><label className="block text-xs font-medium text-gray-600">Address (house no, street, area)</label><input value={pickup.addressLine1} onChange={e => setPickup({ ...pickup, addressLine1: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="e.g. 42, MG Road, Shivaji Nagar" /></div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div><label className="block text-xs font-medium text-gray-600">Address line 2 <span className="text-gray-400">(optional)</span></label><input value={pickup.addressLine2} onChange={e => setPickup({ ...pickup, addressLine2: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="e.g. Near City Mall" /></div>
+                      <div><label className="block text-xs font-medium text-gray-600">Landmark <span className="text-gray-400">(optional)</span></label><input value={pickup.landmark} onChange={e => setPickup({ ...pickup, landmark: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="Landmark" /></div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div><label className="block text-xs font-medium text-gray-600">City</label><input value={pickup.city} onChange={e => setPickup({ ...pickup, city: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="City" /></div>
+                      <div><label className="block text-xs font-medium text-gray-600">State</label><input value={pickup.state} onChange={e => setPickup({ ...pickup, state: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="State" /></div>
+                      <div><label className="block text-xs font-medium text-gray-600">PIN Code</label><input value={pickup.pincode} onChange={e => setPickup({ ...pickup, pincode: e.target.value })} inputMode="numeric" className="input mt-1 !py-2 text-sm" placeholder="6-digit PIN" maxLength={6} /></div>
+                    </div>
+                  </section>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div><label className="block text-sm font-medium text-gray-700">Preferred pickup date</label><input type="date" value={form.pickupDate} onChange={e => setForm({ ...form, pickupDate: e.target.value })} className="input mt-1" /></div>
                     <div><label className="block text-sm font-medium text-gray-700">Preferred pickup time</label><input value={form.pickupTime} onChange={e => setForm({ ...form, pickupTime: e.target.value })} className="input mt-1" placeholder="e.g. 10AM-12PM" /></div>
@@ -593,6 +639,7 @@ export default function SellPhonePage() {
                   <div className="flex justify-between"><span className="text-gray-500">Request number</span><span className="font-semibold text-gray-900">{requestNumber || 'Assigned on confirmation'}</span></div>
                   <div className="mt-2 flex justify-between"><span className="text-gray-500">Estimated value</span><span className="font-semibold text-brand-700">{estimatedValue !== null ? formatPrice(estimatedValue) : 'After inspection'}</span></div>
                   <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-semibold text-gray-900">{form.phone}</span></div>
+                  {form.alternatePhone && <div className="mt-2 flex justify-between"><span className="text-gray-500">Alternate phone</span><span className="font-semibold text-gray-900">{form.alternatePhone}</span></div>}
                 </div>
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <button onClick={resetAll} className="btn-primary">Sell Another Phone</button>

@@ -15,8 +15,11 @@ export default function RepairBookPage() {
   const [view, setView] = useState<'catalog' | 'book' | 'success'>('catalog')
   const [bookingNumber, setBookingNumber] = useState('')
   const [form, setForm] = useState({
-    phone: '', brand: '', model: '', problemDescription: '',
-    appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '',
+    phone: '', alternatePhone: '', brand: '', model: '', problemDescription: '',
+    appointmentDate: '', appointmentTime: '', pickupRequired: false,
+  })
+  const [pickup, setPickup] = useState({
+    name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '',
   })
   const [serviceMode, setServiceMode] = useState<'STORE_DROP' | 'DOORSTEP_PICKUP'>('STORE_DROP')
   const [pickupFee, setPickupFee] = useState(0)
@@ -98,20 +101,31 @@ export default function RepairBookPage() {
     setView('catalog'); setSelectedService(null); setBookingNumber('')
     setSelectedBrand(''); setSelectedModel(''); setBrandSearch(''); setModelSearch(''); setModels([])
     setServiceMode('STORE_DROP')
-    setForm({ phone: '', brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false, pickupAddress: '' })
+    setForm({ phone: '', alternatePhone: '', brand: '', model: '', problemDescription: '', appointmentDate: '', appointmentTime: '', pickupRequired: false })
+    setPickup({ name: '', phone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '' })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const digits = form.phone.replace(/[^0-9]/g, '')
     if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
+    if (form.alternatePhone && form.alternatePhone.replace(/[^0-9]/g, '').length < 10) { toast.error('Alternate phone must be a valid 10-digit number'); return }
     if (!form.brand || !form.model) { toast.error('Please select your phone brand and model'); return }
     if (!form.problemDescription.trim()) { toast.error('Please describe the issue you’re facing'); return }
-    if (serviceMode === 'DOORSTEP_PICKUP' && !form.pickupAddress.trim()) { toast.error('Please enter your pickup address'); return }
+    if (serviceMode === 'DOORSTEP_PICKUP') {
+      if (!pickup.addressLine1.trim() || !pickup.city.trim() || !pickup.state.trim() || !pickup.pincode.trim()) { toast.error('Please fill the pickup address (address, city, state and PIN code)'); return }
+      if (!/^\d{6}$/.test(pickup.pincode.trim())) { toast.error('Please enter a valid 6-digit PIN code'); return }
+    }
     setSubmitting(true)
     try {
       const serviceId = (selectedService as any)?._id || selectedService?.id || undefined
-      const res = await repairService.createRepair({ serviceId, ...form, serviceMode })
+      const pickupDetails = serviceMode === 'DOORSTEP_PICKUP' ? {
+        name: pickup.name.trim() || 'Customer', phone: pickup.phone.trim() || form.phone,
+        alternatePhone: pickup.phone.trim() ? undefined : form.alternatePhone || undefined,
+        addressLine1: pickup.addressLine1.trim(), addressLine2: pickup.addressLine2.trim() || undefined,
+        landmark: pickup.landmark.trim() || undefined, city: pickup.city.trim(), state: pickup.state.trim(), pincode: pickup.pincode.trim(),
+      } : undefined
+      const res = await repairService.createRepair({ serviceId, ...form, alternatePhone: form.alternatePhone || undefined, pickupDetails, serviceMode })
       const number = res?.data?.bookingNumber || res?.bookingNumber || ''
       setBookingNumber(number)
       setView('success')
@@ -142,14 +156,21 @@ export default function RepairBookPage() {
               <div className="mt-2 flex justify-between"><span className="text-gray-500">Starting from</span><span className="font-medium text-brand-700">{formatPrice(selectedService.startingPrice)}</span></div>
             ) : null}
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
+            {form.alternatePhone && (
+              <div className="mt-2 flex justify-between"><span className="text-gray-500">Alternate phone</span><span className="font-medium text-gray-900">{form.alternatePhone}</span></div>
+            )}
             {serviceMode === 'DOORSTEP_PICKUP' && (
               <>
                 <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Home Pickup &amp; Drop</span></div>
                 {pickupFee > 0 && (
                   <div className="mt-2 flex justify-between"><span className="text-gray-500">Pickup fee</span><span className="font-medium text-brand-700">{formatPrice(pickupFee)}</span></div>
                 )}
-                {form.pickupAddress && (
-                  <div className="mt-2 border-t border-gray-100 pt-2"><span className="text-gray-500">Pickup address</span><p className="mt-0.5 font-medium text-gray-900">{form.pickupAddress}</p></div>
+                {(pickup.addressLine1 || pickup.addressLine2 || pickup.city) && (
+                  <div className="mt-2 border-t border-gray-100 pt-2"><span className="text-gray-500">Pickup address</span>
+                    <p className="mt-0.5 font-medium text-gray-900">
+                      {[pickup.addressLine1, pickup.addressLine2, pickup.landmark ? `(${pickup.landmark})` : '', pickup.city, pickup.state, pickup.pincode].filter(Boolean).join(', ')}
+                    </p>
+                  </div>
                 )}
               </>
             )}
@@ -262,6 +283,14 @@ export default function RepairBookPage() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700">Alternate phone <span className="text-gray-400">(optional)</span></label>
+                <div className="relative mt-1">
+                  <PhoneCall className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input value={form.alternatePhone} onChange={e => setForm({ ...form, alternatePhone: e.target.value })} inputMode="tel"
+                    className="input !pl-10" placeholder="Another contact number (optional)" />
+                </div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">Problem Description *</label>
                 <textarea value={form.problemDescription} onChange={e => setForm({ ...form, problemDescription: e.target.value })} className="input mt-1" rows={4} placeholder="Describe the issue you're experiencing..." required />
               </div>
@@ -289,7 +318,23 @@ export default function RepairBookPage() {
                 </div>
               </div>
               {serviceMode === 'DOORSTEP_PICKUP' && (
-                <div><label className="block text-sm font-medium text-gray-700">Pickup Address *</label><textarea value={form.pickupAddress} onChange={e => setForm({ ...form, pickupAddress: e.target.value })} className="input mt-1" rows={2} placeholder="Full address for pickup" required /></div>
+                <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                  <p className="text-sm font-semibold text-gray-900">Pickup Address *</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div><label className="block text-xs font-medium text-gray-600">Contact Name</label><input value={pickup.name} onChange={e => setPickup({ ...pickup, name: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="Name for pickup" /></div>
+                    <div><label className="block text-xs font-medium text-gray-600">Pickup Phone</label><input value={pickup.phone} onChange={e => setPickup({ ...pickup, phone: e.target.value })} inputMode="tel" className="input mt-1 !py-2 text-sm" placeholder="Defaults to contact number" /></div>
+                  </div>
+                  <div><label className="block text-xs font-medium text-gray-600">Address (house no, street, area) *</label><input value={pickup.addressLine1} onChange={e => setPickup({ ...pickup, addressLine1: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="e.g. 42, MG Road, Shivaji Nagar" /></div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div><label className="block text-xs font-medium text-gray-600">Address line 2 <span className="text-gray-400">(optional)</span></label><input value={pickup.addressLine2} onChange={e => setPickup({ ...pickup, addressLine2: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="e.g. Near City Mall" /></div>
+                    <div><label className="block text-xs font-medium text-gray-600">Landmark <span className="text-gray-400">(optional)</span></label><input value={pickup.landmark} onChange={e => setPickup({ ...pickup, landmark: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="Landmark" /></div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div><label className="block text-xs font-medium text-gray-600">City *</label><input value={pickup.city} onChange={e => setPickup({ ...pickup, city: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="City" /></div>
+                    <div><label className="block text-xs font-medium text-gray-600">State *</label><input value={pickup.state} onChange={e => setPickup({ ...pickup, state: e.target.value })} className="input mt-1 !py-2 text-sm" placeholder="State" /></div>
+                    <div><label className="block text-xs font-medium text-gray-600">PIN Code *</label><input value={pickup.pincode} onChange={e => setPickup({ ...pickup, pincode: e.target.value })} inputMode="numeric" className="input mt-1 !py-2 text-sm" placeholder="6-digit PIN" maxLength={6} /></div>
+                  </div>
+                </div>
               )}
               {serviceMode === 'STORE_DROP' && (
                 <div className="flex items-start gap-2 rounded-lg bg-brand-50 p-3">

@@ -22,7 +22,7 @@ export default function ExchangePage() {
   const modelRef = useRef<HTMLDivElement>(null)
 
   const [form, setForm] = useState({
-    phone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '',
+    phone: '', alternatePhone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '',
     newVariantId: '',
   })
   const [loading, setLoading] = useState(false)
@@ -59,6 +59,7 @@ export default function ExchangePage() {
     if (!selectedBrand || !selectedModel) { toast.error('Please select your old phone brand and model'); return }
     const digits = form.phone.replace(/[^0-9]/g, '')
     if (!digits || digits.length < 10) { toast.error('Please enter a valid contact phone number'); return }
+    if (form.alternatePhone && form.alternatePhone.replace(/[^0-9]/g, '').length < 10) { toast.error('Alternate phone must be a valid 10-digit number'); return }
     setLoading(true)
     try {
       const res = await exchangeRequestService.createExchangeRequest({
@@ -66,6 +67,7 @@ export default function ExchangePage() {
         oldStorage: form.oldStorage, oldRam: form.oldRam,
         oldCondition: form.oldCondition, oldDeviceDetails: form.oldDeviceDetails,
         newVariantId: form.newVariantId, phone: form.phone,
+        alternatePhone: form.alternatePhone || undefined,
       })
       setRequestNumber(res?.data?.requestNumber || res?.requestNumber || '')
       setSuccess(true)
@@ -77,7 +79,7 @@ export default function ExchangePage() {
 
   const resetAll = () => {
     setSuccess(false); setRequestNumber('')
-    setForm({ phone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '' })
+    setForm({ phone: '', alternatePhone: '', oldStorage: '', oldRam: '', oldCondition: 'GOOD', oldDeviceDetails: '', newVariantId: '' })
     setSelectedBrand(''); setSelectedModel(null); setBrandSearch(''); setModelSearch('')
   }
 
@@ -97,6 +99,7 @@ export default function ExchangePage() {
             <div className="mt-3 flex justify-between"><span className="text-gray-500">Trade-in device</span><span className="font-medium text-gray-900">{selectedBrand} {selectedModel?.modelName}</span></div>
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Condition</span><span className="font-medium text-gray-900 capitalize">{form.oldCondition.toLowerCase()}</span></div>
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
+            {form.alternatePhone && <div className="mt-2 flex justify-between"><span className="text-gray-500">Alternate phone</span><span className="font-medium text-gray-900">{form.alternatePhone}</span></div>}
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button onClick={resetAll} className="btn-primary">Submit Another Exchange</button>
@@ -177,6 +180,13 @@ export default function ExchangePage() {
               <div className="relative mt-1">
                 <PhoneCall className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="input !pl-10" placeholder="e.g. 9876543210" required />
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Alternate phone <span className="text-gray-400">(optional)</span></label>
+              <div className="relative mt-1">
+                <PhoneCall className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input value={form.alternatePhone} onChange={e => setForm({ ...form, alternatePhone: e.target.value })} inputMode="tel" className="input !pl-10" placeholder="Another contact number (optional)" />
               </div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">

@@ -3,8 +3,25 @@ import { SellRequest } from '../models/sellRequest.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate } from '../utils/helpers'
+import { checkServiceability } from '../services/serviceability.service'
 
 const router = Router()
+
+const SELL_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'CANCELLED']
+
+function flattenPickup(details: any): string {
+  if (!details) return ''
+  return [
+    details.name && `Name: ${details.name}`,
+    details.phone && `Phone: ${details.phone}`,
+    details.addressLine1,
+    details.addressLine2,
+    details.landmark && `Near: ${details.landmark}`,
+    details.city,
+    details.state,
+    details.pincode,
+  ].filter(Boolean).join(', ')
+}
 
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -44,17 +61,40 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, phone, pickupAddress, pickupDate, pickupTime } = req.body
+    const { brand, model, storage, ram, age, condition, displayCondition, batteryCondition, cameraCondition, bodyCondition, accessoriesAvailable, originalBill, originalBox, phone, alternatePhone, pickupDetails, pickupAddress, pickupDate, pickupTime, estimatedPrice } = req.body
     if (!brand || !model || !condition) return res.status(400).json({ success: false, message: 'Brand, model, and condition are required' })
+
+    const usePickup = !!(pickupDetails?.addressLine1 || pickupAddress)
+    if (usePickup) {
+      const pincode = pickupDetails?.pincode
+      if (pincode) {
+        const serviceability = await checkServiceability(pincode, 'pickupDrop')
+        if (serviceability.configured && !serviceability.serviceable) {
+          return res.status(400).json({
+            success: false,
+            message: `We do not currently offer pickup in PIN code ${pincode}. Please select store drop-off instead.`,
+          })
+        }
+      }
+    }
 
     const requestNumber = generateRequestNumber('sell')
     const userId = req.user?.id || null
 
     const request = await SellRequest.create({
-      requestNumber, userId, phone, brand, model, storage, ram, age, condition,
+      requestNumber, userId, phone, alternatePhone: alternatePhone ? String(alternatePhone).trim() : undefined,
+      brand, model, storage, ram, age, condition,
       displayCondition, batteryCondition, cameraCondition, bodyCondition,
       accessoriesAvailable: !!accessoriesAvailable, originalBill: !!originalBill, originalBox: !!originalBox,
-      pickupAddress, pickupDate: pickupDate ? new Date(pickupDate) : undefined, pickupTime,
+      estimatedPrice: estimatedPrice !== undefined && estimatedPrice !== null ? Number(estimatedPrice) || 0 : undefined,
+      pickupAddress: usePickup ? (pickupAddress || flattenPickup(pickupDetails)) : undefined,
+      pickupDetails: usePickup && pickupDetails ? {
+        name: pickupDetails.name, phone: pickupDetails.phone || phone, alternatePhone: pickupDetails.alternatePhone || alternatePhone,
+        addressLine1: pickupDetails.addressLine1, addressLine2: pickupDetails.addressLine2, landmark: pickupDetails.landmark,
+        city: pickupDetails.city, state: pickupDetails.state, pincode: pickupDetails.pincode,
+      } : undefined,
+      pickupDate: pickupDate ? new Date(pickupDate) : undefined, pickupTime,
+      statusHistory: [{ status: 'SUBMITTED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Sell request submitted' }],
     })
 
     return res.status(201).json({ success: true, message: 'Sell request created', data: request })
@@ -65,17 +105,25 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, finalOfferedPrice, estimatedPrice, adminNotes, pickupDate, pickupTime, pickupAddress } = req.body
+    const { status, finalOfferedPrice, estimatedPrice, adminNotes, pickupDate, pickupTime, pickupAddress, pickupDetails, note } = req.body
     const request = await SellRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Sell request not found' })
 
-    if (status) request.status = status
+    if (status) {
+      if (!SELL_STATUSES.includes(status)) {
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}` })
+      }
+      request.statusHistory = request.statusHistory || []
+      request.statusHistory.push({ status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Status updated to ${status}` })
+      request.status = status
+    }
     if (finalOfferedPrice !== undefined) request.finalOfferedPrice = finalOfferedPrice
     if (estimatedPrice !== undefined) request.estimatedPrice = estimatedPrice
     if (adminNotes !== undefined) request.adminNotes = adminNotes
     if (pickupDate !== undefined) request.pickupDate = new Date(pickupDate)
     if (pickupTime !== undefined) request.pickupTime = pickupTime
     if (pickupAddress !== undefined) request.pickupAddress = pickupAddress
+    if (pickupDetails !== undefined) request.pickupDetails = pickupDetails || undefined
 
     await request.save()
     return res.json({ success: true, message: 'Sell request updated', data: request })

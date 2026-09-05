@@ -50,7 +50,7 @@ router.put('/:id/read', authenticate, async (req: AuthRequest, res: Response) =>
   }
 })
 
-router.post('/read-all', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/read-all', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     await Notification.updateMany({ userId: req.user!.id, isRead: false }, { isRead: true })
     return res.json({ success: true, message: 'All notifications marked as read' })

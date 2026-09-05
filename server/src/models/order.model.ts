@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+export interface IOrderStatusHistory {
+  status: string
+  changedAt: Date
+  changedBy: 'SYSTEM' | 'CUSTOMER' | 'ADMIN'
+  note?: string
+}
+
 export interface IOrder extends Document {
   _id: mongoose.Types.ObjectId
   orderNumber: string
@@ -15,6 +22,8 @@ export interface IOrder extends Document {
   status: string
   paymentStatus: string
   paymentMethod?: string
+  paymentGateway?: string
+  statusHistory: IOrderStatusHistory[]
   shippingAddress?: Record<string, unknown>
   upiReferenceId?: string
   trackingNumber?: string
@@ -51,6 +60,13 @@ orderItemSchema.index({ variantId: 1 })
 
 export const OrderItem = mongoose.model<IOrderItem>('OrderItem', orderItemSchema)
 
+const orderStatusHistorySchema = new Schema<IOrderStatusHistory>({
+  status: { type: String, required: true },
+  changedAt: { type: Date, default: Date.now },
+  changedBy: { type: String, enum: ['SYSTEM', 'CUSTOMER', 'ADMIN'], default: 'SYSTEM' },
+  note: { type: String },
+})
+
 const orderSchema = new Schema<IOrder>({
   orderNumber: { type: String, required: true, unique: true },
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -62,9 +78,15 @@ const orderSchema = new Schema<IOrder>({
   total: { type: Number, required: true, min: 0 },
   couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', default: null },
   couponDiscount: { type: Number, default: 0, min: 0 },
-  status: { type: String, default: 'PENDING', enum: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED'] },
+  status: {
+    type: String,
+    default: 'PENDING',
+    enum: ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURN_REQUESTED', 'RETURNED'],
+  },
   paymentStatus: { type: String, default: 'PENDING', enum: ['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'] },
   paymentMethod: { type: String, enum: ['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'] },
+  paymentGateway: { type: String, enum: ['razorpay', 'cod', 'manual'] },
+  statusHistory: { type: [orderStatusHistorySchema], default: [] },
   shippingAddress: { type: Schema.Types.Mixed, default: null },
   upiReferenceId: { type: String, trim: true },
   trackingNumber: { type: String },

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, ShieldCheck, Banknote, Wallet } from 'lucide-react'
+import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, ShieldCheck, Banknote, Wallet, BellRing, CheckCircle2, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCartStore } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { orderService } from '../../services/order.service'
 import { couponService } from '../../services/coupon.service'
 import { settingsService } from '../../services/settings.service'
+import { serviceabilityService } from '../../services/serviceability.service'
 import { paymentService, loadRazorpayScript, type OnlinePaymentMethod } from '../../services/payment.service'
 import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
 
@@ -30,8 +31,12 @@ export default function CheckoutPage() {
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false)
   const [checkingPaymentConfig, setCheckingPaymentConfig] = useState(true)
   const [paymentState, setPaymentState] = useState<'idle' | 'creating' | 'initializing' | 'processing'>('idle')
+  const [deliveryCheck, setDeliveryCheck] = useState<any>(null)
+  const [checkingDelivery, setCheckingDelivery] = useState(false)
+  const [showNotifyForm, setShowNotifyForm] = useState(false)
+  const [notifySubmitting, setNotifySubmitting] = useState(false)
   const [addressForm, setAddressForm] = useState({
-    name: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
+    name: '', phone: '', alternatePhone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '',
   })
 
   const subtotal = getTotal()
@@ -64,7 +69,9 @@ export default function CheckoutPage() {
           setAddressForm(f => ({
             ...f,
             name: defaultAddr.name, phone: defaultAddr.phone,
+            alternatePhone: defaultAddr.alternatePhone || '',
             addressLine1: defaultAddr.addressLine1, addressLine2: defaultAddr.addressLine2 || '',
+            landmark: defaultAddr.landmark || '',
             city: defaultAddr.city, state: defaultAddr.state, pincode: defaultAddr.pincode,
           }))
         }
@@ -87,20 +94,70 @@ export default function CheckoutPage() {
     setSelectedAddressId(addr.id)
     setAddressForm({
       name: addr.name, phone: addr.phone,
+      alternatePhone: addr.alternatePhone || '',
       addressLine1: addr.addressLine1, addressLine2: addr.addressLine2 || '',
+      landmark: addr.landmark || '',
       city: addr.city, state: addr.state, pincode: addr.pincode,
     })
+    setDeliveryCheck(null)
+    setShowNotifyForm(false)
   }
 
   const validateAddress = (): string | null => {
     const f = addressForm
     if (!f.name.trim()) return 'Recipient name is required'
     if (!f.phone.trim() || f.phone.replace(/[^0-9]/g, '').length < 10) return 'Please enter a valid 10-digit phone number'
+    if (f.alternatePhone.trim() && f.alternatePhone.replace(/[^0-9]/g, '').length < 10) return 'Alternate phone must be a valid 10-digit phone number'
     if (!f.addressLine1.trim()) return 'Address line 1 is required'
     if (!f.city.trim()) return 'City is required'
     if (!f.state.trim()) return 'State is required'
     if (!/^\d{6}$/.test(f.pincode.trim())) return 'Please enter a valid 6-digit PIN code'
     return null
+  }
+
+  const runDeliveryCheck = async (): Promise<{ ok: boolean }> => {
+    if (!/^\d{6}$/.test(addressForm.pincode.trim())) {
+      setDeliveryCheck(null)
+      return { ok: true }
+    }
+    setCheckingDelivery(true)
+    try {
+      const res = await serviceabilityService.check(addressForm.pincode, ['delivery'])
+      const data = res.data
+      setDeliveryCheck(data)
+      setShowNotifyForm(!data.serviceable)
+      return { ok: data.serviceable }
+    } catch {
+      setDeliveryCheck(null)
+      return { ok: true }
+    } finally {
+      setCheckingDelivery(false)
+    }
+  }
+
+  const submitNotifyRequest = async () => {
+    if (!(/^\d{6}$/.test(addressForm.pincode.trim()))) {
+      toast.error('Please enter a valid PIN code first')
+      return
+    }
+    setNotifySubmitting(true)
+    try {
+      const res = await serviceabilityService.createRequest({
+        name: addressForm.name || user?.name || '',
+        phone: addressForm.phone || user?.phone || '',
+        alternatePhone: addressForm.alternatePhone || undefined,
+        city: addressForm.city,
+        state: addressForm.state,
+        pincode: addressForm.pincode,
+        requestedService: 'delivery',
+      })
+      toast.success(res.message || 'We will notify you when delivery becomes available in your area')
+      setShowNotifyForm(false)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not save your request. Please try again.')
+    } finally {
+      setNotifySubmitting(false)
+    }
   }
 
   const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, amount: number) => {
@@ -188,6 +245,14 @@ export default function CheckoutPage() {
       return
     }
 
+    // Verify delivery serviceability for the PIN code before creating the order.
+    // The server enforces the same check; this just avoids a failed order.
+    const delivery = await runDeliveryCheck()
+    if (!delivery.ok) {
+      toast.error('We do not currently deliver to this PIN code. You can request a notification when delivery arrives.')
+      return
+    }
+
     setLoading(true)
     setPaymentState('creating')
     try {
@@ -202,6 +267,8 @@ export default function CheckoutPage() {
       } else {
         orderData.address = {
           name: addressForm.name, phone: addressForm.phone,
+          alternatePhone: addressForm.alternatePhone || undefined,
+          landmark: addressForm.landmark || undefined,
           addressLine1: addressForm.addressLine1, addressLine2: addressForm.addressLine2 || undefined,
           city: addressForm.city, state: addressForm.state, pincode: addressForm.pincode,
         }
@@ -315,12 +382,20 @@ export default function CheckoutPage() {
                     <input value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" />
                   </div>
                   <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Alternate Phone <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input value={addressForm.alternatePhone} onChange={e => setAddressForm({ ...addressForm, alternatePhone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="Another contact number (optional)" />
+                  </div>
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">Address Line 1 *</label>
                     <input value={addressForm.addressLine1} onChange={e => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input mt-1" placeholder="House number, street, area" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">Address Line 2</label>
-                    <input value={addressForm.addressLine2} onChange={e => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input mt-1" placeholder="Landmark, building (optional)" />
+                    <input value={addressForm.addressLine2} onChange={e => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input mt-1" placeholder="Building or area (optional)" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Landmark <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input value={addressForm.landmark} onChange={e => setAddressForm({ ...addressForm, landmark: e.target.value })} className="input mt-1" placeholder="Nearby landmark (optional)" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">City *</label>
@@ -335,6 +410,52 @@ export default function CheckoutPage() {
                     <input value={addressForm.pincode} onChange={e => setAddressForm({ ...addressForm, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })} inputMode="numeric" className="input mt-1" placeholder="6-digit PIN code" />
                   </div>
                 </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={runDeliveryCheck}
+                    disabled={checkingDelivery || !/^\d{6}$/.test(addressForm.pincode.trim())}
+                    className="btn-secondary !py-2 text-sm"
+                  >
+                    {checkingDelivery ? 'Checking availability…' : 'Check Delivery Availability'}
+                  </button>
+                </div>
+
+                {deliveryCheck && (
+                  <div className={`mt-3 rounded-lg border p-3 text-sm ${
+                    deliveryCheck.serviceable ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                  }`}>
+                    <p className="flex items-center gap-2 font-medium">
+                      {deliveryCheck.serviceable ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {deliveryCheck.serviceable
+                        ? `Great news! Delivery is available for PIN code ${addressForm.pincode}${deliveryCheck.results?.delivery?.city ? ` (${deliveryCheck.results.delivery.city})` : ''}.`
+                        : `We do not currently deliver to PIN code ${addressForm.pincode}.`}
+                    </p>
+                  </div>
+                )}
+
+                {showNotifyForm && (
+                  <div className="mt-3 rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                      <BellRing className="h-4 w-4 text-brand-600" /> Notify me when delivery is available
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-600">We will contact you as soon as delivery reaches your PIN code.</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Name</label>
+                        <input value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1 !py-2 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Phone</label>
+                        <input value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1 !py-2 text-sm" />
+                      </div>
+                    </div>
+                    <button onClick={submitNotifyRequest} disabled={notifySubmitting} className="btn-primary mt-3 w-full !py-2 text-sm">
+                      {notifySubmitting ? 'Saving…' : 'Notify Me When Available'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

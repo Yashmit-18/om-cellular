@@ -148,16 +148,22 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ success: false, message: 'Payment could not be confirmed' })
     }
 
-    await Order.findByIdAndUpdate(
-      orderId,
-      {
-        paymentStatus: 'PAID',
-        razorpayPaymentId,
-        razorpaySignature,
-        paidAt: new Date(),
-      },
-      { new: true }
-    )
+    order.paymentStatus = 'PAID'
+    order.razorpayPaymentId = razorpayPaymentId
+    order.razorpaySignature = razorpaySignature
+    order.paidAt = new Date()
+    order.paymentGateway = 'razorpay'
+    if (order.status === 'PENDING') {
+      order.statusHistory = order.statusHistory || []
+      order.statusHistory.push({
+        status: 'PAYMENT_CONFIRMED',
+        changedAt: new Date(),
+        changedBy: 'SYSTEM',
+        note: 'Payment received via Razorpay',
+      })
+      order.status = 'PAYMENT_CONFIRMED'
+    }
+    await order.save()
 
     return res.json({ success: true, data: { orderId: String(order._id), status: 'PAID' } })
   } catch (error: any) {
@@ -203,11 +209,21 @@ router.post('/webhook', async (req: AuthRequest, res: Response) => {
 
       const order = await Order.findOne(where)
       if (order) {
-        await Order.findByIdAndUpdate(
-          order._id,
-          { paymentStatus: 'PAID', razorpayPaymentId: paymentId, paidAt: new Date() },
-          { new: true }
-        )
+        order.paymentStatus = 'PAID'
+        order.razorpayPaymentId = paymentId
+        order.paidAt = new Date()
+        order.paymentGateway = 'razorpay'
+        if (order.status === 'PENDING') {
+          order.statusHistory = order.statusHistory || []
+          order.statusHistory.push({
+            status: 'PAYMENT_CONFIRMED',
+            changedAt: new Date(),
+            changedBy: 'SYSTEM',
+            note: 'Payment received via Razorpay (webhook)',
+          })
+          order.status = 'PAYMENT_CONFIRMED'
+        }
+        await order.save()
       }
     }
 

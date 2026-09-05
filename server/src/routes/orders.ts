@@ -7,8 +7,29 @@ import { Address } from '../models/address.model'
 import { authenticate, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateOrderNumber, paginate } from '../utils/helpers'
+import { checkServiceability } from '../services/serviceability.service'
 
 const router = Router()
+
+const ORDER_STATUSES = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURN_REQUESTED', 'RETURNED']
+
+function pushOrderStatusHistory(order: any, status: string, changedBy: 'SYSTEM' | 'CUSTOMER' | 'ADMIN', note?: string) {
+  order.statusHistory = order.statusHistory || []
+  order.statusHistory.push({ status, changedAt: new Date(), changedBy, note })
+  order.status = status
+}
+
+router.get('/track/:orderNumber', async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderNumber: req.params.orderNumber }).populate('userId', 'name email phone')
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' })
+
+    const items = await OrderItem.find({ orderId: order._id }).populate('variantId')
+    return res.json({ success: true, data: { ...order.toObject(), items } })
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
 
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -120,10 +141,24 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'A valid delivery address is required' })
     }
 
+    // Serviceability gate: only enforced when the store has configured
+    // delivery areas. Without any configured areas the store runs in legacy
+    // mode and all pincodes are accepted.
+    const serviceability = await checkServiceability(resolvedAddress.pincode, 'delivery')
+    if (serviceability.configured && !serviceability.serviceable) {
+      return res.status(400).json({
+        success: false,
+        message: `We do not currently deliver to PIN code ${resolvedAddress.pincode}. Please check back soon — you can request a notification when delivery becomes available.`,
+        serviceability: { ...serviceability, service: 'delivery' },
+      })
+    }
+
     // Snapshot the address onto the order so it never changes if the user edits their saved address later.
     const shippingAddress = {
       name: resolvedAddress.name,
       phone: resolvedAddress.phone,
+      alternatePhone: resolvedAddress.alternatePhone || '',
+      landmark: resolvedAddress.landmark || '',
       addressLine1: resolvedAddress.addressLine1,
       addressLine2: resolvedAddress.addressLine2 || '',
       city: resolvedAddress.city,
@@ -155,12 +190,21 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
     const orderNumber = generateOrderNumber()
-    const paymentStatus = paymentMethod && paymentMethod !== 'cod' ? 'PENDING_PAYMENT' : 'PENDING'
+    const isCod = paymentMethod === 'cod' || !paymentMethod
+    const paymentStatus = isCod ? 'PENDING' : 'PENDING_PAYMENT'
+    const initialStatus = isCod ? 'PENDING' : 'PENDING'
 
     const order = await Order.create({
       orderNumber, userId, addressId: resolvedAddress!.id, subtotal, shipping, tax, total,
       couponId, couponDiscount, paymentMethod: paymentMethod || 'cod',
+      paymentGateway: isCod ? 'cod' : undefined,
       paymentStatus, shippingAddress,
+      statusHistory: [{
+        status: initialStatus,
+        changedAt: new Date(),
+        changedBy: 'SYSTEM',
+        note: isCod ? 'Order placed with Cash on Delivery' : 'Order placed, payment pending',
+      }],
       upiReferenceId: paymentMethod && paymentMethod !== 'cod' && upiReferenceId ? String(upiReferenceId).trim() : undefined,
       notes,
     })
@@ -191,8 +235,46 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const { status, paymentStatus, trackingNumber, note, notes, paymentGateway } = req.body
+    const order = await Order.findById(req.params.id)
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' })
+
+    if (status !== undefined) {
+      if (!ORDER_STATUSES.includes(status)) {
+        return res.status(400).json({ success: false, message: `Invalid order status: ${status}` })
+      }
+      if (order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'RETURNED') {
+        return res.status(400).json({ success: false, message: `Order is already ${order.status.toLowerCase()} and cannot be changed` })
+      }
+      pushOrderStatusHistory(order, status, 'ADMIN', note || `Status updated to ${status}`)
+    }
+    if (paymentStatus !== undefined) {
+      if (!['PENDING', 'PENDING_PAYMENT', 'PAID', 'FAILED', 'REFUNDED'].includes(paymentStatus)) {
+        return res.status(400).json({ success: false, message: `Invalid payment status: ${paymentStatus}` })
+      }
+      if (paymentStatus === 'PAID' && order.paymentStatus !== 'PAID') {
+        order.paidAt = new Date()
+        if (!order.paymentGateway || order.paymentGateway === 'cod') order.paymentGateway = 'manual'
+        if (order.status === 'PENDING') {
+          pushOrderStatusHistory(order, 'PAYMENT_CONFIRMED', 'ADMIN', note || 'Payment received')
+        }
+      }
+      if (paymentStatus !== order.paymentStatus) {
+        order.statusHistory = order.statusHistory || []
+        order.statusHistory.push({ status: order.status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Payment marked as ${paymentStatus}` })
+      }
+      order.paymentStatus = paymentStatus
+    }
+    if (trackingNumber !== undefined) order.trackingNumber = trackingNumber
+    if (notes !== undefined && notes !== null) order.notes = notes
+    if (paymentGateway !== undefined && paymentGateway !== null) {
+      if (!['razorpay', 'cod', 'manual'].includes(paymentGateway)) {
+        return res.status(400).json({ success: false, message: 'Invalid payment gateway' })
+      }
+      order.paymentGateway = paymentGateway
+    }
+
+    await order.save()
     return res.json({ success: true, message: 'Order updated', data: order })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })

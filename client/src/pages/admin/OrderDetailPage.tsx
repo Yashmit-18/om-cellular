@@ -4,27 +4,67 @@ import { ChevronRight, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { formatDate, formatPrice } from '../../utils'
-import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
+import StatusTimeline from '../../components/StatusTimeline'
 
 export default function AdminOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [note, setNote] = useState('')
+  const [trackingNumber, setTrackingNumber] = useState('')
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     if (!id) return
-    api.get(`/orders/${id}`).then(r => { setOrder(r.data.data); setLoading(false) }).catch(() => setLoading(false))
+    api.get(`/orders/${id}`).then(r => {
+      setOrder(r.data.data)
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [id])
 
   const handleStatusUpdate = async (status: string) => {
-    await api.put(`/orders/${id}`, { status })
-    setOrder({ ...order, status })
+    if (!note.trim()) {
+      toast.error('Please add a note describing the status change')
+      return
+    }
+    setUpdating(true)
+    try {
+      const res = await api.put(`/orders/${id}`, { status, note })
+      setOrder(res.data.data)
+      setNote('')
+      toast.success(`Order moved to ${ORDER_STATUS_LABELS[status] || status}`)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not update order status')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleSaveTracking = async () => {
+    setUpdating(true)
+    try {
+      const res = await api.put(`/orders/${id}`, { trackingNumber })
+      setOrder(res.data.data)
+      toast.success('Tracking number saved')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not save tracking number')
+    } finally {
+      setUpdating(false)
+    }
   }
 
   const handlePaymentUpdate = async (paymentStatus: string) => {
-    await api.put(`/orders/${id}`, { paymentStatus })
-    setOrder({ ...order, paymentStatus })
-    toast.success(`Payment marked as ${paymentStatus}`)
+    setUpdating(true)
+    try {
+      const res = await api.put(`/orders/${id}`, { paymentStatus, note: `Admin marked payment as ${paymentStatus}` })
+      setOrder(res.data.data)
+      toast.success(`Payment marked as ${paymentStatus}`)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not update payment status')
+    } finally {
+      setUpdating(false)
+    }
   }
 
   if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
@@ -40,7 +80,7 @@ export default function AdminOrderDetailPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
         <div className="flex items-center gap-2">
-          <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{order.status}</span>
+          <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
           <span className={`badge ${PAYMENT_STATUS_COLORS[order.paymentStatus] || 'badge-info'}`}>{order.paymentStatus}</span>
         </div>
       </div>
@@ -59,9 +99,14 @@ export default function AdminOrderDetailPage() {
             <div className="card p-6">
               <h2 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-brand-500" /> Shipping Address</h2>
               <p className="text-sm text-gray-600">{address.name}, {address.phone}</p>
-              <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}, {address.city}, {address.state} - {address.pincode}</p>
+              {address.alternatePhone && <p className="text-sm text-gray-600">Alt: {address.alternatePhone}</p>}
+              <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}{address.landmark ? ` (${address.landmark})` : ''}, {address.city}, {address.state} - {address.pincode}</p>
             </div>
           )}
+          <div className="card p-6">
+            <h2 className="font-semibold mb-3">Order Timeline</h2>
+            <StatusTimeline history={order.statusHistory} labels={ORDER_STATUS_LABELS} colors={ORDER_STATUS_COLORS} />
+          </div>
         </div>
         <div className="space-y-4">
           <div className="card p-6">
@@ -74,20 +119,31 @@ export default function AdminOrderDetailPage() {
               <div className="border-t pt-2 flex justify-between font-bold"><span>Total</span><span>{formatPrice(order.total)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Payment Method</span><span className="capitalize">{order.paymentMethod === 'upi' ? 'UPI / Online' : order.paymentMethod || 'N/A'}</span></div>
               {order.upiReferenceId && <div className="flex justify-between"><span className="text-gray-500">UPI Reference</span><span>{order.upiReferenceId}</span></div>}
+              {order.paymentGateway && <div className="flex justify-between"><span className="text-gray-500">Gateway</span><span className="capitalize">{order.paymentGateway}</span></div>}
+              <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{formatDate(order.createdAt)}</span></div>
             </div>
             {order.paymentStatus === 'PENDING_PAYMENT' && (
               <div className="mt-4">
-                <button onClick={() => handlePaymentUpdate('PAID')} className="btn-primary w-full !text-sm">Mark as Paid</button>
-                <button onClick={() => handlePaymentUpdate('FAILED')} className="btn-ghost mt-2 w-full !text-sm text-red-500">Mark as Failed</button>
+                <button onClick={() => handlePaymentUpdate('PAID')} disabled={updating} className="btn-primary w-full !text-sm">Mark as Paid</button>
+                <button onClick={() => handlePaymentUpdate('FAILED')} disabled={updating} className="btn-ghost mt-2 w-full !text-sm text-red-500">Mark as Failed</button>
               </div>
             )}
           </div>
           <div className="card p-6">
-            <h2 className="font-semibold mb-3">Update Status</h2>
+            <h2 className="font-semibold mb-2">Update Status</h2>
+            <p className="mb-3 text-xs text-gray-400">A note is required and saved to the order timeline.</p>
+            <input value={note} onChange={e => setNote(e.target.value)} className="input mb-3 !py-2 text-sm" placeholder="Status update note (required)" />
             <div className="flex flex-wrap gap-2">
-              {['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(s => (
-                <button key={s} onClick={() => handleStatusUpdate(s)} className={`btn-ghost !text-xs ${order.status === s ? 'bg-brand-50 text-brand-600' : ''}`}>{s}</button>
+              {['PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED', 'RETURNED'].map(s => (
+                <button key={s} onClick={() => handleStatusUpdate(s)} disabled={updating} className={`btn-ghost !text-xs ${order.status === s ? 'bg-brand-50 text-brand-600' : ''}`}>{ORDER_STATUS_LABELS[s] || s}</button>
               ))}
+            </div>
+            <div className="mt-4 border-t pt-3">
+              <h3 className="mb-2 text-sm font-semibold">Tracking Number</h3>
+              <div className="flex gap-2">
+                <input value={trackingNumber || order.trackingNumber || ''} onChange={e => setTrackingNumber(e.target.value)} className="input !py-2 text-sm" placeholder="Courier tracking ID" />
+                <button onClick={handleSaveTracking} disabled={updating} className="btn-secondary !px-3 !py-2 text-sm">Save</button>
+              </div>
             </div>
           </div>
         </div>

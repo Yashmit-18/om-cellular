@@ -5,6 +5,8 @@ export interface IAddress extends Document {
   userId: mongoose.Types.ObjectId
   name: string
   phone: string
+  alternatePhone?: string
+  landmark?: string
   addressLine1: string
   addressLine2?: string
   city: string
@@ -19,6 +21,8 @@ const addressSchema = new Schema<IAddress>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true, trim: true },
   phone: { type: String, required: true, trim: true },
+  alternatePhone: { type: String, trim: true },
+  landmark: { type: String, trim: true },
   addressLine1: { type: String, required: true, trim: true },
   addressLine2: { type: String, trim: true },
   city: { type: String, required: true, trim: true },

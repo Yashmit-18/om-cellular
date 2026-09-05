@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { User } from '../models/user.model'
+import { Address } from '../models/address.model'
 import { authenticate, generateTokens, setTokenCookies, clearTokenCookies } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { env } from '../config/env'
@@ -130,9 +131,73 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' })
     }
-    return res.json({ success: true, data: user })
+    const addresses = await Address.find({ userId: user._id }).sort({ isDefault: -1, createdAt: -1 })
+    return res.json({ success: true, data: { ...user.toObject(), addresses } })
   } catch (error) {
     console.error('Get me error:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
+
+router.put('/me', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email, alternatePhone } = req.body
+    const user = await User.findById(req.user!.id)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    if (user.role === 'ADMIN') {
+      return res.status(400).json({ success: false, message: 'Profile updates are only available for customer accounts' })
+    }
+
+    if (name !== undefined && typeof name === 'string' && name.trim().length >= 2) {
+      user.name = name.trim()
+    }
+
+    if (email !== undefined && email !== null) {
+      const normalizedEmail = String(email).trim().toLowerCase()
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address' })
+      }
+      const duplicate = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } })
+      if (duplicate) {
+        return res.status(409).json({ success: false, message: 'This email is already in use by another account' })
+      }
+      user.email = normalizedEmail
+    } else if (email === null) {
+      user.email = undefined
+    }
+
+    if (alternatePhone !== undefined) {
+      if (alternatePhone === null || String(alternatePhone).trim() === '') {
+        user.alternatePhone = undefined
+      } else {
+        const normalized = normalizePhone(String(alternatePhone))
+        if (!normalized) {
+          return res.status(400).json({ success: false, message: 'Alternate phone must be a valid 10-digit Indian phone number' })
+        }
+        if (normalized === user.phone) {
+          return res.status(400).json({ success: false, message: 'Alternate phone must be different from your primary phone' })
+        }
+        user.alternatePhone = normalized
+      }
+    }
+
+    try {
+      await user.save()
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return res.status(409).json({ success: false, message: 'This email is already in use by another account' })
+      }
+      throw error
+    }
+
+    const updated = user.toObject() as any
+    delete updated.password
+    return res.json({ success: true, message: 'Profile updated', data: updated })
+  } catch (error) {
+    console.error('Update me error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

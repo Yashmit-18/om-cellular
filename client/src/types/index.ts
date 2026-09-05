@@ -1,20 +1,23 @@
 export type UserRole = 'ADMIN' | 'CUSTOMER'
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'RETURNED'
+export type OrderStatus = 'PENDING' | 'PAYMENT_CONFIRMED' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'FAILED' | 'RETURN_REQUESTED' | 'RETURNED'
 export type PaymentStatus = 'PENDING' | 'PENDING_PAYMENT' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type PaymentMethod = 'cod' | 'online' | 'upi'
 export type DiscountType = 'PERCENTAGE' | 'FIXED'
 export type Condition = 'NEW' | 'LIKE_NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR'
-export type RepairStatus = 'PENDING' | 'RECEIVED' | 'DIAGNOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'DELIVERED' | 'CANCELLED'
-export type RequestStatus = 'PENDING' | 'RECEIVED' | 'EVALUATING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED'
+export type RepairStatus = 'BOOKING_RECEIVED' | 'APPROVED' | 'IN_DIAGNOSIS' | 'DIAGNOSED' | 'REJECTED' | 'IN_REPAIR' | 'AWAITING_PARTS' | 'COMPLETED' | 'READY_FOR_PICKUP' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
+export type RequestStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'INSPECTED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'PICKED_UP' | 'PAYMENT_PENDING' | 'PAYMENT_COMPLETED' | 'COMPLETED' | 'CANCELLED'
 export type NotificationType = 'ORDER' | 'PROMOTION' | 'SYSTEM' | 'REPAIR' | 'SELL' | 'EXCHANGE'
 export type SectionType = 'featured_products' | 'new_arrivals' | 'best_sellers' | 'categories' | 'banners' | 'testimonials' | 'custom'
 export type ContactStatus = 'PENDING' | 'READ' | 'REPLIED' | 'ARCHIVED'
+export type RequestedService = 'delivery' | 'repair' | 'pickupDrop' | 'sell' | 'exchange'
+export type NotifyStatus = 'WAITING' | 'NOTIFIED' | 'CLOSED'
 
 export interface User {
   id: string
   name: string | null
   email: string | null
   phone: string | null
+  alternatePhone?: string | null
   role: UserRole
   image: string | null
   createdAt: Date
@@ -131,6 +134,8 @@ export interface Address {
   userId: string
   name: string
   phone: string
+  alternatePhone?: string | null
+  landmark?: string | null
   addressLine1: string
   addressLine2: string | null
   city: string
@@ -143,18 +148,39 @@ export interface Address {
   orders?: Order[]
 }
 
+export interface AddressFieldsValue {
+  name: string
+  phone: string
+  alternatePhone?: string
+  addressLine1: string
+  addressLine2?: string
+  landmark?: string
+  city: string
+  state: string
+  pincode: string
+}
+
+export interface OrderStatusHistory {
+  status: string
+  changedAt: Date
+  changedBy: 'SYSTEM' | 'CUSTOMER' | 'ADMIN'
+  note?: string | null
+}
+
 export interface Order {
   id: string
   orderNumber: string
   userId: string
   addressId: string | null
   status: OrderStatus
+  paymentStatus: PaymentStatus
+  paymentMethod: string | null
+  paymentGateway?: string | null
+  statusHistory?: OrderStatusHistory[]
   total: number
   discount: number
   shipping: number
   tax: number
-  paymentMethod: string | null
-  paymentStatus: PaymentStatus
   shippingAddress: Record<string, string> | null
   upiReferenceId: string | null
   couponId: string | null
@@ -166,6 +192,41 @@ export interface Order {
   user?: User
   address?: Address
   items?: OrderItem[]
+}
+
+export interface ServiceArea {
+  id: string
+  city: string
+  state: string
+  pinCodes: string[]
+  isEnabled: boolean
+  services: {
+    delivery: boolean
+    repair: boolean
+    pickupDrop: boolean
+    sell: boolean
+    exchange: boolean
+  }
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ServiceabilityRequest {
+  id: string
+  userId: string | null
+  name: string
+  phone: string
+  alternatePhone?: string | null
+  city: string
+  state: string
+  pincode: string
+  requestedService: RequestedService
+  status: NotifyStatus
+  contactedVia?: string | null
+  adminNotes?: string | null
+  createdAt: Date
+  updatedAt: Date
+  user?: User | null
 }
 
 export interface OrderItem {
@@ -245,6 +306,7 @@ export interface RepairBooking {
   userId: string
   serviceId: string | null
   phone: string | null
+  alternatePhone?: string | null
   brand: string
   model: string
   problemDescription: string
@@ -253,10 +315,12 @@ export interface RepairBooking {
   status: RepairStatus
   notes: string | null
   technicianNotes: string | null
+  adminNotes?: string | null
   estimatedCost: number | null
   finalCost: number | null
   pickupRequired: boolean
   pickupAddress: string | null
+  pickupDetails?: RepairPickupDetails | null
   serviceMode: string | null
   pickupFee: number | null
   technicianName: string | null
@@ -267,12 +331,26 @@ export interface RepairBooking {
   statusHistory?: RepairStatusHistory[]
 }
 
+export interface RepairPickupDetails {
+  name?: string | null
+  phone?: string | null
+  alternatePhone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  landmark?: string | null
+  city?: string | null
+  state?: string | null
+  pincode?: string | null
+}
+
 export interface RepairStatusHistory {
   id: string
   repairId: string
   status: string
   note: string | null
   createdAt: Date
+  changedAt?: Date
+  changedBy?: 'SYSTEM' | 'CUSTOMER' | 'ADMIN'
   repair?: RepairBooking
 }
 
@@ -281,6 +359,7 @@ export interface SellRequest {
   requestNumber: string
   userId: string | null
   phone: string | null
+  alternatePhone?: string | null
   brand: string
   model: string
   condition: string
@@ -297,9 +376,11 @@ export interface SellRequest {
   estimatedPrice: number | null
   finalOfferedPrice: number | null
   pickupAddress: string | null
+  pickupDetails?: RepairPickupDetails | null
   pickupDate: Date | null
   pickupTime: string | null
   status: RequestStatus
+  statusHistory?: OrderStatusHistory[]
   adminNotes: string | null
   createdAt: Date
   updatedAt: Date
@@ -311,6 +392,7 @@ export interface ExchangeRequest {
   requestNumber: string
   userId: string | null
   phone: string | null
+  alternatePhone?: string | null
   oldBrand: string
   oldModel: string
   oldStorage: string | null
@@ -322,6 +404,7 @@ export interface ExchangeRequest {
   finalExchangeValue: number | null
   difference: number | null
   status: string
+  statusHistory?: OrderStatusHistory[]
   adminNotes: string | null
   createdAt: Date
   updatedAt: Date

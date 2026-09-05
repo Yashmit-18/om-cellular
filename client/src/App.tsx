@@ -30,6 +30,7 @@ const Wishlist = lazy(() => import('./pages/shop/WishlistPage'))
 const TrackOrder = lazy(() => import('./pages/shop/TrackOrderPage'))
 
 const AccountDashboard = lazy(() => import('./pages/account/DashboardPage'))
+const AccountProfile = lazy(() => import('./pages/account/ProfilePage'))
 const AccountOrders = lazy(() => import('./pages/account/OrdersPage'))
 const AccountOrderDetail = lazy(() => import('./pages/account/OrderDetailPage'))
 const AccountRepairs = lazy(() => import('./pages/account/RepairsPage'))
@@ -42,6 +43,9 @@ const AdminProductEdit = lazy(() => import('./pages/admin/ProductEditPage'))
 const AdminOrders = lazy(() => import('./pages/admin/OrdersPage'))
 const AdminOrderDetail = lazy(() => import('./pages/admin/OrderDetailPage'))
 const AdminCustomers = lazy(() => import('./pages/admin/CustomersPage'))
+const AdminCustomerDetail = lazy(() => import('./pages/admin/CustomerDetailPage'))
+const AdminServiceAreas = lazy(() => import('./pages/admin/ServiceAreasPage'))
+const AdminServiceRequests = lazy(() => import('./pages/admin/ServiceRequestsPage'))
 const AdminRepairs = lazy(() => import('./pages/admin/RepairsPage'))
 const AdminRepairDetail = lazy(() => import('./pages/admin/RepairDetailPage'))
 const AdminSellRequests = lazy(() => import('./pages/admin/SellRequestsPage'))
@@ -99,6 +103,7 @@ export default function App() {
 
         <Route element={<AccountLayout />}>
           <Route path="/account" element={<AccountDashboard />} />
+          <Route path="/account/profile" element={<AccountProfile />} />
           <Route path="/account/orders" element={<AccountOrders />} />
           <Route path="/account/orders/:id" element={<AccountOrderDetail />} />
           <Route path="/account/repairs" element={<AccountRepairs />} />
@@ -113,6 +118,9 @@ export default function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="orders/:id" element={<AdminOrderDetail />} />
           <Route path="customers" element={<AdminCustomers />} />
+          <Route path="customers/:id" element={<AdminCustomerDetail />} />
+          <Route path="service-areas" element={<AdminServiceAreas />} />
+          <Route path="service-requests" element={<AdminServiceRequests />} />
           <Route path="repairs" element={<AdminRepairs />} />
           <Route path="repairs/:id" element={<AdminRepairDetail />} />
           <Route path="sell-requests" element={<AdminSellRequests />} />

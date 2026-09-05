@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../../services/api'
 import { formatDate } from '../../utils'
 
@@ -18,13 +19,16 @@ export default function AdminCustomersPage() {
       <div className="mt-6 card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50"><tr className="border-b">
-            <th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Email</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Joined</th>
+            <th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Email</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Location</th><th className="px-4 py-3 font-medium">Joined</th>
           </tr></thead>
           <tbody>{customers.map(c => (
             <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium">{c.name || 'N/A'}</td>
+              <td className="px-4 py-3">
+                <Link to={`/admin/customers/${c.id || c._id}`} className="font-medium text-brand-600 hover:text-brand-700 hover:underline">{c.name || 'N/A'}</Link>
+              </td>
               <td className="px-4 py-3">{c.email || 'N/A'}</td>
               <td className="px-4 py-3">{c.phone || 'N/A'}</td>
+              <td className="px-4 py-3">{c.city ? `${c.city}${c.state ? `, ${c.state}` : ''}` : c.pincode || '—'}</td>
               <td className="px-4 py-3">{formatDate(c.createdAt)}</td>
             </tr>
           ))}</tbody>

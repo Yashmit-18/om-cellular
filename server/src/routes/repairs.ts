@@ -4,8 +4,36 @@ import { Setting } from '../models/setting.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRepairBookingNumber, paginate } from '../utils/helpers'
+import { checkServiceability } from '../services/serviceability.service'
 
 const router = Router()
+
+const REPAIR_STATUSES = ['BOOKING_RECEIVED', 'APPROVED', 'IN_DIAGNOSIS', 'DIAGNOSED', 'REJECTED', 'IN_REPAIR', 'AWAITING_PARTS', 'COMPLETED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']
+
+function flattenPickup(details: any): string {
+  if (!details) return ''
+  const parts = [
+    details.name && `Name: ${details.name}`,
+    details.phone && `Phone: ${details.phone}`,
+    details.addressLine1,
+    details.addressLine2,
+    details.landmark && `Near: ${details.landmark}`,
+    details.city,
+    details.state,
+    details.pincode,
+  ].filter(Boolean)
+  return parts.join(', ') || ''
+}
+
+async function recordRepairStatus(repair: any, status: string, changedBy: 'SYSTEM' | 'CUSTOMER' | 'ADMIN', note?: string) {
+  if (!REPAIR_STATUSES.includes(status)) {
+    throw { statusCode: 400, message: `Invalid repair status: ${status}` }
+  }
+  await RepairStatusHistory.create({ repairId: repair._id, status, note })
+  repair.statusHistory = repair.statusHistory || []
+  repair.statusHistory.push({ status, changedAt: new Date(), changedBy, note })
+  repair.status = status
+}
 
 router.get('/services', async (_req, res) => {
   try {
@@ -67,14 +95,24 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { serviceId, brand, model, problemDescription, phone, pickupRequired, pickupAddress, serviceMode, appointmentDate, appointmentTime } = req.body
+    const { serviceId, brand, model, problemDescription, phone, alternatePhone, pickupDetails, serviceMode, appointmentDate, appointmentTime } = req.body
     if (!brand || !model) return res.status(400).json({ success: false, message: 'Brand and model are required' })
     if (!phone || !String(phone).trim()) return res.status(400).json({ success: false, message: 'A contact phone number is required for repair bookings' })
 
-    const mode = serviceMode === 'DOORSTEP_PICKUP' ? 'DOORSTEP_PICKUP' : (pickupRequired ? 'DOORSTEP_PICKUP' : 'STORE_DROP')
+    const mode = serviceMode === 'DOORSTEP_PICKUP' ? 'DOORSTEP_PICKUP' : (req.body.pickupRequired ? 'DOORSTEP_PICKUP' : 'STORE_DROP')
     const addressRequired = mode === 'DOORSTEP_PICKUP'
-    if (addressRequired && (!pickupAddress || !String(pickupAddress).trim())) {
-      return res.status(400).json({ success: false, message: 'A pickup address is required for doorstep pickup' })
+    if (addressRequired && (!pickupDetails || !pickupDetails.addressLine1 || !pickupDetails.city || !pickupDetails.state || !pickupDetails.pincode)) {
+      return res.status(400).json({ success: false, message: 'A complete pickup address (address line, city, state, PIN code) is required for doorstep pickup' })
+    }
+
+    if (addressRequired) {
+      const serviceability = await checkServiceability(pickupDetails.pincode, 'repair')
+      if (serviceability.configured && !serviceability.serviceable) {
+        return res.status(400).json({
+          success: false,
+          message: `We do not currently offer doorstep pickup in PIN code ${pickupDetails.pincode}. Please select store drop-off instead.`,
+        })
+      }
     }
 
     let pickupFee = 0
@@ -86,13 +124,23 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const bookingNumber = generateRepairBookingNumber()
     const repair = await RepairBooking.create({
       bookingNumber, userId: req.user?.id || null, serviceId, brand, model, problemDescription, phone,
-      pickupRequired: mode === 'DOORSTEP_PICKUP', pickupAddress: mode === 'DOORSTEP_PICKUP' ? pickupAddress : undefined,
+      alternatePhone: alternatePhone ? String(alternatePhone).trim() : undefined,
+      pickupRequired: mode === 'DOORSTEP_PICKUP',
+      pickupAddress: mode === 'DOORSTEP_PICKUP' ? flattenPickup(pickupDetails) : undefined,
+      pickupDetails: mode === 'DOORSTEP_PICKUP' ? {
+        name: pickupDetails.name, phone: pickupDetails.phone || phone, alternatePhone: pickupDetails.alternatePhone || alternatePhone,
+        addressLine1: pickupDetails.addressLine1, addressLine2: pickupDetails.addressLine2, landmark: pickupDetails.landmark,
+        city: pickupDetails.city, state: pickupDetails.state, pincode: pickupDetails.pincode,
+      } : undefined,
       serviceMode: mode, pickupFee,
       appointmentDate: appointmentDate ? new Date(appointmentDate) : undefined,
       appointmentTime,
     })
 
-    await RepairStatusHistory.create({ repairId: repair._id, status: 'BOOKING_RECEIVED', note: `Booking received via ${mode === 'DOORSTEP_PICKUP' ? 'doorstep pickup' : 'store drop-off'}` })
+    const historyNote = `Booking received via ${mode === 'DOORSTEP_PICKUP' ? 'doorstep pickup' : 'store drop-off'}`
+    await RepairStatusHistory.create({ repairId: repair._id, status: 'BOOKING_RECEIVED', note: historyNote })
+    repair.statusHistory = [{ status: 'BOOKING_RECEIVED', changedAt: new Date(), changedBy: 'SYSTEM', note: historyNote }]
+    await repair.save()
 
     return res.status(201).json({ success: true, message: 'Repair booking created', data: { ...repair.toObject(), bookingNumber } })
   } catch (error) {
@@ -102,18 +150,22 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, technicianName, technicianNotes, estimatedCost, finalCost, note } = req.body
+    const { status, technicianName, technicianNotes, estimatedCost, finalCost, adminNotes, note } = req.body
     const repair = await RepairBooking.findById(req.params.id)
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
 
     if (status) {
-      await RepairStatusHistory.create({ repairId: repair._id, status, note: note || `Status updated to ${status}` })
-      repair.status = status
+      try {
+        await recordRepairStatus(repair, status, 'ADMIN', note || `Status updated to ${status}`)
+      } catch (error: any) {
+        return res.status(error?.statusCode || 500).json({ success: false, message: error?.message || 'Internal server error' })
+      }
     }
     if (technicianName !== undefined) repair.technicianName = technicianName
     if (technicianNotes !== undefined) repair.technicianNotes = technicianNotes
     if (estimatedCost !== undefined) repair.estimatedCost = estimatedCost
     if (finalCost !== undefined) repair.finalCost = finalCost
+    if (adminNotes !== undefined) repair.adminNotes = adminNotes
 
     await repair.save()
     return res.json({ success: true, message: 'Repair updated', data: repair })
@@ -130,8 +182,11 @@ router.post('/:id/status', requireAdmin, async (req: AuthRequest, res: Response)
     const repair = await RepairBooking.findById(req.params.id)
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
 
-    await RepairStatusHistory.create({ repairId: repair._id, status, note })
-    repair.status = status
+    try {
+      await recordRepairStatus(repair, status, 'ADMIN', note || `Status updated to ${status}`)
+    } catch (error: any) {
+      return res.status(error?.statusCode || 500).json({ success: false, message: error?.message || 'Internal server error' })
+    }
     await repair.save()
 
     return res.json({ success: true, message: 'Status updated', data: repair })

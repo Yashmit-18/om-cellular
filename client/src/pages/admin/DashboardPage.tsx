@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Package, Users, DollarSign, TrendingUp, Clock, Smartphone, ArrowRightLeft, Wrench, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, Package, Users, DollarSign, TrendingUp, Clock, Smartphone, ArrowRightLeft, Wrench, AlertTriangle, MapPin, BellRing } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
@@ -27,6 +27,8 @@ export default function DashboardPage() {
     { label: 'Pending Repairs', value: stats.pendingRepairs || 0, icon: Wrench, color: 'bg-orange-500', sub: `${stats.totalRepairs || 0} total` },
     { label: 'Sell Requests', value: stats.pendingSellRequests || 0, icon: Smartphone, color: 'bg-cyan-500', sub: `${stats.totalSellRequests || 0} total` },
     { label: 'Exchange Requests', value: stats.pendingExchangeRequests || 0, icon: ArrowRightLeft, color: 'bg-pink-500', sub: `${stats.totalExchangeRequests || 0} total` },
+    { label: 'Service Areas', value: stats.serviceability?.enabledServiceAreas || 0, icon: MapPin, color: 'bg-indigo-500', sub: `${stats.serviceability?.totalServiceAreas || 0} total` },
+    { label: 'Service Requests', value: stats.serviceability?.pendingServiceRequests || 0, icon: BellRing, color: 'bg-teal-500', sub: `${stats.totalServiceRequests || 0} total` },
     { label: 'Low Stock', value: stats.lowStockProducts || 0, icon: AlertTriangle, color: 'bg-red-500', sub: 'Products need attention' },
   ]
 
@@ -41,6 +43,8 @@ export default function DashboardPage() {
             card.label.includes('Repair') ? '/admin/repairs' :
             card.label.includes('Sell') ? '/admin/sell-requests' :
             card.label.includes('Exchange') ? '/admin/exchange-requests' :
+            card.label.includes('Service Areas') ? '/admin/service-areas' :
+            card.label.includes('Service Requests') ? '/admin/service-requests' :
             card.label.includes('Product') ? '/admin/products' :
             card.label.includes('Customer') ? '/admin/customers' :
             card.label.includes('Low Stock') ? '/admin/inventory' :

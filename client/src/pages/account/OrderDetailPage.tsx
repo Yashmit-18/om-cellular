@@ -3,7 +3,8 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Clock, MapPin } from 'lucide-react'
 import api from '../../services/api'
 import { formatDate, formatPrice } from '../../utils'
-import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
+import StatusTimeline from '../../components/StatusTimeline'
 
 export default function AccountOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -31,7 +32,7 @@ export default function AccountOrderDetailPage() {
       </nav>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
-        <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{order.status}</span>
+        <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
       </div>
       {order.paymentStatus === 'PENDING_PAYMENT' && (
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
@@ -57,12 +58,20 @@ export default function AccountOrderDetailPage() {
           </div>
           {order.upiReferenceId && <div><p className="text-gray-500">UPI Reference</p><p className="font-medium">{order.upiReferenceId}</p></div>}
           {order.trackingNumber && <div><p className="text-gray-500">Tracking</p><p className="font-medium">{order.trackingNumber}</p></div>}
+          {order.paymentGateway && <div><p className="text-gray-500">Gateway</p><p className="font-medium capitalize">{order.paymentGateway}</p></div>}
         </div>
+        {order.statusHistory && order.statusHistory.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-3">Order Timeline</h3>
+            <StatusTimeline history={order.statusHistory} labels={ORDER_STATUS_LABELS} colors={ORDER_STATUS_COLORS} />
+          </div>
+        )}
         {address && (
           <div className="border-t pt-4">
             <h3 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-brand-500" /> Delivery Address</h3>
             <p className="text-sm text-gray-600">{address.name}, {address.phone}</p>
-            <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}, {address.city}, {address.state} - {address.pincode}</p>
+            {address.alternatePhone && <p className="text-sm text-gray-600">Alt: {address.alternatePhone}</p>}
+            <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}{address.landmark ? ` (${address.landmark})` : ''}, {address.city}, {address.state} - {address.pincode}</p>
           </div>
         )}
         {order.items && order.items.length > 0 && (

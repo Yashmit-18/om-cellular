@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Wrench, Smartphone, ArrowRightLeft,
   DollarSign, Image, LayoutTemplate, MessageSquare, HelpCircle, Tag, Settings,
   ClipboardList, Box, MessageCircle, ChevronLeft, ChevronRight, Store, Phone, Info,
+  MapPin, BellRing,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -16,6 +17,8 @@ const links = [
   { to: '/admin/repair-services', label: 'Repair Services', icon: Wrench },
   { to: '/admin/sell-requests', label: 'Sell Requests', icon: Smartphone },
   { to: '/admin/exchange-requests', label: 'Exchange Requests', icon: ArrowRightLeft },
+  { to: '/admin/service-areas', label: 'Service Areas', icon: MapPin },
+  { to: '/admin/service-requests', label: 'Service Requests', icon: BellRing },
   { to: '/admin/phone-catalog', label: 'Phone Catalog', icon: Phone },
   { to: '/admin/phone-valuation', label: 'Phone Valuation', icon: DollarSign },
   { to: '/admin/banners', label: 'Banners', icon: Image },

@@ -7,6 +7,8 @@ import { generateRequestNumber, paginate } from '../utils/helpers'
 
 const router = Router()
 
+const EXCHANGE_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'INSPECTED', 'REJECTED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'COMPLETED', 'CANCELLED']
+
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { page = '1', limit = '20', status, search } = req.query
@@ -45,7 +47,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone } = req.body
+    const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone, alternatePhone } = req.body
     if (!oldBrand || !oldModel || !oldCondition) return res.status(400).json({ success: false, message: 'Old device brand, model, and condition are required' })
 
     if (newVariantId) {
@@ -57,8 +59,10 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id || null
 
     const request = await ExchangeRequest.create({
-      requestNumber, userId, phone, oldBrand, oldModel, oldStorage, oldRam, oldCondition,
+      requestNumber, userId, phone, alternatePhone: alternatePhone ? String(alternatePhone).trim() : undefined,
+      oldBrand, oldModel, oldStorage, oldRam, oldCondition,
       newVariantId: newVariantId || null, oldDeviceDetails: oldDeviceDetails || {},
+      statusHistory: [{ status: 'SUBMITTED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Exchange request submitted' }],
     })
 
     return res.status(201).json({ success: true, message: 'Exchange request created', data: request })
@@ -69,11 +73,18 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, estimatedExchangeValue, finalExchangeValue, difference, adminNotes } = req.body
+    const { status, estimatedExchangeValue, finalExchangeValue, difference, adminNotes, note } = req.body
     const request = await ExchangeRequest.findById(req.params.id)
     if (!request) return res.status(404).json({ success: false, message: 'Exchange request not found' })
 
-    if (status) request.status = status
+    if (status) {
+      if (!EXCHANGE_STATUSES.includes(status)) {
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}` })
+      }
+      request.statusHistory = request.statusHistory || []
+      request.statusHistory.push({ status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Status updated to ${status}` })
+      request.status = status
+    }
     if (estimatedExchangeValue !== undefined) request.estimatedExchangeValue = estimatedExchangeValue
     if (finalExchangeValue !== undefined) request.finalExchangeValue = finalExchangeValue
     if (difference !== undefined) request.difference = difference
