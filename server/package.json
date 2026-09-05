@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "seed": "node scripts/seedAll.js",
     "seed:all": "node scripts/seedAll.js",
+    "seed:admin": "node scripts/seedAdmin.js",
     "seed:phones": "node scripts/seedPhoneCatalog.js",
     "seed:repairs": "node scripts/seedRepairs.js",
     "seed:products": "node scripts/seedProducts.js",
