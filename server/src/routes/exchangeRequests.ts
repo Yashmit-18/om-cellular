@@ -1,5 +1,6 @@
 import { Router, Response } from 'express'
 import { ExchangeRequest } from '../models/exchangeRequest.model'
+import { SellRequest } from '../models/sellRequest.model'
 import { ProductVariant } from '../models/productVariant.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
@@ -69,6 +70,18 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
         return res.status(409).json({
           success: false,
           message: `This device (IMEI ${normalizedImei}) already has an active exchange request (${duplicate.requestNumber}).`,
+        })
+      }
+      // Cross-entity guard: the same device must not have an active sell
+      // request either.
+      const crossDuplicate = await SellRequest.findOne({
+        imei: normalizedImei,
+        status: { $nin: ['REJECTED', 'CANCELLED', 'PAYMENT_COMPLETED'] },
+      })
+      if (crossDuplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `This device (IMEI ${normalizedImei}) already has an active sell request (${crossDuplicate.requestNumber}). Use the Exchange page only after that request is completed or cancelled.`,
         })
       }
     }

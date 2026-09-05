@@ -6,7 +6,7 @@ import { env } from '../config/env'
 import { authenticate } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { notify } from '../services/notification.service'
-import { restoreStockAndCoupon } from '../services/orderLifecycle.service'
+import { restoreStockAndCoupon, consumeStockAndCoupon } from '../services/orderLifecycle.service'
 
 const router = Router()
 
@@ -156,6 +156,16 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
     order.paidAt = new Date()
     order.paymentGateway = 'razorpay'
     if (order.status === 'PENDING' || order.status === 'FAILED') {
+      // The order previously failed (payment.failed webhook released its stock
+      // and coupon). Recovery must re-allocate stock and re-consume the coupon
+      // so fulfilment is never under-stocked. If that is no longer possible the
+      // settlement is refused, NOT marked paid.
+      if (order.status === 'FAILED') {
+        const consumed = await consumeStockAndCoupon(order)
+        if (!consumed.ok) {
+          return res.status(400).json({ success: false, message: consumed.reason || 'The order cannot be settled because stock is no longer available.' })
+        }
+      }
       order.statusHistory = order.statusHistory || []
       order.statusHistory.push({
         status: 'PAYMENT_CONFIRMED',
@@ -217,13 +227,26 @@ router.post('/webhook', async (req: AuthRequest, res: Response) => {
         order.razorpayPaymentId = paymentId
         order.paidAt = new Date()
         order.paymentGateway = 'razorpay'
-        if (order.status === 'PENDING') {
+        if (order.status === 'PENDING' || order.status === 'FAILED') {
+          // Failed orders had their stock/coupon released; re-allocate on the
+          // captured webhook so a later cancellation can restore them again.
+          if (order.status === 'FAILED') {
+            const consumed = await consumeStockAndCoupon(order)
+            if (!consumed.ok) {
+              // Money was captured but stock can no longer be re-allocated.
+              // Do NOT mark the order PAID (never oversell); keep it FAILED so
+              // the admin resolves it manually (order remains audit-visible,
+              // webhook returns 200 to avoid retry spam).
+              console.error('Webhook recovery blocked for', order.orderNumber, ':', consumed.reason)
+              return res.json({ success: true, received: true, ignored: consumed.reason })
+            }
+          }
           order.statusHistory = order.statusHistory || []
           order.statusHistory.push({
             status: 'PAYMENT_CONFIRMED',
             changedAt: new Date(),
             changedBy: 'SYSTEM',
-            note: 'Payment received via Razorpay (webhook)',
+            note: 'Payment received via Razorpay (webhook)' + (order.status === 'FAILED' ? ' — recovered after payment was made' : ''),
           })
           order.status = 'PAYMENT_CONFIRMED'
         }

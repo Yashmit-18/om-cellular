@@ -8,6 +8,6 @@ export const couponService = {
 
   createCoupon: (data: any) => api.post('/coupons', data).then(r => r.data),
 
-  validateCoupon: (code: string, total: number) =>
-    api.get(`/coupons/validate/${encodeURIComponent(code)}`, { params: { total } }).then(r => r.data),
+  validateCoupon: (code: string, total: number, variantIds: string[] = []) =>
+    api.get(`/coupons/validate/${encodeURIComponent(code)}`, { params: { total, items: variantIds.join(',') } }).then(r => r.data),
 }

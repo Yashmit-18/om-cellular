@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit'
 import path from 'path'
 import { corsOptions } from './config/cors'
 import { errorHandler } from './middleware/error'
+import { release } from './config/version'
 
 // Route imports
 import authRoutes from './routes/auth'
@@ -44,6 +45,20 @@ app.set('trust proxy', 1)
 // Security
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(cors(corsOptions))
+
+// Health check (safe: exposes version + injected commit only, never secrets).
+// Mounted before the rate limiter so uptime probes and Render's health check
+// are never throttled by normal API traffic.
+app.get('/api/health', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'OM Cellular API is running',
+    version: release.version,
+    commit: release.commit,
+    timestamp: new Date().toISOString(),
+  })
+})
+
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
@@ -52,25 +67,21 @@ app.use(rateLimit({
   message: { success: false, message: 'Too many requests, please try again later' },
 }))
 
-// Body parsing
+// Body parsing — bounded to 2mb. The raw body is only retained for the payment
+// webhook signature and never for whole-request buffers.
 app.use(express.json({
-  limit: '10mb',
+  limit: '2mb',
   verify: (req: any, _res, buf) => {
     // Preserve the raw body so payment webhook signatures can be verified
     // against the exact bytes Razorpay signed.
     req.rawBody = buf
   },
 }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '2mb' }))
 app.use(cookieParser())
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
-
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ success: true, message: 'OM Cellular API is running', timestamp: new Date().toISOString() })
-})
 
 // API Routes
 app.use('/api/v1/auth', authRoutes)

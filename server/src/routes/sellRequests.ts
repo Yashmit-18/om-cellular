@@ -1,5 +1,6 @@
 import { Router, Response } from 'express'
 import { SellRequest } from '../models/sellRequest.model'
+import { ExchangeRequest } from '../models/exchangeRequest.model'
 import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRequestNumber, paginate, isValidImei } from '../utils/helpers'
@@ -82,6 +83,18 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
         return res.status(409).json({
           success: false,
           message: `This device (IMEI ${normalizedImei}) already has an active sell request (${duplicate.requestNumber}). You will be able to list it again once the current request is completed or cancelled.`,
+        })
+      }
+      // Cross-entity guard: the same device must not be tied to an active
+      // exchange request at the same time.
+      const crossDuplicate = await ExchangeRequest.findOne({
+        oldImei: normalizedImei,
+        status: { $nin: ['REJECTED', 'CANCELLED', 'COMPLETED'] },
+      })
+      if (crossDuplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `This device (IMEI ${normalizedImei}) is already part of an active exchange request (${crossDuplicate.requestNumber}). Use the Sell page only after that exchange is completed or cancelled.`,
         })
       }
     }
@@ -174,7 +187,13 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
       request.statusHistory.push({ status, changedAt: new Date(), changedBy: 'ADMIN', note: note || `Status updated to ${status}` })
       request.status = status
     }
-    if (finalOfferedPrice !== undefined) request.finalOfferedPrice = finalOfferedPrice
+    if (finalOfferedPrice !== undefined) {
+      const parsed = Number(finalOfferedPrice)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ success: false, message: 'finalOfferedPrice must be a non-negative number' })
+      }
+      request.finalOfferedPrice = parsed
+    }
     if (estimatedPrice !== undefined) {
       // Admins may adjust the estimate; guard against negative/garbage values.
       const parsed = Number(estimatedPrice)

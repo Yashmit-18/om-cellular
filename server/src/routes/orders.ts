@@ -51,6 +51,26 @@ async function loadActiveVariant(variantId: any) {
   return ProductVariant.findOne({ _id: variantId, isActive: true })
 }
 
+// A coupon restricted to specific products/categories only applies when the
+// cart contains a matching item. 'ALL' applies to everything.
+async function couponTargetsMatch(coupon: any, orderItems: { variantId: any }[]): Promise<boolean> {
+  if (!coupon || coupon.applicableTo === 'ALL' || !coupon.applicableTo) return true
+  if (coupon.applicableTo === 'PRODUCTS') {
+    if (!Array.isArray(coupon.applicableProductIds) || coupon.applicableProductIds.length === 0) return false
+    const variants = await ProductVariant.find({ _id: { $in: orderItems.map((i) => i.variantId) } })
+    const productIds = new Set(variants.map((v: any) => String(v.productId)))
+    return coupon.applicableProductIds.some((id: any) => productIds.has(String(id)))
+  }
+  if (coupon.applicableTo === 'CATEGORIES') {
+    if (!Array.isArray(coupon.applicableCategoryIds) || coupon.applicableCategoryIds.length === 0) return false
+    const variants = await ProductVariant.find({ _id: { $in: orderItems.map((i) => i.variantId) } })
+    const products = await Product.find({ _id: { $in: variants.map((v: any) => v.productId) } })
+    const categoryIds = new Set(products.map((p: any) => String(p.categoryId)))
+    return coupon.applicableCategoryIds.some((id: any) => categoryIds.has(String(id)))
+  }
+  return false
+}
+
 router.get('/track/:orderNumber', async (req, res) => {
   try {
     const order = await Order.findOne({ orderNumber: req.params.orderNumber })
@@ -275,8 +295,11 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
         if (notExpired && withinLimit && meetsMinimum && perUserOk) {
           const { applyCouponDiscount } = await import('../services/coupon.service')
-          couponDiscount = applyCouponDiscount(coupon as any, subtotal)
-          couponId = coupon._id
+          const targetable = await couponTargetsMatch(coupon as any, orderItems)
+          if (targetable) {
+            couponDiscount = applyCouponDiscount(coupon as any, subtotal)
+            couponId = coupon._id
+          }
         }
       }
     }
@@ -304,6 +327,31 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const paymentStatus = isCod ? 'PENDING' : 'PENDING_PAYMENT'
     const initialStatus = 'PENDING'
 
+    // Short-window duplicate guard: the same user submitting the identical
+    // cart within 5 seconds of their last order is almost certainly a double
+    // submit / retry. Reject instead of creating a second (or, for COD, a
+    // second unpaid order the user must later cancel).
+    if (userId) {
+      const variantFingerprint = orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')
+      const recentDuplicate = await Order.findOne({
+        userId,
+        dedupeKey: `${userId}|${variantFingerprint}|${Math.round(total * 100)}`,
+        createdAt: { $gte: new Date(Date.now() - 5000) },
+      })
+      if (recentDuplicate) {
+        // Release the stock claimed by this request.
+        for (const d of decremented) {
+          await ProductVariant.findByIdAndUpdate(d.variant._id, { $inc: { stock: +d.quantity, soldCount: -d.quantity } }).catch(() => {})
+          await syncInventory(d.variant._id, +d.quantity, { reason: 'ORDER_CANCELLED', referenceType: 'checkout-rollback' }).catch(() => {})
+        }
+        // Release the coupon count that was claimed before the duplicate check.
+        if (couponId) {
+          await Coupon.findOneAndUpdate({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }).catch(() => {})
+        }
+        return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
+      }
+    }
+
     const order = await Order.create({
       orderNumber, userId, addressId: resolvedAddress!.id, subtotal,
       discount: 0, shipping, tax, total,
@@ -322,6 +370,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       notes,
       stockRestored: false,
       couponRestored: false,
+      dedupeKey: userId ? `${userId}|${orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')}|${Math.round(total * 100)}` : undefined,
     })
 
     for (const item of orderItems) {

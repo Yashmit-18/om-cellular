@@ -38,6 +38,7 @@ export interface IOrder extends Document {
   stockRestored: boolean
   couponRestored: boolean
   paidAt?: Date
+  dedupeKey?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -107,6 +108,7 @@ const orderSchema = new Schema<IOrder>({
   stockRestored: { type: Boolean, default: false },
   couponRestored: { type: Boolean, default: false },
   paidAt: { type: Date, default: null },
+  dedupeKey: { type: String, trim: true, index: true },
 }, { timestamps: true })
 
 orderSchema.index({ userId: 1 })

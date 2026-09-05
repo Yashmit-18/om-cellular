@@ -33,4 +33,15 @@ const userSchema = new Schema<IUser>({
 
 userSchema.index({ role: 1 })
 
+// Defense-in-depth: even if a document is serialized with the password
+// force-selected, it must never reach the wire.
+userSchema.set('toJSON', {
+  transform: (_doc: any, ret: any) => {
+    delete ret.password
+    delete ret.passwordResetToken
+    delete ret.passwordResetExpires
+    return ret
+  },
+})
+
 export const User = mongoose.model<IUser>('User', userSchema)

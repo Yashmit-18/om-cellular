@@ -1,6 +1,6 @@
 # OM Cellular
 
-> **Current-state documentation — last audited 05 Sep 2026.** This README is an honest, code-verified description of what actually exists. Nothing here is aspirational; every claim was checked against the source, the configured database, and the running builds during this audit. Anything that could not be verified is explicitly marked `❓ NOT VERIFIED`.
+> **Current-state documentation — last audited 05 Sep 2026 (Phase 3: final production release candidate).** This README is an honest, code-verified description of what actually exists. Nothing here is aspirational; every claim was checked against the source, the configured database, and the running builds during this audit. Anything that could not be verified is explicitly marked `❓ NOT VERIFIED`.
 
 Maintenance rule: only the active branch `mern-migration` is maintained. No other branches exist and none should be created.
 
@@ -14,11 +14,11 @@ OM Cellular is a full-stack mobile phone commerce platform with four customer-fa
 - **Server**: Node.js + Express 4 + TypeScript API (`server/`)
 - **Database**: MongoDB Atlas via Mongoose 8
 - **Payments**: Razorpay Checkout SDK wired (init → verify → webhook), with admin-initiated Razorpay refunds — **disabled in the configured environment because no Razorpay keys are set** (COD only)
-- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — CI workflow, `render.yaml` blueprint and deployment config present, but the live deployments do **not yet run the latest branch code**
+- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — CI workflow, `render.yaml` blueprint, explicit `client/vercel.json` (SPA rewrite, Vite config) and deployment config are present. The live deployments do **not yet run the latest branch code** (Render runs an older build; Vercel needs its dashboard rebound to `client` + production branch `mern-migration`) — this is an external cut-over, not a code gap.
 
 The product catalog is a mix of new and refurbished phones with variants (storage/RAM/colour), a server-side phone-valuation engine (225 valuation records + 222 seeded catalog models), a serviceability (pincode × service) rule engine, persisted status-history tracking for orders, repairs, sell requests and exchange requests, in-app notifications with an admin broadcast screen, and automated audit logging of key admin actions.
 
-**Where the project really stands:** the application is *architecturally complete* and *technically deployable*, and the primary buy + COD flow plus all four service lines work end-to-end against a real MongoDB database. A production-hardening pass is in place and verified on this branch: customer cancel-requests + stock/coupon restore + admin refunds, strict status-transition FSMs on every service line, server-authoritative sell/exchange valuation with IMEI capture + duplicate detection, login brute-force lockout with revocable sessions, server-side products pagination, in-app notification center + admin broadcast, and in-repo tests + ESLint + CI. A **Phase-2 business-completion pass** then closed the remaining customer-lifecycle gaps: customer-initiated post-delivery **returns with proportional refunds** (+ per-item validation), a full **warranty claim** system, a real **inventory-ledger** adjustment trail, a server-validated **coupon engine** with logic tests, **reset-password** flow (dev-only token), **sell/exchange completion** (device **IMEI** capture, admin **inspection checklists**, tracked **payout records** with auto-payout on sell completion / pure-buyback exchange), SEO tags/robots/sitemap, and a **security/IDOR audit** (sanitized public tracking endpoints, ownership guards fail-closed on guest records, refund gating, coupon/review field leaks closed) — now backed by **47/47 in-repo unit tests**. It is **not** business-ready: online payments are unprovisioned (COD only), CMS/operational data is only partially populated, live deploys lag the branch, and notification delivery beyond in-app, courier integration, and several mature-platform features remain outstanding.
+**Where the project really stands:** the application is *architecturally complete* and *technically deployable*, and the primary buy + COD flow plus all four service lines work end-to-end against a real MongoDB database. A production-hardening pass is in place and verified on this branch: customer cancel-requests + stock/coupon restore + admin refunds, strict status-transition FSMs on every service line, server-authoritative sell/exchange valuation with IMEI capture + duplicate detection, login brute-force lockout with revocable sessions, server-side products pagination, in-app notification center + admin broadcast, and in-repo tests + ESLint + CI. A **Phase-2 business-completion pass** closed the remaining customer-lifecycle gaps: customer-initiated post-delivery **returns with proportional refunds** (+ per-item validation), a full **warranty claim** system, a real **inventory-ledger** adjustment trail, a server-validated **coupon engine** with logic tests, **reset-password** flow (dev-only token), **sell/exchange completion** (device **IMEI** capture, admin **inspection checklists**, tracked **payout records** with auto-payout on sell completion / pure-buyback exchange), SEO tags/robots/sitemap, and a **security/IDOR audit** — now backed by **47/47 in-repo unit tests**. A **Phase-3 final-release-candidate pass** then removed the remaining code-level blockers before go-live: a **FAILED→PAID payment recovery path** that re-allocates stock + re-consumes coupon usage (never marks a sale paid without stock), a **short-window duplicate-order guard**, coupon **product/category target enforcement**, a **strict DELIVERED-only return gate** + gateway-refund verification before a return/order can be marked `REFUNDED`, cross-entity **IMEI duplicate detection** between sell and exchange, **partial-quantity return refund scaling**, numeric-guard + inventory-ledger completeness fixes (variant-edit stock writes a `MANUAL_ADJUSTMENT` movement), repair-detail sanitization for owners, exchange payouts locked to pure buybacks, `/api/health` exempted from rate limiting with `version`+`commit` metadata, bounded 2mb JSON bodies, an order-model `dedupeKey`, user `toJSON` password stripping, and **safe production seeds** (factual CMS content + conservative coupons) run against the live database (idempotent). It is **not** business-ready end-to-end: online payments are unprovisioned (COD only), the live deployments still serve older builds (dashboard rebinding is external), and notification delivery beyond in-app plus several mature-platform features remain outstanding.
 
 ---
 
@@ -450,13 +450,15 @@ Client-side freshness note: `services/analytics.service.ts` calls `/analytics/da
 
 ## 22. Deployment Architecture
 
-- **Frontend build**: `client` → `tsc -b && vite build` → `dist/`; SPA rewrite configured (`vercel.json`). Vite dev proxies `/api` → `localhost:5000`.
-- **Backend build/start**: `tsc` → `node dist/server.js`; serves `/uploads` statically.
+- **Frontend build**: `client` → `tsc -b && vite build` → `dist/`; `client/vercel.json` is explicit (`framework: vite`, build + `outputDirectory: dist`, SPA rewrite). The old **root `vercel.json` was removed** — it pointed Vercel at a non-existent root `package.json` (the cause of the silent 404). Netlify `netlify.toml` is already correct. Vite dev proxies `/api` → `localhost:5000`.
+- **Backend build/start**: `tsc` → `node dist/server.js`; serves `/uploads` statically. `render.yaml` includes `healthCheckPath: /api/health`.
+- **Health/version**: `GET /api/health` → `{ success, message, version, commit, timestamp }` (commit injected from `RENDER_GIT_COMMIT` / `VERCEL_GIT_COMMIT_SHA` / `COMMIT_REF`; never secrets). The route is mounted **before** the global rate limiter so uptime probes are never throttled. JSON bodies are bounded to 2mb.
 - **Env (server)**: `PORT, MONGODB_URI, JWT_SECRET, JWT_REFRESH_SECRET, CLIENT_URL, NODE_ENV, UPLOAD_DIR, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, CLIENT_ORIGINS`. See `server/.env.example` for all keys with comments (values are placeholders, never committed).
 - **Env (client)**: `VITE_API_URL` (`client/.env.example`). Netlify sets `https://om-cellular.onrender.com/api/v1` at build time.
 - **CI**: `.github/workflows/ci.yml` — on push/PR to `main`/`mern-migration`, runs server lint + tests + build and client lint + build on Node 20.
 - **Render blueprint**: `render.yaml` (web service, root `server`, build `npm ci && npm run build`, start `npm start`, required env vars marked `sync:false` for dashboard entry).
-- Production deploy state: ❓ backend running an older build (new routes 404); frontend reachable but not verified as current.
+- **Production seeds** (idempotent, upsert on lookup key): `npm run seed:cms` (5 homepage sections, 3 information cards, 8 FAQs — no image-dependent banners, no fake testimonials) and `npm run seed:coupons` (WELCOME10, FLAT100), both wired into `seedAll.js` stages 8–9 and run against the live Atlas DB (re-runs create 0 duplicates).
+- Production deploy state: ❓ **external cut-over pending** — backend on Render runs an older build (new routes 404); frontend on Vercel needs the dashboard rebound (Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`). No CLI/dashboard access from this machine, so this state is documented, never faked.
 
 ---
 
@@ -486,17 +488,18 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 | Server ESLint (`npm run lint`) | ✅ **PASS** (0 errors, 0 warnings) |
 | Client ESLint (`npm run lint`) | ✅ **PASS** (0 errors; 16 pre-existing warnings) |
 | Server unit tests (`npm test` = `tsx --test`) | ✅ **PASS 47/47** — FSM transition guards + full sell/exchange/return paths (orders/repairs/sell/exchange/returns), coupon engine (percentage/fixed/min-order/maxDiscount/malformed), valuation engine edge cases, request-number/slugify/formatPrice/paginate/Luhn-IMEI/phone-normalize helpers, serviceability pure matching (legacy mode / gating / whitespace), inspection-checklist + payout normalization/auto-payout, return-number pattern + movement-reason completeness. Found + fixed real bugs en route: `paginate` returned `NaN` for non-numeric input; an area with a service disabled was treated as "not configured" |
+| Production seeds (CMS + coupons) | ✅ Ran against live Atlas DB: CMS 5 sections / 3 cards / 8 FAQs created, 2 coupons created; **re-run inserted 0** (idempotent) |
 | Ad-hoc E2E integration harness (temporary, outside repo) | ✅ **PASS 43/43** against live Atlas: serviceability check/gate, notify-me, area CRUD, register/login, addresses, auth/me, sell/exchange/repair with status history, COD order → public tracking → admin mark paid/ship, delivery-gate block/allow, customers enrichment, analytics. This harness is not part of the repository. |
-| Production API (`GET /api/health`) | ✅ REACHABLE (200) — but running an older build (`/api/v1/serviceability/check` → 404, re-verified 05 Sep 2026) |
+| Production API (`GET /api/health`) | ❗ REACHABLE (200) but running an older build: `/api/v1/serviceability/check` → 404 (re-verified 05 Sep 2026). The deployed health payload predates the new `version`/`commit` fields. |
 
 ---
 
 ## 25. Known Issues (verified)
 
-1. **Live deployments do not run the current branch** — new backend routes (e.g. `/api/v1/serviceability/check`) return 404 on Render; Vercel frontend did not update. Deploy config/branch binding must be fixed (CI + `render.yaml` exist but the dashboards still serve older builds).
+1. **Live deployments still do not run this branch** — the deploy config is now correct (explicit `client/vercel.json` + removed root `vercel.json`; `render.yaml` health check; CI present), but the dashboards have not been rebound: Render runs an older build, and Vercel needs Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, and `VITE_API_URL`. This is an external cut-over (no CLI/dashboard access), not a code gap.
 2. **Online payments disabled** — Razorpay keys not provisioned; checkout correctly hides online methods. Consequently **live refunds cannot be exercised** (code + admin UI complete).
 3. **Forgot-password flow has no delivery provider** — the reset endpoint/token logic exists but nothing sends the link.
-4. **All CMS collections empty** → homepage/campaign content is default only.
+4. **CMS seeded but partial** — 5 homepage sections, 3 info cards and 8 FAQs are now live in the database (factual content only). No image-dependent **banners** (assets don't exist) and **no testimonials** (never fabricated); both admin pages remain ready to add real content.
 5. **Admin `Inventory` page empty** because the legacy `inventories` collection has no docs (stock lives on variants); the new `inventoryledgerentries` adjustment trail is written correctly.
 6. **Login brute-force lockout is in-memory per-instance** — needs a shared store for multi-instance deployments.
 7. **Guest checkout missing** — orders require an account (hard conversion wall).
@@ -505,6 +508,9 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 10. **No push/email/SMS notifications** — in-app + admin broadcast only; notify-me is admin-managed only.
 11. **Dead/inert code**: `validation.ts` (zod) unused; `Wishlist` model unused server-side; `services/analytics.service.ts` targets a non-existent route; `cms.ts` includeAll still hand-rolls JWT but correctly requires ADMIN.
 12. Random flakiness of MongoDB Atlas connectivity on the audit network (intermittent `PoolClearedError`) — environmental, worked around with retries.
+13. **Service-area data empty** — 0 `ServiceArea` records (deliberate **legacy allow-all** mode; the server boot log and this README both call it out). No fabricated PIN data was created; delivery pin-gating activates as soon as areas are configured.
+14. **Rare FAILED→PAID recovery edge** — if a previously-failed order is actually settled at the gateway but stock can no longer be re-allocated, the order stays `FAILED` and logs loudly for manual admin resolution (never oversold, never auto-marked `PAID`).
+15. **Coupon cart-target restrictions** are enforced server-side (products/categories) and in the validate endpoint; the current seeded coupons are `ALL` so the restriction is dormant until targeted coupons are created.
 
 ---
 
@@ -514,7 +520,7 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 - **Forgot-password delivery** — endpoint + token logic complete; no email/SMS provider wired.
 - **Exchange** — request + server valuation + IMEI + inspection checklist + payout record complete; **no instant trade-in credit difference-payment checkout** (pure-buyback exchanges auto-track a payout on completion).
 - **Sell** — valuation + IMEI + duplicate detection + inspection checklist + payout record complete; actual bank settlement manual.
-- **Coupons / Reviews / Wishlist / CMS content** — code complete (coupons fully validated + tested + audited), data empty.
+- **Coupons / Reviews / Wishlist / CMS content** — code complete (coupons fully validated + tested + audited); **coupons + CMS seeded**, reviews/wishlists still empty (never fabricated).
 - **Warranty / Returns** — claim + post-delivery return/refund workflows complete and tested; refund money movement + delivery emission external.
 - **Logistics** — no courier integration, delivery tracking is a manually-entered `trackingNumber`.
 - **Notifications** — in-app complete; push/email/SMS delivery missing.
@@ -531,27 +537,27 @@ Scored on **functional completeness** (backend → API → persistence), not vis
 | Authentication | ✅ | 90% | Register/login/refresh/roles/change-password/change-phone/reset-token flow all present + tested (dev-only token). Gaps: reset delivery provider, shared lockout store. |
 | Customer Account | 🟡 | 86% | Profile, addresses, orders/repairs/sell/exchange lists + detail with timelines, invoice, cancel-request, and now post-delivery **returns** with timelines. No guest checkout. |
 | Phone Catalog | 🟡 | 82% | 246 products/670 variants/19 brands real; **222 model catalog seeded** (158 with images). CMS content still empty. |
-| Buy Flow | ✅ | 90% | Browse→detail→cart→checkout→COD order→track all work; cancel-request + invoice + refunds code-complete. Online payment disabled; no guest checkout. |
-| Sell Flow | 🟡 | 88% | Full UI + real valuation engine + IMEI + duplicate detection + server-bound value + tracking + **admin inspection checklist + payout record with auto-payout on completion**. |
-| Repair Flow | ✅ | 85% | Service catalog, booking, dual status persistence, FSM, admin workflow, tracking. No technician app/parts mgmt. |
-| Exchange Flow | 🟡 | 78% | Request + server old-device value + IMEI + FSM + tracking + **inspection checklist + payout record (auto for pure buyback)**; no instant trade-in credit checkout. |
+| Buy Flow | ✅ | 91% | Browse→detail→cart→checkout→COD order→track all work; cancel-request + invoice + refunds code-complete. Online payment disabled; no guest checkout. **Duplicate-order guard + FAILED→PAID stock/coupon recovery added.** |
+| Sell Flow | 🟡 | 90% | Full UI + real valuation engine + IMEI + duplicate detection + server-bound value + tracking + **admin inspection checklist + payout record with auto-payout**; **cross-entity IMEI duplication (sell↔exchange) + numeric guards added**. |
+| Repair Flow | ✅ | 87% | Service catalog, booking, dual status persistence, FSM, admin workflow, tracking (+ **cost numeric guards, owner-detail sanitization, technician name removed from public track**). No technician app/parts mgmt. |
+| Exchange Flow | 🟡 | 81% | Request + server old-device value + IMEI + FSM + tracking + **inspection checklist + payout record (auto for pure buyback, locked to buyback-only)** + **cross-entity IMEI guard**; no instant trade-in credit checkout. |
 | Cart | 🟡 | 75% | Works client-side. No server sync/reservation. |
-| Checkout | 🟡 | 82% | Address/serviceability/coupon (server-validated)/tax/shipping complete; invoice exists. No guest checkout; online payment disabled. |
-| Payments | 🟡 | 65% | COD real; Razorpay wiring credible (verify + webhook + refunds + gate + **FAILED-order recovery**) but disabled. |
+| Checkout | 🟡 | 84% | Address/serviceability/coupon (server-validated incl. **product/category targets**)/tax/shipping complete; invoice exists. No guest checkout; online payment disabled. |
+| Payments | 🟡 | 70% | COD real; Razorpay wiring credible (verify + webhook + refunds + gate + **FAILED→PAID recovery that re-allocates stock/coupon and refuses to oversell**) but disabled. |
 | Serviceability | ✅ | 92% | DB areas + per-service rules + gates + notify-me + **pure matching logic extracted and unit-tested** (legacy-mode/all-gating/whitespace). No real notify delivery. |
 | Order Tracking | ✅ | 92% | Persisted history + public track (sanitized) + strict FSM + customer cancel-request + stock/coupon restore + post-delivery return flow. |
-| Returns | 🟡 | 85% | End-to-end flow complete + per-item validation + **proportional refunds**; money movement external (no Razorpay). |
+| Returns | 🟡 | 88% | End-to-end flow complete + per-item validation + **proportional refunds incl. partial-quantity scaling** + **strict DELIVERED-only gate** + **gateway-refund verification before REFUNDED**; money movement external (no Razorpay). |
 | Warranty | 🟡 | 80% | Full claim/approval/resolution flow complete; delivery/emission provider external. |
-| Admin | ✅ | 88% | All DB-backed (no dummy data), analytics real, notifications broadcast page, automated audit logs on key actions. Inventory page empty; manual logs elsewhere. |
+| Admin | ✅ | 89% | All DB-backed (no dummy data), analytics real, notifications broadcast page, automated audit logs. **Inventory input validation + variant-edit → ledger completeness fixed**; inventory page elsewhere. |
 | Search | 🟡 | 75% | Full search works server-side paginated; model suggestions live (catalog seeded). No typo-tolerance/full-text/SEO. |
 | Mobile UX | 🟡 | 75% | Bottom nav, tap targets, responsive; admin less polished; some silent errors. |
-| Security | ✅ | 86% | Helmet/CORS/rate-limits/bcrypt/httpOnly-cookie auth/brute-force lockout/revocable sessions/**IDOR + owner-of-record + reveal-leak audit (tracking endpoints sanitized, guest records fail-closed, refund gated, coupon/review fields minimized, includeAll admin-gated, trust proxy)**. Gaps: in-memory lockout store, zod unused. |
-| Production Deployment | 🟡 | 35% | CI + render.yaml present but live deployments not current; online payments unprovisioned. |
+| Security | ✅ | 88% | Helmet/CORS/rate-limits/bcrypt/httpOnly-cookie auth/brute-force lockout/revocable sessions/IDOR + owner-of-record + reveal-leak audit (sanitized public endpoints, guest records fail-closed, refund gating, coupon/review field minimization, includeAll admin-gated, trust proxy) **+ Phase-3: gateway-refund verification, strict return gate, cross-entity IMEI dupe guard, repair owner sanitization, user toJSON password strip, health exempt from rate limit, bounded 2mb bodies**. Gaps: in-memory lockout store, zod unused. |
+| Production Deployment | 🟡 | 45% | Deploy config corrected (explicit client Vercel config, root vercel.json removed, render health check), **safe CMS + coupon seeds run live**, health endpoint reports version+commit. Live dashboards still not rebound (external); online payments unprovisioned. |
 | Testing | ✅ | 92% | Builds pass; **47/47 in-repo unit tests**; ESLint clean; 43/43 E2E (external harness). |
 
-**Overall estimated completion: ≈ 84%**
+**Overall estimated completion: ≈ 86%**
 
-(The number reflects that this is a real, working system with genuine e-commerce depth. Phase 2 closed the customer-lifecycle code gaps — returns, warranty, inventory ledger, coupon engine, reset-password, sell/exchange completion records, and a security/IDOR audit — and grew the in-repo test suite to 47. What remains is the "operational cut-over" layer: provisioning Razorpay + one live pay/refund, seeding CMS/coupon/review data, deployment wiring so this branch is live, plus additive maturity features.)
+(The number reflects that this is a real, working system with genuine e-commerce depth. Phase 2 closed the customer-lifecycle code gaps — returns, warranty, inventory ledger, coupon engine, reset-password, sell/exchange completion records, and a security/IDOR audit — and grew the in-repo test suite to 47. Phase 3, the final release candidate, removed the remaining code-level blockers before go-live: FAILED→PAID stock/coupon recovery, duplicate-order guard, coupon target enforcement, strict return gate + gateway-refund verification, cross-entity IMEI duplication, refund scaling, numeric/ledger completeness fixes, repair sanitization, health-exempt-from-rate-limit + versioned health, bounded bodies, and safe production CMS/coupon seeds. What remains is the **operational cut-over** layer — provisioning Razorpay + one live pay/refund and rebinding the Render/Vercel dashboards to this branch — plus additive maturity features.)
 
 ---
 
@@ -594,7 +600,7 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 **P0 — Critical / blocking production**
 1. Fix deployment wiring so `mern-migration` is what renders on Render + Vercel; verify the new routes live. *Impact:* everything else depends on a real environment. *(CI + `render.yaml` are now in place; the dashboards are not yet pointed at this branch.)*
 2. Provision Razorpay keys + webhook secret; run a live UPI payment and a live refund. *Impact:* unlocks the online-payment + refund line; currently that revenue path is disabled (code is whole).
-3. Add seed data / admin onboarding for the remaining empty collections: coupons, reviews, CMS content. *Impact:* homepage, offers, and marketing levers go live.
+3. Add seed data / admin onboarding for the remaining empty collections: reviews, banners/testimonials (content must be real, not fabricated), and service-area PIN data. *(Coupons + CMS sections/cards/FAQs are now seeded in Phase 3 — `npm run seed:coupons` / `seed:cms`.)*
 4. *(Done)* Refunds + cancellations + stock restore + strict FSMs + server-side valuation authority — shipped in the production-hardening pass.
 
 **P1 — Important business functionality**
@@ -624,22 +630,23 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 ## 30. Current Production Readiness
 
 ```
-Technically deployable:   YES   (builds, 47/47 unit tests, lint all pass; E2E green vs Atlas; CI + render.yaml included)
-Business-ready:           NO     (online payments disabled; CMS/loyalty data empty; live deploys not current;
+Technically deployable:   YES   (builds, 47/47 unit tests, lint all pass; E2E green vs Atlas; CI + render.yaml + explicit Vercel config included;
+                                  safe CMS/coupon seeds run live and idempotent)
+Business-ready:           NO     (online payments disabled; live deploys not rebound — both external cut-over steps;
                                   delivery providers + courier integration still missing)
 Cashify-level mature:     NO     (see Gap Analysis — H, and parts of E, G, T, Y are the big distances)
-Overall verdict:          CONDITIONALLY READY
+Overall verdict:          CONDITIONALLY READY — final release candidate
 ```
 
-Conditionally ready means: **if** the remaining P0 items above are completed (deploy wiring so this branch is live, Razorpay provisioning + a live pay/refund test, and CMS/coupon/review data seeding), the platform could support real customers for the COD + buy/sell/repair/exchange lines. The hardening + Phase-2 passes have already closed the refund/cancellation, FSM, valuation-authority, auth-hardening, notifications-center, returns/warranty, inventory-ledger, sell/exchange-completion, security-audit, and testing gaps; what remains is operational cut-over rather than code.
+Conditionally ready means: **if** the two external cut-over steps are completed (1) provision Razorpay keys + webhook secret and run one live pay + one live refund (the code is complete, including FAILED→PAID recovery and refund-gating), and (2) rebind the Vercel (Root Directory=`client`, Framework=Vite, branch `mern-migration`, `VITE_API_URL`) and Render dashboards to this branch, the platform could support real customers for the COD + buy/sell/repair/exchange lines. Everything code-side that was blocking go-live has been closed in the hardening, Phase-2 and Phase-3 passes; what remains is operational cut-over, not code.
 
 ---
 
 ## 31. Final Audit Summary
 
-- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth hardening (brute-force lockout, revocable sessions), strict status FSMs, customer cancellations with stock restore, server-authoritative sell/exchange valuation, in-app notifications with admin broadcast, automated audit logging, **returns + warranty + inventory-ledger + coupon engine + sell/exchange completion records (IMEI, inspection checklist, payout) + reset-password flow + a security/IDOR audit**, and **47/47 in-repo unit tests** + clean ESLint + CI. 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed.
-- **What it is not yet:** production-provisioned commerce. Payments are unprovisioned (so live pay/refund is code-complete but unexercised), deployments lag the branch, and maturity features (delivery providers, courier integration, exchange instant credit, notification delivery, guest checkout, SEO prerender, native apps) are ahead.
-- **Single biggest lever:** cut over the deployment to this branch and provision Razorpay + run one live pay/refund — after that, the honest "completeness" climbs immediately from ~84% toward ~90%+ because the remaining gaps are incremental rather than architectural.
+- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth hardening (brute-force lockout, revocable sessions), strict status FSMs, customer cancellations with stock restore, server-authoritative sell/exchange valuation, in-app notifications with admin broadcast, automated audit logging, **returns + warranty + inventory-ledger + coupon engine + sell/exchange completion records + reset-password flow + a security/IDOR audit**, and **47/47 in-repo unit tests** + clean ESLint + CI. Phase 3 added the final code-side release-candidate hardening: **FAILED→PAID recovery (stock + coupon re-allocated, never oversold), duplicate-order guard, coupon product/category target enforcement, strict DELIVERED-only returns + gateway-refund verification, cross-entity IMEI duplicate detection, proportional partial-quantity refunds, numeric + ledger-completeness fixes, repair owner sanitization, versioned health exempt from rate limiting, bounded bodies, and safe idempotent CMS/coupon production seeds** (run live against Atlas). 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed.
+- **What it is not yet:** production-provisioned commerce. Payments are unprovisioned (so live pay/refund is code-complete but unexercised), the Render/Vercel dashboards still serve older builds (external rebinding needed), and maturity features (delivery providers, courier integration, exchange instant credit, notification delivery, guest checkout, SEO prerender, native apps) are ahead.
+- **Single biggest lever:** cut over the deployment to this branch (Vercel → `client` + production branch `mern-migration` + `VITE_API_URL`; Render → current commit via its health check / start command) and provision Razorpay + run one live pay/refund — after that, the honest "completeness" climbs immediately from ~86% toward ~90%+ because the remaining gaps are incremental rather than architectural.
 
 ---
 

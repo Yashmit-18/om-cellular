@@ -71,29 +71,50 @@ router.put('/', requireAdmin, async (req: AuthRequest, res: Response) => {
     for (const item of items) {
       if (!item.variantId) continue
       const previous = await Inventory.findOne({ variantId: item.variantId })
+
+      // Validate numbers before touching the database — NaN/negative input must
+      // never produce a 500 or a corrupt inventory row.
+      const quantity = item.quantity
+      const reservedQuantity = item.reservedQuantity
+      const lowStockThreshold = item.lowStockThreshold
+      if (quantity !== undefined && (!Number.isFinite(Number(quantity)) || Number(quantity) < 0)) {
+        return res.status(400).json({ success: false, message: `quantity for ${item.variantId} must be a non-negative number` })
+      }
+      if (reservedQuantity !== undefined && (!Number.isFinite(Number(reservedQuantity)) || Number(reservedQuantity) < 0)) {
+        return res.status(400).json({ success: false, message: `reservedQuantity for ${item.variantId} must be a non-negative number` })
+      }
+      if (lowStockThreshold !== undefined && (!Number.isFinite(Number(lowStockThreshold)) || Number(lowStockThreshold) < 0)) {
+        return res.status(400).json({ success: false, message: `lowStockThreshold for ${item.variantId} must be a non-negative number` })
+      }
+      const quantityValue = quantity !== undefined ? Number(quantity) : Number(previous?.quantity ?? 0)
+      const reservedValue = reservedQuantity !== undefined ? Number(reservedQuantity) : Number(previous?.reservedQuantity ?? 0)
+      if (quantityValue < reservedValue) {
+        return res.status(400).json({ success: false, message: `quantity for ${item.variantId} cannot be lower than its reserved quantity` })
+      }
+
       const updated = await Inventory.findOneAndUpdate(
         { variantId: item.variantId },
         {
           variantId: item.variantId,
-          quantity: item.quantity,
-          reservedQuantity: item.reservedQuantity,
-          lowStockThreshold: item.lowStockThreshold,
+          quantity: quantityValue,
+          reservedQuantity: reservedValue,
+          lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : previous?.lowStockThreshold,
         },
         { upsert: true, new: true }
       )
 
-      if (item.quantity !== undefined) {
-        await ProductVariant.findByIdAndUpdate(item.variantId, { stock: item.quantity })
+      if (quantity !== undefined) {
+        await ProductVariant.findByIdAndUpdate(item.variantId, { stock: quantityValue })
       }
 
-      const delta = previous ? item.quantity - (previous.quantity ?? 0) : item.quantity
+      const delta = previous ? quantityValue - (previous.quantity ?? 0) : quantityValue
       if (delta !== 0) {
         await recordInventoryMovement({
           variantId: item.variantId,
           productId: (updated.toObject() as any).productId,
           delta,
           reason: 'MANUAL_ADJUSTMENT',
-          quantityAfter: item.quantity,
+          quantityAfter: quantityValue,
           adminId: req.user?.id as any,
           note: item.note,
         }).catch(() => {})

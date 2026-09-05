@@ -96,7 +96,6 @@ router.get('/track/:bookingNumber', async (req, res) => {
       serviceMode: repair.serviceMode,
       pickupFee: repair.pickupFee,
       estimatedCost: repair.estimatedCost,
-      technicianName: repair.technicianName || undefined,
       serviceId: (repair.serviceId as any)?._id || repair.serviceId || null,
       createdAt: repair.createdAt,
       updatedAt: repair.updatedAt,
@@ -118,7 +117,13 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const statusHistory = await RepairStatusHistory.find({ repairId: repair._id }).sort({ createdAt: -1 })
-    return res.json({ success: true, data: { ...repair.toObject(), statusHistory } })
+    const data: any = { ...repair.toObject(), statusHistory }
+    if (req.user!.role !== 'ADMIN') {
+      // Owner view: internal technician/admin notes stay admin-only.
+      delete data.adminNotes
+      delete data.technicianNotes
+    }
+    return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -205,8 +210,20 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
     }
     if (technicianName !== undefined) repair.technicianName = technicianName
     if (technicianNotes !== undefined) repair.technicianNotes = technicianNotes
-    if (estimatedCost !== undefined) repair.estimatedCost = estimatedCost
-    if (finalCost !== undefined) repair.finalCost = finalCost
+    if (estimatedCost !== undefined) {
+      const parsed = Number(estimatedCost)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ success: false, message: 'estimatedCost must be a non-negative number' })
+      }
+      repair.estimatedCost = parsed
+    }
+    if (finalCost !== undefined) {
+      const parsed = Number(finalCost)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ success: false, message: 'finalCost must be a non-negative number' })
+      }
+      repair.finalCost = parsed
+    }
     if (adminNotes !== undefined) repair.adminNotes = adminNotes
 
     await repair.save()

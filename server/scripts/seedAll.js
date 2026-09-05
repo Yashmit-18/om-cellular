@@ -1,7 +1,8 @@
 // Run: node scripts/seedAll.js
 // Comprehensive seed script for OM Cellular
 // Seeds: Brands, Phone Catalog Models, Repair Services, Sample Products + Variants,
-//        Categories, Business Settings
+//        Categories, Business Settings, CMS content (sections/cards/FAQs), Coupons
+// All-upsert, idempotent and production-safe (no deletes, no overwrites).
 // Requires MONGODB_URI env var (loaded from server/.env)
 
 // Load environment variables from server/.env before reading any env vars.
@@ -33,6 +34,8 @@ function slugify(text) {
 // Realistic starting prices + service catalog, shared with focused seed scripts.
 const { repairServices, REPAIR_PRICES } = require('./data/repairServices')
 const { buildProducts, syncValuationRules } = require('./lib/productCatalog')
+const { seedCms } = require('./seedCms')
+const { seedCoupons } = require('./seedCoupons')
 
 // Valuation rules for every catalog model are handled by lib/productCatalog.
 
@@ -544,6 +547,14 @@ async function seed() {
     console.log(`  Settings: ${settingsCreated} created, ${settingsSkipped} skipped (already exist)`)
     console.log('  NOTE: Set business_phone, business_email, business_address and whatsapp_number from Admin > Settings.')
 
+    // ─── 8. SEED CMS CONTENT ────────────────────────────────────────────────
+    console.log('\nSeeding CMS content (sections, info cards, FAQs)...')
+    await seedCms(db, { log: (m) => console.log(m) })
+
+    // ─── 9. SEED COUPONS ────────────────────────────────────────────────────
+    console.log('\nSeeding launch coupons...')
+    await seedCoupons(db, { log: (m) => console.log(m) })
+
     // ─── SUMMARY ────────────────────────────────────────────────────────────
     console.log('\n' + '='.repeat(50))
     console.log('SEED COMPLETE')
@@ -555,6 +566,7 @@ async function seed() {
     console.log(`  Valuation rules:  synced for all catalog models (see detail above)`)
     console.log(`  Categories:       ${categoriesCreated} created, ${categoriesSkipped} skipped`)
     console.log(`  Settings:         ${settingsCreated} created, ${settingsSkipped} skipped`)
+    console.log('  CMS + Coupons:    see detail above (seeded idempotently)')
     console.log('='.repeat(50))
   } catch (e) {
     console.error('Seed failed:', e.message)

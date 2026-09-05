@@ -4,7 +4,6 @@ export interface CouponDiscountInput {
   maxDiscount?: number | null
   minOrderAmount?: number | null
 }
-
 // Pure discount computation shared by coupon validation and order creation so
 // the displayed discount always matches the applied discount. The returned
 // value is always within [0, total].
@@ -34,4 +33,28 @@ export function validateCouponFields(body: any): string | null {
   if (minOrderAmount !== undefined && (!Number.isFinite(Number(minOrderAmount)) || Number(minOrderAmount) < 0)) return 'minOrderAmount must be a non-negative number'
   if (maxDiscount !== undefined && (!Number.isFinite(Number(maxDiscount)) || Number(maxDiscount) < 0)) return 'maxDiscount must be a non-negative number'
   return null
+}
+
+// Evaluates whether a cart of ProductVariant ids contains an item covered by a
+// product- or category-restricted coupon. Used by the validate endpoint which
+// only has the cart's variant ids available (not full cart objects).
+export async function couponCartMatches(coupon: any, variantIds: string[]): Promise<boolean> {
+  if (!coupon || coupon.applicableTo === 'ALL' || !coupon.applicableTo) return true
+  if (!Array.isArray(variantIds) || variantIds.length === 0) return false
+
+  const { ProductVariant } = await import('../models/productVariant.model')
+  const { Product } = await import('../models/product.model')
+
+  const variants = await ProductVariant.find({ _id: { $in: variantIds } })
+
+  if (coupon.applicableTo === 'PRODUCTS') {
+    const productIds = new Set(variants.map((v: any) => String(v.productId)))
+    return (coupon.applicableProductIds || []).some((id: any) => productIds.has(String(id)))
+  }
+  if (coupon.applicableTo === 'CATEGORIES') {
+    const products = await Product.find({ _id: { $in: variants.map((v: any) => v.productId) } })
+    const categoryIds = new Set(products.map((p: any) => String(p.categoryId)))
+    return (coupon.applicableCategoryIds || []).some((id: any) => categoryIds.has(String(id)))
+  }
+  return false
 }

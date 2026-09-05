@@ -304,7 +304,7 @@ export default function CheckoutPage() {
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return
     try {
-      const res = await couponService.validateCoupon(couponCode, subtotal)
+      const res = await couponService.validateCoupon(couponCode, subtotal, items.map(i => i.variantId))
       if (res.success) {
         setAppliedCoupon(res.data)
         setCouponDiscount(res.data.discount)

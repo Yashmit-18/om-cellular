@@ -58,8 +58,10 @@ export default function AdminExchangeDetailPage() {
       data.inspectionChecklist = Object.fromEntries(filled)
     }
     if (status === 'PAYMENT_PENDING' || status === 'COMPLETED') {
+      // Payout applies only to a pure buyback (no store-credit settlement).
+      // Store-credit exchanges offset the new product and never disburse cash.
       const hasOutstanding = Number(finalValue || request.finalExchangeValue || 0) > 0
-      if (payout.amount || hasOutstanding) {
+      if (!request.newVariantId && (payout.amount || hasOutstanding)) {
         if (!payout.amount || Number(payout.amount) < 0) {
           toast.error('Enter a payout amount')
           return
@@ -83,6 +85,7 @@ export default function AdminExchangeDetailPage() {
   }
 
   const handleMarkPaid = async () => {
+    if (request.newVariantId) { toast.error('Store-credit exchanges do not include a payout'); return }
     if (!payout.amount || Number(payout.amount) < 0) { toast.error('Enter a payout amount'); return }
     setUpdating(true)
     try {

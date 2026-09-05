@@ -42,6 +42,15 @@ router.get('/validate/:code', optionalAuth, async (req: RouteRequest, res: Respo
     const applicabilityError = couponApplicabilityError(coupon as any, total)
     if (applicabilityError) return res.status(400).json({ success: false, message: applicabilityError })
 
+    // Target restriction: only apply if the cart contains a matching item.
+    if (coupon.applicableTo === 'PRODUCTS' || coupon.applicableTo === 'CATEGORIES') {
+      const itemsParam = String(req.query.items || '')
+      const variantIds = itemsParam.split(',').map((s) => s.trim()).filter(Boolean)
+      const { couponCartMatches } = await import('../services/coupon.service')
+      const ok = await couponCartMatches(coupon as any, variantIds)
+      if (!ok) return res.status(400).json({ success: false, message: 'This coupon does not apply to the items in your cart' })
+    }
+
     if (req.user?.id) {
       const usedByUser = await Order.countDocuments({ userId: req.user.id, couponCode: coupon.code, status: { $ne: 'CANCELLED' } })
       const maxPerUser = coupon.maxPerUser || 0

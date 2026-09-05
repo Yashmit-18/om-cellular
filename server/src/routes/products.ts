@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
+import { recordInventoryMovement } from '../models/inventoryLedger.model'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { slugify, paginate } from '../utils/helpers'
@@ -332,7 +333,30 @@ router.put('/:id/variants/:variantId', requireAdmin, async (req: AuthRequest, re
     if (!variant) return res.status(404).json({ success: false, message: 'Variant not found' })
     if (variant.productId.toString() !== req.params.id) return res.status(400).json({ success: false, message: 'Variant does not belong to this product' })
 
+    let stockDelta = 0
+    if (req.body.stock !== undefined) {
+      const parsedStock = Number(req.body.stock)
+      if (!Number.isFinite(parsedStock) || parsedStock < 0) {
+        return res.status(400).json({ success: false, message: 'stock must be a non-negative number' })
+      }
+      req.body.stock = parsedStock
+      stockDelta = parsedStock - Number(variant.stock || 0)
+    }
+
     const updated = await ProductVariant.findByIdAndUpdate(req.params.variantId, req.body, { new: true })
+    if (stockDelta !== 0) {
+      // Keep the inventory ledger complete when stock is edited through the
+      // product variant form (same MANUAL_ADJUSTMENT reason as the inventory page).
+      await recordInventoryMovement({
+        variantId: variant._id,
+        productId: variant.productId,
+        delta: stockDelta,
+        reason: 'MANUAL_ADJUSTMENT',
+        quantityAfter: Number(updated!.stock || 0),
+        adminId: req.user?.id as any,
+        note: 'Stock updated via product variant edit',
+      }).catch(() => {})
+    }
     return res.json({ success: true, message: 'Variant updated', data: updated })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })

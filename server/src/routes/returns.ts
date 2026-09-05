@@ -6,7 +6,7 @@ import { AuthRequest } from '../types'
 import { generateReturnNumber, paginate } from '../utils/helpers'
 import { writeAudit, serializeAuditValue } from '../services/audit.service'
 import { notify } from '../services/notification.service'
-import { POST_DELIVERY_STATES, assertTransition, ORDER_TRANSITIONS, RETURN_REQUEST_TRANSITIONS } from '../services/fsm.service'
+import { assertTransition, ORDER_TRANSITIONS, RETURN_REQUEST_TRANSITIONS } from '../services/fsm.service'
 import { restoreStockAndCoupon } from '../services/orderLifecycle.service'
 
 const router = Router()
@@ -31,7 +31,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (order.userId._id.toString() !== req.user!.id) {
       return res.status(403).json({ success: false, message: 'Access denied' })
     }
-    if (!POST_DELIVERY_STATES.includes(order.status)) {
+    // A return can only be filed once the order has reached DELIVERED. This
+    // strict gate (not "any post-delivery state") prevents abuse against
+    // orders already in a return/refund lifecycle.
+    if (order.status !== 'DELIVERED') {
       return res.status(400).json({ success: false, message: 'Returns are only available after the order has been delivered' })
     }
 
@@ -53,7 +56,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
       const quantity = Math.max(1, Math.min(Math.trunc(Number(it.quantity) || 1), orderItem.quantity))
       returnItems.push({ variantId: orderItem.variantId, quantity, price: orderItem.price })
-      returnedSubtotal += Number(orderItem.total) || 0
+      // Scale the line total by the returned fraction so returning 1 of 2 units
+      // contributes half the line value, never the full amount.
+      returnedSubtotal += (Number(orderItem.total) || 0) * (quantity / orderItem.quantity)
     }
 
     // Refund is proportional to the returned items' share of the order, so a
@@ -75,10 +80,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       statusHistory: [{ status: 'RETURN_REQUESTED', changedAt: new Date(), changedBy: 'CUSTOMER', note: 'Return requested by customer' }],
     })
 
-    if (order.status !== 'RETURN_REQUESTED') {
-      pushOrderStatusHistorySafe(order, 'RETURN_REQUESTED', 'CUSTOMER', 'Return requested')
-      await order.save()
-    }
+    pushOrderStatusHistorySafe(order, 'RETURN_REQUESTED', 'CUSTOMER', 'Return requested')
+    await order.save()
 
     await notify({
       userId: req.user!.id,
@@ -183,7 +186,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
 
       if (status === 'RETURN_RECEIVED') {
         if (order && !(order as any).stockRestored) {
-          await restoreStockAndCoupon(order).catch(() => {})
+          await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch(() => {})
           order.statusHistory = order.statusHistory || []
           order.statusHistory.push({ status: order.status, changedAt: new Date(), changedBy: 'ADMIN', note: 'Returned items received — stock restored' })
           await order.save()
@@ -198,12 +201,19 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
       }
 
       if (status === 'REFUNDED') {
-        // Gateway refund is triggered by the admin through /orders/:id/refund
-        // (an online-paid order). Here we record the linkage and complete the
-        // return only after the order already shows the refund.
+        // A paid online order can only be marked refunded AFTER the gateway
+        // refund has actually been issued via Admin > Orders > Refund (which
+        // records razorpayRefundId). Without this, marking a return refunded
+        // would flip paymentStatus to REFUNDED even though no money moved.
+        if (order && order.paymentGateway === 'razorpay' && !(order as any).razorpayRefundId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Issue the gateway refund first (Admin > Orders > Refund) before marking this return as refunded.',
+          })
+        }
         if (order) {
           if (!(order as any).stockRestored) {
-            await restoreStockAndCoupon(order).catch(() => {})
+            await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch(() => {})
           }
           returnRequest.refundedAt = new Date()
           returnRequest.refundId = (order as any).razorpayRefundId || returnRequest.refundId
