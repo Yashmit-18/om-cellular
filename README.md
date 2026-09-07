@@ -1,6 +1,6 @@
 # OM Cellular
 
-> **Current-state documentation — last audited 05 Sep 2026 (Phase 3: final production release candidate).** This README is an honest, code-verified description of what actually exists. Nothing here is aspirational; every claim was checked against the source, the configured database, and the running builds during this audit. Anything that could not be verified is explicitly marked `❓ NOT VERIFIED`.
+> **Current-state documentation — last audited 07 Sep 2026 (Phase 4: final production acceptance).** This README is an honest, code-verified description of what actually exists. Nothing here is aspirational; every claim was checked against the source, the configured database, and the running builds during this audit. Anything that could not be verified is explicitly marked `❓ NOT VERIFIED`.
 
 Maintenance rule: only the active branch `mern-migration` is maintained. No other branches exist and none should be created.
 
@@ -14,7 +14,7 @@ OM Cellular is a full-stack mobile phone commerce platform with four customer-fa
 - **Server**: Node.js + Express 4 + TypeScript API (`server/`)
 - **Database**: MongoDB Atlas via Mongoose 8
 - **Payments**: Razorpay Checkout SDK wired (init → verify → webhook), with admin-initiated Razorpay refunds — **disabled in the configured environment because no Razorpay keys are set** (COD only)
-- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — CI workflow, `render.yaml` blueprint, explicit `client/vercel.json` (SPA rewrite, Vite config) and deployment config are present. The live deployments do **not yet run the latest branch code** (Render runs an older build; Vercel needs its dashboard rebound to `client` + production branch `mern-migration`) — this is an external cut-over, not a code gap.
+- **Hosting targets**: Vercel/Netlify (frontend), Render (backend) — CI workflow, `render.yaml` blueprint, explicit `client/vercel.json` (SPA rewrite, Vite config) and deployment config are present. **Phase-4 verified 07 Sep 2026:** Render is now confirmed serving the latest release commit `ccd1e40` (health reports `version 1.0.0` + matching commit). The Vercel frontend still returns 404 from the configured project and needs a dashboard rebind to `client` + production branch `mern-migration` + `VITE_API_URL` — this remaining cut-over is external, not a code gap.
 
 The product catalog is a mix of new and refurbished phones with variants (storage/RAM/colour), a server-side phone-valuation engine (225 valuation records + 222 seeded catalog models), a serviceability (pincode × service) rule engine, persisted status-history tracking for orders, repairs, sell requests and exchange requests, in-app notifications with an admin broadcast screen, and automated audit logging of key admin actions.
 
@@ -84,14 +84,14 @@ Key architectural decisions (verified):
 
 | Target | Platform | Config in repo | Status at audit |
 |---|---|---|---|
-| Frontend | Vercel | `client/vercel.json` and root `vercel.json` — SPA rewrite `/(.*) → /index.html` | Live SPA reachable, but served build is **not the current branch** `❓` |
-| Frontend (alt) | Netlify | `netlify.toml` (base `client`, build `npm run build`, publish `dist`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) | Not verified |
-| Backend | Render | `render.yaml` blueprint added (web service, build `npm ci && npm run build`, start `npm start`) + dashboard/env | `/api/health` 200; **new endpoints (e.g. `/api/v1/serviceability/check`) return 404** → production is running an older build ❓ |
+| Frontend | Vercel | `client/vercel.json` and SPA rewrite `/(.*) → /index.html` | **`/` returns 404 (re-verified 07 Sep).** Repo config is correct; **dashboard rebind + redeploy is an external cut-over still pending** ❓ |
+| Frontend (alt) | Netlify | `netlify.toml` (base `client`, build `npm run build`, publish `dist`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) | Not verified (`om-cellular.netlify.app` 404) |
+| Backend | Render | `render.yaml` blueprint added (web service, build `npm ci && npm run build`, start `npm start`) + dashboard/env | **✅ VERIFIED 07 Sep — serving latest release `ccd1e40`.** `/api/health` reports `version 1.0.0` + matching commit; previously-404 `/api/v1/serviceability/check`, `/api/v1/phone-valuations/calculate`, products/search/repair-services/valuation/catalog + public order/repair tracking all return 200. No longer running an old build. |
 | Database | MongoDB Atlas | Connection string via `MONGODB_URI` (server `.env`, gitignored); `database.ts` forces public DNS (8.8.8.8/1.1.1.1) | Connected; used by this audit and by the E2E harness |
 
 Documented origins (from `server/src/config/cors.ts` and `netlify.toml`): `https://om-cellular-iota.vercel.app`, Render backend at `https://om-cellular.onrender.com`. CORS also allow-lists `env.CLIENT_URL`, `env.CLIENT_ORIGINS` (comma-separated), and `localhost:5173/3000`.
 
-⚠️ **Deployment gap (verified):** after pushing the latest code to `mern-migration`, the live frontend/backend did not redeploy. The backend health endpoint works but new routes 404, and the frontend root returns 404 from the configured Vercel project. Likely cause: cloud dashboards are bound to a different branch or require a manual deploy. Until this is resolved, **production does not reflect this repository.**
+⚠️ **Deployment gap (updated 07 Sep 2026):** the Render backend is confirmed on the latest commit. The Vercel frontend still returns 404 from the configured project (root, deep routes, and even `robots.txt`/`sitemap.xml`). Likely cause: the Vercel project is still bound to a stale root/branch or needs a manual redeploy. Exact dashboard actions: **Project Settings → Root Directory=`client`, Framework=Vite, Build=`npm run build`, Output=`dist`; Production Branch=`mern-migration`; Environment Variable `VITE_API_URL=https://om-cellular.onrender.com/api/v1`; then Deploy.** Until this is done, the production **frontend** does not reflect this repository.
 
 ---
 
@@ -341,7 +341,7 @@ Admin UX notes: lazy-loaded pages, per-row edit/delete/toggle with inline forms 
 
 ## 17. Product & Phone Catalog
 
-**Current database contents (configured Atlas DB, captured 05 Sep 2026 — shared with the dev/E2E environment):**
+**Current database contents (configured Atlas DB, captured 05 Sep 2026 — re-verified 07 Sep 2026 during Phase-4 final acceptance; counts unchanged: 246 products / 670 variants / 222 catalog models / 225 valuations confirmed live):**
 
 | Collection | Count | Notes |
 |---|---|---|
@@ -458,7 +458,7 @@ Client-side freshness note: `services/analytics.service.ts` calls `/analytics/da
 - **CI**: `.github/workflows/ci.yml` — on push/PR to `main`/`mern-migration`, runs server lint + tests + build and client lint + build on Node 20.
 - **Render blueprint**: `render.yaml` (web service, root `server`, build `npm ci && npm run build`, start `npm start`, required env vars marked `sync:false` for dashboard entry).
 - **Production seeds** (idempotent, upsert on lookup key): `npm run seed:cms` (5 homepage sections, 3 information cards, 8 FAQs — no image-dependent banners, no fake testimonials) and `npm run seed:coupons` (WELCOME10, FLAT100), both wired into `seedAll.js` stages 8–9 and run against the live Atlas DB (re-runs create 0 duplicates).
-- Production deploy state: ❓ **external cut-over pending** — backend on Render runs an older build (new routes 404); frontend on Vercel needs the dashboard rebound (Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`). No CLI/dashboard access from this machine, so this state is documented, never faked.
+- Production deploy state (updated 07 Sep 2026): **Render = 🟢 live on latest release** (`ccd1e40`, versioned health verified); **Vercel/Netlify = 🔴 external cut-over pending** — the frontend project must be rebound (Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) and deployed. No CLI/dashboard access from this machine, so the frontend state is documented, never faked.
 
 ---
 
@@ -490,13 +490,13 @@ Security status: only `.env.example` files are committed (no real secrets). Veri
 | Server unit tests (`npm test` = `tsx --test`) | ✅ **PASS 47/47** — FSM transition guards + full sell/exchange/return paths (orders/repairs/sell/exchange/returns), coupon engine (percentage/fixed/min-order/maxDiscount/malformed), valuation engine edge cases, request-number/slugify/formatPrice/paginate/Luhn-IMEI/phone-normalize helpers, serviceability pure matching (legacy mode / gating / whitespace), inspection-checklist + payout normalization/auto-payout, return-number pattern + movement-reason completeness. Found + fixed real bugs en route: `paginate` returned `NaN` for non-numeric input; an area with a service disabled was treated as "not configured" |
 | Production seeds (CMS + coupons) | ✅ Ran against live Atlas DB: CMS 5 sections / 3 cards / 8 FAQs created, 2 coupons created; **re-run inserted 0** (idempotent) |
 | Ad-hoc E2E integration harness (temporary, outside repo) | ✅ **PASS 43/43** against live Atlas: serviceability check/gate, notify-me, area CRUD, register/login, addresses, auth/me, sell/exchange/repair with status history, COD order → public tracking → admin mark paid/ship, delivery-gate block/allow, customers enrichment, analytics. This harness is not part of the repository. |
-| Production API (`GET /api/health`) | ❗ REACHABLE (200) but running an older build: `/api/v1/serviceability/check` → 404 (re-verified 05 Sep 2026). The deployed health payload predates the new `version`/`commit` fields. |
+| Production API (live Render, re-verified 07 Sep 2026) | ✅ **200 — serving latest release `ccd1e40`**: `/api/health` returns `version 1.0.0` + commit matching HEAD; `/api/v1/serviceability/check` (all 5 services), `/api/v1/phone-valuations/calculate`, `/api/v1/products`, search, brands/categories/settings, repair-services, phone-catalog (222), public order + repair tracking all verified live. Admin-only endpoints correctly 401 without auth. |
 
 ---
 
 ## 25. Known Issues (verified)
 
-1. **Live deployments still do not run this branch** — the deploy config is now correct (explicit `client/vercel.json` + removed root `vercel.json`; `render.yaml` health check; CI present), but the dashboards have not been rebound: Render runs an older build, and Vercel needs Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, and `VITE_API_URL`. This is an external cut-over (no CLI/dashboard access), not a code gap.
+1. **Render is live; the frontend cut-over is still external** — the deploy config is correct (explicit `client/vercel.json` + removed root `vercel.json`; `render.yaml` health check; CI present). Phase 4 confirmed the Render backend serves `ccd1e40`. Vercel still 404s and needs Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL`, then a deploy. This is an external cut-over (no CLI/dashboard access), not a code gap.
 2. **Online payments disabled** — Razorpay keys not provisioned; checkout correctly hides online methods. Consequently **live refunds cannot be exercised** (code + admin UI complete).
 3. **Forgot-password flow has no delivery provider** — the reset endpoint/token logic exists but nothing sends the link.
 4. **CMS seeded but partial** — 5 homepage sections, 3 info cards and 8 FAQs are now live in the database (factual content only). No image-dependent **banners** (assets don't exist) and **no testimonials** (never fabricated); both admin pages remain ready to add real content.
@@ -552,12 +552,12 @@ Scored on **functional completeness** (backend → API → persistence), not vis
 | Search | 🟡 | 75% | Full search works server-side paginated; model suggestions live (catalog seeded). No typo-tolerance/full-text/SEO. |
 | Mobile UX | 🟡 | 75% | Bottom nav, tap targets, responsive; admin less polished; some silent errors. |
 | Security | ✅ | 88% | Helmet/CORS/rate-limits/bcrypt/httpOnly-cookie auth/brute-force lockout/revocable sessions/IDOR + owner-of-record + reveal-leak audit (sanitized public endpoints, guest records fail-closed, refund gating, coupon/review field minimization, includeAll admin-gated, trust proxy) **+ Phase-3: gateway-refund verification, strict return gate, cross-entity IMEI dupe guard, repair owner sanitization, user toJSON password strip, health exempt from rate limit, bounded 2mb bodies**. Gaps: in-memory lockout store, zod unused. |
-| Production Deployment | 🟡 | 45% | Deploy config corrected (explicit client Vercel config, root vercel.json removed, render health check), **safe CMS + coupon seeds run live**, health endpoint reports version+commit. Live dashboards still not rebound (external); online payments unprovisioned. |
+| Production Deployment | 🟡 | 55% | Deploy config corrected (explicit client Vercel config, root vercel.json removed, render health check), **safe CMS + coupon seeds run live**, health endpoint reports version+commit. **Phase-4: Render verified live on latest commit (`ccd1e40`); Vercel frontend rebind + redeploy still external; online payments unprovisioned.** |
 | Testing | ✅ | 92% | Builds pass; **47/47 in-repo unit tests**; ESLint clean; 43/43 E2E (external harness). |
 
-**Overall estimated completion: ≈ 86%**
+**Overall estimated completion: ≈ 88%**
 
-(The number reflects that this is a real, working system with genuine e-commerce depth. Phase 2 closed the customer-lifecycle code gaps — returns, warranty, inventory ledger, coupon engine, reset-password, sell/exchange completion records, and a security/IDOR audit — and grew the in-repo test suite to 47. Phase 3, the final release candidate, removed the remaining code-level blockers before go-live: FAILED→PAID stock/coupon recovery, duplicate-order guard, coupon target enforcement, strict return gate + gateway-refund verification, cross-entity IMEI duplication, refund scaling, numeric/ledger completeness fixes, repair sanitization, health-exempt-from-rate-limit + versioned health, bounded bodies, and safe production CMS/coupon seeds. What remains is the **operational cut-over** layer — provisioning Razorpay + one live pay/refund and rebinding the Render/Vercel dashboards to this branch — plus additive maturity features.)
+(The number reflects that this is a real, working system with genuine e-commerce depth. Phase 2 closed the customer-lifecycle code gaps — returns, warranty, inventory ledger, coupon engine, reset-password, sell/exchange completion records, and a security/IDOR audit — and grew the in-repo test suite to 47. Phase 3, the final release candidate, removed the remaining code-level blockers before go-live: FAILED→PAID stock/coupon recovery, duplicate-order guard, coupon target enforcement, strict return gate + gateway-refund verification, cross-entity IMEI duplication, refund scaling, numeric/ledger completeness fixes, repair sanitization, health-exempt-from-rate-limit + versioned health, bounded bodies, and safe production CMS/coupon seeds. Phase 4 (07 Sep 2026) verified the Render backend **live on the latest commit** and re-verified the Atlas data census, lifting deploy confidence. What remains is the **external cut-over** layer — rebinding/deploying the Vercel frontend, provisioning Razorpay + one live pay/refund, and supplying real business content (banners/testimonials/reviews/service areas) — plus additive maturity features.)
 
 ---
 
@@ -591,14 +591,14 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 | V. Performance | 🟡 | **Server-side products pagination added**; no image CDN + no caching remain the ceiling. |
 | W. Mobile UX | 🟡 | Good responsive web; no PWA/offline, no native app. |
 | X. Security | 🟡 | Good baseline **hardened** (httpOnly-only tokens, revocable sessions, brute-force lockout, **IDOR/reveal-leak audit + sanitized public endpoints + admin-gated includeAll + trust proxy**); needs shared store + zod + audit automation expansion. |
-| Y. Production Operations | 🔴 | **CI + render.yaml added**, but live deploys not current; no monitoring/error tracking, no staging parity. |
+| Y. Production Operations | 🟡 | **CI + render.yaml added; Render now live on latest commit (Phase-4 verified)** — Vercel frontend cut-over + Razorpay provisioning remain external; no monitoring/error tracking, no staging parity. |
 
 ---
 
 ## 29. Recommended Next Development Phases
 
 **P0 — Critical / blocking production**
-1. Fix deployment wiring so `mern-migration` is what renders on Render + Vercel; verify the new routes live. *Impact:* everything else depends on a real environment. *(CI + `render.yaml` are now in place; the dashboards are not yet pointed at this branch.)*
+1. Finish the frontend cut-over so `mern-migration` is what renders on Vercel; verify the new routes live. *Impact:* customers still see a 404 until done. *(Render is already live on this branch — Phase-4 verified. The Vercel project still needs Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL`, then a deploy.)*
 2. Provision Razorpay keys + webhook secret; run a live UPI payment and a live refund. *Impact:* unlocks the online-payment + refund line; currently that revenue path is disabled (code is whole).
 3. Add seed data / admin onboarding for the remaining empty collections: reviews, banners/testimonials (content must be real, not fabricated), and service-area PIN data. *(Coupons + CMS sections/cards/FAQs are now seeded in Phase 3 — `npm run seed:coupons` / `seed:cms`.)*
 4. *(Done)* Refunds + cancellations + stock restore + strict FSMs + server-side valuation authority — shipped in the production-hardening pass.
@@ -632,21 +632,23 @@ Mature used-phone platforms (Cashify-class) typically have: catalog + search + u
 ```
 Technically deployable:   YES   (builds, 47/47 unit tests, lint all pass; E2E green vs Atlas; CI + render.yaml + explicit Vercel config included;
                                   safe CMS/coupon seeds run live and idempotent)
-Business-ready:           NO     (online payments disabled; live deploys not rebound — both external cut-over steps;
+Backend live:             YES   (Render verified 07 Sep 2026 on commit ccd1e40 — health, serviceability, valuation, catalog, tracking all 200)
+Frontend live:            NO    (Vercel project still 404s — external dashboard rebind + redeploy pending)
+Business-ready:           PARTIAL (online payments disabled — external Razorpay provisioning; frontend cut-over pending;
                                   delivery providers + courier integration still missing)
-Cashify-level mature:     NO     (see Gap Analysis — H, and parts of E, G, T, Y are the big distances)
-Overall verdict:          CONDITIONALLY READY — final release candidate
+Cashify-level mature:     NO    (see Gap Analysis — H, and parts of E, G, T, Y are the big distances)
+Overall verdict:          CONDITIONALLY READY — Phase 4 FINAL ACCEPTANCE: backend accepted; frontend + payments externally blocked
 ```
 
-Conditionally ready means: **if** the two external cut-over steps are completed (1) provision Razorpay keys + webhook secret and run one live pay + one live refund (the code is complete, including FAILED→PAID recovery and refund-gating), and (2) rebind the Vercel (Root Directory=`client`, Framework=Vite, branch `mern-migration`, `VITE_API_URL`) and Render dashboards to this branch, the platform could support real customers for the COD + buy/sell/repair/exchange lines. Everything code-side that was blocking go-live has been closed in the hardening, Phase-2 and Phase-3 passes; what remains is operational cut-over, not code.
+Phase-4 final acceptance result: backend **accepted live** (Render serves the latest release; public + gated endpoints behave correctly). The frontend and live-money lines remain externally blocked. **GO-live requires:** (1) rebind Vercel (Root Directory=`client`, Framework=Vite, Production Branch=`mern-migration`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) and deploy; (2) provision Razorpay keys + webhook secret and run one live pay + one live refund (code is complete, incl. FAILED→PAID recovery and refund-gating); (3) supply real business content (banners/testimonials/reviews/service-area PINs). Everything code-side that was blocking go-live was closed in the hardening, Phase-2 and Phase-3 passes; what remains is the external cut-over + operations, not code.
 
 ---
 
 ## 31. Final Audit Summary
 
-- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth hardening (brute-force lockout, revocable sessions), strict status FSMs, customer cancellations with stock restore, server-authoritative sell/exchange valuation, in-app notifications with admin broadcast, automated audit logging, **returns + warranty + inventory-ledger + coupon engine + sell/exchange completion records + reset-password flow + a security/IDOR audit**, and **47/47 in-repo unit tests** + clean ESLint + CI. Phase 3 added the final code-side release-candidate hardening: **FAILED→PAID recovery (stock + coupon re-allocated, never oversold), duplicate-order guard, coupon product/category target enforcement, strict DELIVERED-only returns + gateway-refund verification, cross-entity IMEI duplicate detection, proportional partial-quantity refunds, numeric + ledger-completeness fixes, repair owner sanitization, versioned health exempt from rate limiting, bounded bodies, and safe idempotent CMS/coupon production seeds** (run live against Atlas). 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed.
-- **What it is not yet:** production-provisioned commerce. Payments are unprovisioned (so live pay/refund is code-complete but unexercised), the Render/Vercel dashboards still serve older builds (external rebinding needed), and maturity features (delivery providers, courier integration, exchange instant credit, notification delivery, guest checkout, SEO prerender, native apps) are ahead.
-- **Single biggest lever:** cut over the deployment to this branch (Vercel → `client` + production branch `mern-migration` + `VITE_API_URL`; Render → current commit via its health check / start command) and provision Razorpay + run one live pay/refund — after that, the honest "completeness" climbs immediately from ~86% toward ~90%+ because the remaining gaps are incremental rather than architectural.
+- **What this is:** a genuine, working MERN application with four service lines, real DB-backed admin, auth hardening (brute-force lockout, revocable sessions), strict status FSMs, customer cancellations with stock restore, server-authoritative sell/exchange valuation, in-app notifications with admin broadcast, automated audit logging, **returns + warranty + inventory-ledger + coupon engine + sell/exchange completion records + reset-password flow + a security/IDOR audit**, and **47/47 in-repo unit tests** + clean ESLint + CI. Phase 3 added the final code-side release-candidate hardening: **FAILED→PAID recovery (stock + coupon re-allocated, never oversold), duplicate-order guard, coupon product/category target enforcement, strict DELIVERED-only returns + gateway-refund verification, cross-entity IMEI duplicate detection, proportional partial-quantity refunds, numeric + ledger-completeness fixes, repair owner sanitization, versioned health exempt from rate limiting, bounded bodies, and safe idempotent CMS/coupon production seeds** (run live against Atlas). 43/43 E2E checks pass; builds are clean; no dummy data; no secrets committed. **Phase-4 final acceptance (07 Sep 2026):** Render verified live on `ccd1e40` — versioned health, serviceability, valuation, catalog/search and public order/repair tracking all 200; admin-only endpoints 401 without auth; data integrity re-verified (246 products / 670 variants / 222 catalog models, images + pricing + stock valid); live Atlas numbers match the Phase-3 census exactly.
+- **What it is not yet:** production-provisioned commerce end to end. Payments are unprovisioned (so live pay/refund is code-complete but unexercised), the Vercel frontend still 404s (external rebinding + deploy needed), and maturity features (delivery providers, courier integration, exchange instant credit, notification delivery, guest checkout, SEO prerender, native apps) are ahead.
+- **Single biggest lever:** finish the external cut-over — rebind/deploy the Vercel frontend (Root Directory=`client`, Framework=Vite, branch `mern-migration`, `VITE_API_URL=https://om-cellular.onrender.com/api/v1`) and provision Razorpay + run one live pay/refund. The Render backend is already on the latest commit. After the frontend + payment cut-over, the honest "completeness" climbs from ~88% toward ~90%+ because the remaining gaps are incremental rather than architectural.
 
 ---
 
