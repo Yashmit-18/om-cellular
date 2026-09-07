@@ -31,7 +31,7 @@ const repairServiceSchema = new Schema<IRepairService>({
   icon: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 export const RepairService = mongoose.model<IRepairService>('RepairService', repairServiceSchema)
 
@@ -128,7 +128,7 @@ const repairBookingSchema = new Schema<IRepairBooking>({
   pickupFee: { type: Number, default: 0, min: 0 },
   appointmentDate: { type: Date },
   appointmentTime: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 repairBookingSchema.index({ userId: 1 })
 repairBookingSchema.index({ status: 1 })
@@ -147,7 +147,7 @@ const repairStatusHistorySchema = new Schema<IRepairStatusHistory>({
   repairId: { type: Schema.Types.ObjectId, ref: 'RepairBooking', required: true },
   status: { type: String, required: true },
   note: { type: String },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 repairStatusHistorySchema.index({ repairId: 1 })
 

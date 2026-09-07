@@ -14,12 +14,15 @@ function serializeValue(value: unknown): string {
 
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = '1', limit = '20' } = req.query
+    const { page = '1', limit = '20', scope } = req.query
     const { skip, limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
-    const where = { userId: req.user!.id }
+    const canSeeAll = req.user!.role === 'ADMIN' && scope === 'all'
+    const where = canSeeAll ? {} : { userId: req.user!.id }
     const [notifications, total] = await Promise.all([
-      Notification.find(where).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
+      Notification.find(where)
+        .populate(canSeeAll ? 'userId' : '', 'name email')
+        .sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
       Notification.countDocuments(where),
     ])
 

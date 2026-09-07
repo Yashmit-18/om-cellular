@@ -58,7 +58,7 @@ const returnRequestSchema = new Schema<IReturnRequest>(
     trackingNumber: { type: String, trim: true },
     adminNote: { type: String, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 )
 
 returnRequestSchema.index({ orderId: 1 })

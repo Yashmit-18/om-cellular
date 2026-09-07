@@ -166,8 +166,12 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
     // primaryImage is an output-only computed field; derive it here so the
     // pipeline stays free of fragile array/string shape handling.
+    // Aggregated rows are plain POJOs — Mongoose's `id` virtual never runs on
+    // them, so expose `id` explicitly for both the product and its variants.
     const data = raw.map((p: any) => ({
       ...p,
+      id: String(p._id),
+      variants: (p.variants || []).map((v: any) => ({ ...v, id: String(v._id) })),
       primaryImage:
         (Array.isArray(p.images) && p.images.find(Boolean)) ||
         (p.variants || []).map(extractVariantImage).find(Boolean) ||
@@ -181,6 +185,34 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     })
   } catch (error) {
     console.error('GET /products error:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
+
+router.get('/by-variant/:variantId', optionalAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { variantId } = req.params
+    if (!mongoose.Types.ObjectId.isValid(variantId)) {
+      return res.status(400).json({ success: false, message: 'Invalid variant id' })
+    }
+    // Must stay above GET /:id — it matches the literal "by-variant" prefix.
+    const variant: any = await ProductVariant.findOne({ _id: variantId, isActive: true }).lean()
+    if (!variant) return res.status(404).json({ success: false, message: 'Variant not found' })
+
+    const product: any = await Product.findOne({ _id: variant.productId, isActive: true }).populate('brand').populate('category')
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
+
+    const variantWithId = { ...variant, id: String(variant._id) }
+    return res.json({
+      success: true,
+      data: {
+        ...product.toObject(),
+        variants: [variantWithId],
+        ...computeProductSummary(product, [variantWithId]),
+      },
+    })
+  } catch (error) {
+    console.error('GET /products/by-variant error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

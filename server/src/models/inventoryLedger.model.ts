@@ -40,7 +40,7 @@ const inventoryLedgerSchema = new Schema<IInventoryLedgerEntry>(
     adminId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     note: { type: String, trim: true },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 )
 
 inventoryLedgerSchema.index({ variantId: 1, createdAt: -1 })

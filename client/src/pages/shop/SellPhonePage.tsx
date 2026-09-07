@@ -115,6 +115,16 @@ export default function SellPhonePage() {
     setValuationState('idle')
   }, [])
 
+  // Only the condition/accessory fields influence the estimate — derive a
+  // stable object so typing phone/IMEI/pickup details on step 4 doesn't fire
+  // a valuation request on every keystroke.
+  const valuationFields = useMemo(() => ({
+    condition: form.condition, age: form.age,
+    displayCondition: form.displayCondition, batteryCondition: form.batteryCondition,
+    cameraCondition: form.cameraCondition, bodyCondition: form.bodyCondition,
+    accessoriesAvailable: form.accessoriesAvailable, originalBill: form.originalBill, originalBox: form.originalBox,
+  }), [form.condition, form.age, form.displayCondition, form.batteryCondition, form.cameraCondition, form.bodyCondition, form.accessoriesAvailable, form.originalBill, form.originalBox])
+
   const calculateValue = useCallback(async () => {
     if (!selectedBrand || !selectedModel || !selectedStorage) return
     setCalculating(true)
@@ -123,10 +133,10 @@ export default function SellPhonePage() {
       const r = await phoneValuationService.calculateValuation({
         brand: selectedBrand, model: selectedModel.modelName,
         storage: selectedStorage.storage, ram: selectedStorage.ram,
-        condition: form.condition, age: form.age,
-        displayCondition: form.displayCondition, batteryCondition: form.batteryCondition,
-        cameraCondition: form.cameraCondition, bodyCondition: form.bodyCondition,
-        accessoriesAvailable: form.accessoriesAvailable, originalBill: form.originalBill, originalBox: form.originalBox,
+        condition: valuationFields.condition, age: valuationFields.age,
+        displayCondition: valuationFields.displayCondition, batteryCondition: valuationFields.batteryCondition,
+        cameraCondition: valuationFields.cameraCondition, bodyCondition: valuationFields.bodyCondition,
+        accessoriesAvailable: valuationFields.accessoriesAvailable, originalBill: valuationFields.originalBill, originalBox: valuationFields.originalBox,
       })
       if (r.success) {
         setEstimatedValue(r.data.estimatedValue)
@@ -139,11 +149,11 @@ export default function SellPhonePage() {
     } finally {
       setCalculating(false)
     }
-  }, [selectedBrand, selectedModel, selectedStorage, form])
+  }, [selectedBrand, selectedModel, selectedStorage, valuationFields])
 
   useEffect(() => {
     if (step === 4 && selectedStorage) calculateValue()
-  }, [step, form, selectedStorage, calculateValue])
+  }, [step, valuationFields, selectedStorage, calculateValue])
 
   const handleSubmit = async () => {
     if (!selectedBrand || !selectedModel || !selectedStorage) { toast.error('Please complete all selections'); return }

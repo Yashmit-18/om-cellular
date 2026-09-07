@@ -56,6 +56,9 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { oldBrand, oldModel, oldStorage, oldRam, oldCondition, newVariantId, oldDeviceDetails, phone, alternatePhone, oldImei, oldConditionDetails, pickupPincode } = req.body
     if (!oldBrand || !oldModel || !oldCondition) return res.status(400).json({ success: false, message: 'Old device brand, model, and condition are required' })
+    const normalizedBrand = String(oldBrand).trim()
+    const normalizedModel = String(oldModel).trim()
+    if (!normalizedBrand || !normalizedModel) return res.status(400).json({ success: false, message: 'Old device brand and model are required' })
 
     const normalizedImei = oldImei ? oldImei.replace(/\s+/g, '') : undefined
     if (normalizedImei && !isValidImei(normalizedImei)) {
@@ -106,7 +109,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
     // Server-authoritative estimate for the old device.
     const valuation = await calculateValuation({
-      brand: oldBrand, model: oldModel, storage: oldStorage, ram: oldRam, condition: oldCondition,
+      brand: normalizedBrand, model: normalizedModel, storage: oldStorage, ram: oldRam, condition: oldCondition,
       displayCondition: oldConditionDetails?.displayCondition,
       batteryCondition: oldConditionDetails?.batteryCondition,
       bodyCondition: oldConditionDetails?.bodyCondition,
@@ -126,7 +129,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
 
     const request = await ExchangeRequest.create({
       requestNumber, userId, phone, alternatePhone: alternatePhone ? String(alternatePhone).trim() : undefined,
-      oldBrand, oldModel, oldStorage, oldRam, oldCondition,
+      oldBrand: normalizedBrand, oldModel: normalizedModel, oldStorage, oldRam, oldCondition,
       oldImei: normalizedImei || undefined,
       valuationSource: valuation.source,
       newVariantId: newVariantId || null,
@@ -144,7 +147,7 @@ router.post('/', optionalAuth, async (req: AuthRequest, res: Response) => {
         userId: req.user.id,
         type: 'EXCHANGE',
         title: 'Exchange request submitted',
-        message: `Your exchange request ${requestNumber} for the ${oldBrand} ${oldModel} has been received.`,
+        message: `Your exchange request ${requestNumber} for the ${normalizedBrand} ${normalizedModel} has been received.`,
         metadata: { requestId: String(request._id), entity: 'exchange_request', status: 'SUBMITTED' },
       }).catch(() => {})
     }

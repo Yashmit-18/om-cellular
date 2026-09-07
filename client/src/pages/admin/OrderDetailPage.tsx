@@ -90,7 +90,7 @@ export default function AdminOrderDetailPage() {
     setUpdating(true)
     try {
       const res = await orderService.refund(id)
-      setOrder(res.data.data)
+      setOrder(res.data)
       toast.success('Refund initiated')
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Could not initiate refund')
@@ -142,9 +142,21 @@ export default function AdminOrderDetailPage() {
         </div>
         <div className="space-y-4">
           <div className="card p-6">
+            <h2 className="font-semibold mb-2">Customer</h2>
+            {order.user?.name ? (
+              <div className="text-sm text-gray-600">
+                <p className="font-medium text-gray-900">{order.user.name}</p>
+                {order.user.email && <p>{order.user.email}</p>}
+                {order.user.phone && <p>{order.user.phone}</p>}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Guest order</p>
+            )}
+          </div>
+          <div className="card p-6">
             <h2 className="font-semibold mb-3">Summary</h2>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(order.total - order.shipping - order.tax + order.discount)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(order.subtotal ?? (order.total - order.shipping - order.tax + order.discount))}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{formatPrice(order.shipping)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{formatPrice(order.tax)}</span></div>
               {order.couponDiscount > 0 && <div className="flex justify-between text-emerald-600"><span>Coupon</span><span>-{formatPrice(order.couponDiscount)}</span></div>}

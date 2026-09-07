@@ -83,7 +83,7 @@ const exchangeRequestSchema = new Schema<IExchangeRequest>({
   statusHistory: { type: [exchangeStatusSchema], default: [] },
   oldDeviceDetails: { type: Schema.Types.Mixed, default: {} },
   adminNotes: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 exchangeRequestSchema.index({ userId: 1 })
 exchangeRequestSchema.index({ status: 1 })

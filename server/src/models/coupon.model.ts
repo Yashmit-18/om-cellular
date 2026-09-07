@@ -34,7 +34,7 @@ const couponSchema = new Schema<ICoupon>({
   applicableCategoryIds: { type: [String], default: [] },
   expiresAt: { type: Date },
   isActive: { type: Boolean, default: true },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 couponSchema.index({ isActive: 1 })
 

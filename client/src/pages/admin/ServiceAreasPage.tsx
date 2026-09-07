@@ -49,7 +49,7 @@ export default function AdminServiceAreasPage() {
     if (!window.confirm(`Delete service area for ${area.city}, ${area.state}?`)) return
     try {
       await serviceabilityService.deleteArea(area.id || area._id)
-      setAreas(prev => prev.filter(a => a.id !== area.id))
+      setAreas(prev => prev.filter(a => a.id !== area.id && a._id !== area._id))
       toast.success('Area deleted')
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to delete area')

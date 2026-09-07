@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { repairService } from '../../services/repair.service'
-import { formatDate } from '../../utils'
+import { formatDate, formatPrice } from '../../utils'
 import { REPAIR_STATUS_COLORS } from '../../constants'
 import { storeAddressText, googleMapsSearchUrl } from '../../utils'
 
@@ -44,10 +44,10 @@ export default function RepairTrackPage() {
         <p className="mt-2 text-gray-500">Enter your booking number to track status</p>
       </div>
       <div className="mt-8 card p-6">
-        <div className="flex gap-3">
+        <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
           <input value={bookingNumber} onChange={e => setBookingNumber(e.target.value)} placeholder="Booking number" className="input flex-1" />
-          <button onClick={handleTrack} disabled={loading} className="btn-primary">{loading ? 'Tracking...' : 'Track'}</button>
-        </div>
+          <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Tracking...' : 'Track'}</button>
+        </form>
         {result && (
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -57,10 +57,10 @@ export default function RepairTrackPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><p className="text-gray-500">Device</p><p className="font-medium">{result.brand} {result.model}</p></div>
               <div><p className="text-gray-500">Created</p><p className="font-medium">{formatDate(result.createdAt)}</p></div>
-              {result.estimatedCost && <div><p className="text-gray-500">Estimated Cost</p><p className="font-medium">Rs. {result.estimatedCost}</p></div>}
+              {result.estimatedCost ? <div><p className="text-gray-500">Estimated Cost</p><p className="font-medium">{formatPrice(result.estimatedCost)}</p></div> : null}
               {result.technicianName && <div><p className="text-gray-500">Technician</p><p className="font-medium">{result.technicianName}</p></div>}
               <div><p className="text-gray-500">Service Mode</p><p className="font-medium">{result.serviceMode === 'DOORSTEP_PICKUP' ? 'Doorstep Pickup' : 'Store Drop-off'}</p></div>
-              {result.pickupFee > 0 && <div><p className="text-gray-500">Pickup Fee</p><p className="font-medium">Rs. {result.pickupFee}</p></div>}
+              {result.pickupFee > 0 && <div><p className="text-gray-500">Pickup Fee</p><p className="font-medium">{formatPrice(result.pickupFee)}</p></div>}
             </div>
             {result.serviceMode === 'STORE_DROP' && (
               <p className="mt-2 rounded-lg bg-brand-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700">Get directions</a></p>

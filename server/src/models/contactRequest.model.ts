@@ -23,7 +23,7 @@ const contactRequestSchema = new Schema<IContactRequest>({
   message: { type: String, required: true },
   status: { type: String, default: 'PENDING', enum: ['PENDING', 'READ', 'REPLIED', 'ARCHIVED'] },
   adminNotes: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 contactRequestSchema.index({ status: 1 })
 contactRequestSchema.index({ createdAt: -1 })

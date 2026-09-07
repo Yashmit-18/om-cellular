@@ -1,4 +1,5 @@
 import { Router, Response } from 'express'
+import mongoose from 'mongoose'
 import { Order, OrderItem } from '../models/order.model'
 import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
@@ -48,6 +49,10 @@ async function decrementStock(variant: any, quantity: number): Promise<boolean> 
 }
 
 async function loadActiveVariant(variantId: any) {
+  // A missing/garbage variantId previously resolved to the first active
+  // variant (findOne with an undefined filter), silently charging the wrong
+  // product. Treat it as not-found so the caller returns a 400.
+  if (!variantId || typeof variantId !== 'string' || !mongoose.Types.ObjectId.isValid(variantId)) return null
   return ProductVariant.findOne({ _id: variantId, isActive: true })
 }
 

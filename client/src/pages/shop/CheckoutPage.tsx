@@ -42,7 +42,7 @@ export default function CheckoutPage() {
   const subtotal = getTotal()
   const shipping = subtotal >= shippingConfig.free ? 0 : shippingConfig.standard
   const tax = Math.round(subtotal * taxRate * 100) / 100
-  const total = subtotal + shipping + tax - couponDiscount
+  const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
 
   useEffect(() => {
     paymentService.getConfig()
@@ -65,7 +65,7 @@ export default function CheckoutPage() {
         setAddresses(addrs)
         const defaultAddr = addrs.find((a: any) => a.isDefault)
         if (defaultAddr) {
-          setSelectedAddressId(defaultAddr.id)
+          setSelectedAddressId(defaultAddr.id || defaultAddr._id)
           setAddressForm(f => ({
             ...f,
             name: defaultAddr.name, phone: defaultAddr.phone,
@@ -91,7 +91,7 @@ export default function CheckoutPage() {
   }, [user])
 
   const selectSavedAddress = (addr: any) => {
-    setSelectedAddressId(addr.id)
+    setSelectedAddressId(addr.id || addr._id)
     setAddressForm({
       name: addr.name, phone: addr.phone,
       alternatePhone: addr.alternatePhone || '',
@@ -230,6 +230,8 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
+    const wasProcessing = paymentState === 'processing'
+    if (paymentState === 'creating' || paymentState === 'initializing' || wasProcessing || loading) return
     if (!user) {
       toast.error('Please login to place your order')
       return
@@ -297,7 +299,7 @@ export default function CheckoutPage() {
       toast.error(err.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
-      if (paymentState !== 'processing') setPaymentState('idle')
+      if (!wasProcessing) setPaymentState('idle')
     }
   }
 
@@ -343,21 +345,23 @@ export default function CheckoutPage() {
               {addresses.length > 0 && (
                 <>
                   <div className="mt-4 space-y-3">
-                    {addresses.map((addr: any) => (
+                    {addresses.map((addr: any) => {
+                      const addrId = addr.id || addr._id
+                      return (
                       <label
-                        key={addr.id}
+                        key={addrId}
                         className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-colors ${
-                          selectedAddressId === addr.id ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                          selectedAddressId === addrId ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <input type="radio" name="address" checked={selectedAddressId === addr.id} onChange={() => selectSavedAddress(addr)} className="mt-1" />
+                        <input type="radio" name="address" checked={selectedAddressId === addrId} onChange={() => selectSavedAddress(addr)} className="mt-1" />
                         <div className="text-sm">
                           <p className="font-medium">{addr.name} - {addr.phone}</p>
                           <p className="text-gray-600">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
                           <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
                         </div>
                       </label>
-                    ))}
+                    )})}
                   </div>
                   <div className="mt-3">
                     <button
@@ -591,7 +595,7 @@ export default function CheckoutPage() {
               <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
             </div>
 
-            <button onClick={handlePlaceOrder} disabled={loading || !onlinePaymentEnabled && paymentMethod !== 'cod'} className="btn-primary mt-4 w-full">
+            <button onClick={handlePlaceOrder} disabled={loading || paymentState !== 'idle' || !onlinePaymentEnabled && paymentMethod !== 'cod'} className="btn-primary mt-4 w-full">
               {paymentState === 'creating' ? 'Creating your order...' : paymentState === 'initializing' ? 'Initializing payment...' : paymentState === 'processing' ? 'Verifying payment...' : loading ? 'Please wait...' : paymentMethod !== 'cod' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
             </button>
             <p className="mt-2 text-center text-xs text-gray-400">

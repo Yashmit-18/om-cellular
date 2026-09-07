@@ -47,7 +47,7 @@ const productVariantSchema = new Schema<IProductVariant>({
   featured: { type: Boolean, default: false },
   badge: { type: String },
   isActive: { type: Boolean, default: true },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 productVariantSchema.index({ productId: 1 })
 productVariantSchema.index({ isActive: 1 })

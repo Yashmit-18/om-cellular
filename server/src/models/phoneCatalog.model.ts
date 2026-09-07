@@ -29,7 +29,7 @@ const phoneCatalogModelSchema = new Schema<IPhoneCatalogModel>({
   }],
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 phoneCatalogModelSchema.index({ brandName: 1 })
 phoneCatalogModelSchema.index({ isActive: 1 })

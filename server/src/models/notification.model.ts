@@ -18,7 +18,7 @@ const notificationSchema = new Schema<INotification>({
   message: { type: String, required: true },
   isRead: { type: Boolean, default: false },
   metadata: { type: Schema.Types.Mixed, default: {} },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 notificationSchema.index({ userId: 1 })
 notificationSchema.index({ isRead: 1 })

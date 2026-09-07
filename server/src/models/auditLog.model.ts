@@ -20,7 +20,7 @@ const auditLogSchema = new Schema<IAuditLog>({
   oldValue: { type: String },
   newValue: { type: String },
   ipAddress: { type: String },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 auditLogSchema.index({ adminId: 1 })
 auditLogSchema.index({ entity: 1 })

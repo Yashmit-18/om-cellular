@@ -34,7 +34,7 @@ const serviceAreaSchema = new Schema<IServiceArea>({
     },
     default: { delivery: true, repair: true, pickupDrop: true, sell: true, exchange: true },
   },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 serviceAreaSchema.index({ pinCodes: 1 })
 

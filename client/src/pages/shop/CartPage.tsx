@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Minus, Plus, Trash2, ShoppingBag, ChevronRight } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { Minus, Plus, Trash2, ShoppingBag, ChevronRight, RefreshCw } from 'lucide-react'
 import { useCartStore } from '../../stores/cartStore'
 import { formatPrice } from '../../utils'
 import { settingsService } from '../../services/settings.service'
+import api from '../../services/api'
+import ProductImage from '../../components/shop/ProductImage'
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getTotal, getItemCount, clearCart } = useCartStore()
+  const { items, removeItem, updateQuantity, refreshItem, getTotal, getItemCount, clearCart } = useCartStore()
   const [shippingConfig, setShippingConfig] = useState({ freeShippingThreshold: 999, standardShipping: 99 })
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
@@ -20,6 +24,36 @@ export default function CartPage() {
         standardShipping: parseInt(map.standard_shipping_price) || 99,
       })
     }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (items.length === 0) return
+    let cancelled = false
+    setRefreshing(true)
+    Promise.all(items.map(item =>
+      api.get(`/products/by-variant/${item.variantId}`).then(r => r.data.data).catch(() => null)
+    )).then(results => {
+      if (cancelled) return
+      let removed = 0
+      results.forEach((data, i) => {
+        const item = items[i]
+        const v = data && data.variants && data.variants[0]
+        if (!v) {
+          removeItem(item.variantId)
+          removed++
+          return
+        }
+        const stock = Math.max(0, Number(v.stock) || 0)
+        const price = Math.max(0, Number(v.price) || 0)
+        const discountPrice = v.discountPrice != null && Number(v.discountPrice) >= 0 ? Number(v.discountPrice) : null
+        refreshItem(item.variantId, { price, discountPrice, stock })
+        const capped = Math.max(1, Math.min(item.quantity, stock || 1))
+        if (capped !== item.quantity) updateQuantity(item.variantId, capped)
+      })
+      if (removed > 0) toast.error(`${removed} item${removed === 1 ? '' : 's'} removed from your cart — no longer available`)
+    }).finally(() => { if (!cancelled) setRefreshing(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (items.length === 0) {
@@ -42,13 +76,19 @@ export default function CartPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
       <h1 className="text-2xl font-bold">Shopping Cart ({getItemCount()} items)</h1>
 
+      {refreshing && (
+        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Checking latest prices & stock…
+        </div>
+      )}
+
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_360px]">
         {/* Cart Items */}
         <div className="space-y-4">
           {items.map(item => (
             <div key={item.variantId} className="card flex gap-4 p-4">
               <Link to={`/products/${item.productId}`} className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                <ProductImage src={item.image} alt={item.name} className="h-full" imgClassName="h-full w-full object-cover" />
               </Link>
               <div className="flex flex-1 flex-col justify-between">
                 <div>

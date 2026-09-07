@@ -14,6 +14,6 @@ const inventorySchema = new Schema<IInventory>({
   quantity: { type: Number, default: 0, min: 0 },
   reservedQuantity: { type: Number, default: 0, min: 0 },
   lowStockThreshold: { type: Number, default: 5 },
-}, { timestamps: { updatedAt: true, createdAt: false } })
+}, { timestamps: { updatedAt: true, createdAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 export const Inventory = mongoose.model<IInventory>('Inventory', inventorySchema)

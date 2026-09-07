@@ -92,14 +92,14 @@ export default function ProductDetailPage() {
     description: product?.description
       ? String(product.description).slice(0, 155)
       : 'Shop certified used and refurbished phones at OM Cellular.',
-    canonical: product?.slug ? `https://om-cellular-iota.vercel.app/products/${product.slug}` : undefined,
+    canonical: product?.slug ? `https://om-cellular.vercel.app/products/${product.slug}` : undefined,
     jsonLd: product ? {
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: product.name,
       description: String(product.description || '').slice(0, 300),
-      url: `https://om-cellular-iota.vercel.app/products/${product.slug || product.id}`,
-      image: getImageList(product.images, selectedVariant?.images)[0] || 'https://om-cellular-iota.vercel.app/placeholder.svg',
+      url: `https://om-cellular.vercel.app/products/${product.slug || product.id}`,
+      image: getImageList(product.images, selectedVariant?.images)[0] || 'https://om-cellular.vercel.app/placeholder.svg',
       offers: {
         '@type': 'Offer',
         priceCurrency: 'INR',

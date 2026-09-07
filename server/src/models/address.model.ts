@@ -30,7 +30,7 @@ const addressSchema = new Schema<IAddress>({
   pincode: { type: String, required: true, trim: true },
   country: { type: String, default: 'IN' },
   isDefault: { type: Boolean, default: false },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 addressSchema.index({ userId: 1 })
 

@@ -19,6 +19,7 @@ interface CartState {
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void
   removeItem: (variantId: string) => void
   updateQuantity: (variantId: string, quantity: number) => void
+  refreshItem: (variantId: string, patch: Partial<Pick<CartItem, 'price' | 'discountPrice' | 'stock'>>) => void
   clearCart: () => void
   getTotal: () => number
   getItemCount: () => number
@@ -58,6 +59,12 @@ export const useCartStore = create<CartState>()(
           items: get().items.map(i =>
             i.variantId === variantId ? { ...i, quantity: Math.min(quantity, i.stock) } : i
           ),
+        })
+      },
+
+      refreshItem: (variantId, patch) => {
+        set({
+          items: get().items.map(i => i.variantId === variantId ? { ...i, ...patch } : i),
         })
       },
 

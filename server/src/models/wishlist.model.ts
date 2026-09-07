@@ -10,7 +10,7 @@ export interface IWishlist extends Document {
 const wishlistSchema = new Schema<IWishlist>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   variantId: { type: Schema.Types.ObjectId, ref: 'ProductVariant', required: true },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+}, { timestamps: { createdAt: true, updatedAt: false }, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 wishlistSchema.index({ userId: 1, variantId: 1 }, { unique: true })
 

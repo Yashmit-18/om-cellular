@@ -29,13 +29,14 @@ const userSchema = new Schema<IUser>({
   tokenVersion: { type: Number, default: 0 },
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 userSchema.index({ role: 1 })
 
 // Defense-in-depth: even if a document is serialized with the password
 // force-selected, it must never reach the wire.
 userSchema.set('toJSON', {
+  virtuals: true,
   transform: (_doc: any, ret: any) => {
     delete ret.password
     delete ret.passwordResetToken
@@ -43,5 +44,6 @@ userSchema.set('toJSON', {
     return ret
   },
 })
+userSchema.set('toObject', { virtuals: true })
 
 export const User = mongoose.model<IUser>('User', userSchema)

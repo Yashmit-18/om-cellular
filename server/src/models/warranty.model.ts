@@ -46,7 +46,7 @@ const warrantySchema = new Schema<IWarranty>(
     status: { type: String, enum: ['ACTIVE', 'EXPIRED', 'CLAIMED', 'VOID'], default: 'ACTIVE' },
     statusHistory: { type: [warrantyStatusHistorySchema], default: [] },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 )
 
 warrantySchema.index({ orderId: 1 })

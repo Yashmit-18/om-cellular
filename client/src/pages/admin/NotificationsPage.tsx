@@ -16,7 +16,7 @@ export default function AdminNotificationsPage() {
   const [recent, setRecent] = useState<any[]>([])
 
   useEffect(() => {
-    notificationService.getNotifications({ limit: '10' }).then(r => setRecent(r?.data || [])).catch(() => {})
+    notificationService.getNotifications({ limit: '10', scope: 'all' }).then(r => setRecent(r?.data || [])).catch(() => {})
   }, [])
 
   const handleSend = async () => {
@@ -94,7 +94,13 @@ export default function AdminNotificationsPage() {
                   <tr key={n._id || n.id}>
                     <td className="py-3 pr-4"><span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{n.type}</span></td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{n.title}</td>
-                    <td className="py-3 pr-4 text-gray-500">{String(n.userId).slice(-8)}</td>
+                    <td className="py-3 pr-4 text-gray-500">
+                      {n.userId && typeof n.userId === 'object' ? (
+                        <span>{n.userId.name || n.userId.email || 'User'}</span>
+                      ) : (
+                        <span>{n.userId ? `${String(n.userId).slice(-8)}` : 'All customers'}</span>
+                      )}
+                    </td>
                     <td className="py-3 text-gray-500">{formatDate(n.createdAt)}</td>
                   </tr>
                 ))}

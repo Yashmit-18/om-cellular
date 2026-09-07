@@ -125,7 +125,7 @@ const sellRequestSchema = new Schema<ISellRequest>({
   pickupDate: { type: Date },
   pickupTime: { type: String },
   adminNotes: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 sellRequestSchema.index({ userId: 1 })
 sellRequestSchema.index({ status: 1 })

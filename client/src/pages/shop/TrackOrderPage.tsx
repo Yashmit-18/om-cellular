@@ -32,10 +32,10 @@ export default function TrackOrderPage() {
         <p className="mt-2 text-gray-500">Enter your order number to track status</p>
       </div>
       <div className="mt-8 card p-6">
-        <div className="flex gap-3">
+        <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
           <input value={orderNumber} onChange={e => setOrderNumber(e.target.value)} placeholder="Order number (e.g. ORD-00001)" className="input flex-1" />
-          <button onClick={handleTrack} disabled={loading} className="btn-primary">{loading ? 'Tracking...' : 'Track'}</button>
-        </div>
+          <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Tracking...' : 'Track'}</button>
+        </form>
         {result && (
           <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between">

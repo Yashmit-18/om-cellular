@@ -3,6 +3,7 @@ import { Heart, Trash2 } from 'lucide-react'
 import { useWishlistStore } from '../../stores/wishlistStore'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
+import ProductImage from '../../components/shop/ProductImage'
 import { useEffect, useState } from 'react'
 
 export default function WishlistPage() {
@@ -11,8 +12,10 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (items.length === 0) { setLoading(false); return }
-    Promise.all(items.map(id => api.get(`/products/${id}`).then(r => r.data.data).catch(() => null)))
+    if (items.length === 0) { setLoading(false); setProducts([]); return }
+    // The store keeps VARIANT ids; fetch each through the by-variant endpoint
+    // so stale/invalid entries (deactivated variants) are dropped gracefully.
+    Promise.all(items.map(storedId => api.get(`/products/by-variant/${storedId}`).then(r => ({ storedId, data: r.data.data })).catch(() => null)))
       .then(results => setProducts(results.filter(Boolean)))
       .finally(() => setLoading(false))
   }, [items])
@@ -33,14 +36,14 @@ export default function WishlistPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="text-2xl font-bold">My Wishlist ({items.length})</h1>
       <div className="mt-6 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {products.map(p => p && (
-          <div key={p.id} className="card-premium group p-4">
-            <Link to={`/products/${p.slug || p.id}`} className="aspect-square overflow-hidden rounded-lg bg-gray-100 block">
-              <img src={p.primaryImage || '/placeholder.svg'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+        {products.map(({ storedId, data: p }) => p && (
+          <div key={storedId} className="card-premium group p-4">
+            <Link to={`/products/${p.slug || p.id}`} className="block overflow-hidden rounded-lg bg-gray-100">
+              <ProductImage src={p.primaryImage || ''} alt={p.name} className="aspect-square" imgClassName="transition-transform group-hover:scale-105" />
             </Link>
             <h3 className="mt-3 text-sm font-medium line-clamp-2"><Link to={`/products/${p.slug || p.id}`} className="hover:text-brand-600">{p.name}</Link></h3>
             <p className="mt-1 font-bold text-brand-600">{formatPrice(p.lowestPrice)}</p>
-            <button onClick={() => removeItem(p.id)} className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+            <button onClick={() => removeItem(storedId)} className="mt-2 flex items-center gap-1 text-xs text-red-500 hover:text-red-700" aria-label={`Remove ${p.name} from wishlist`}>
               <Trash2 className="h-3 w-3" /> Remove
             </button>
           </div>

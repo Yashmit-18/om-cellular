@@ -32,7 +32,7 @@ const serviceabilityRequestSchema = new Schema<IServiceabilityRequest>({
   status: { type: String, enum: ['WAITING', 'NOTIFIED', 'CLOSED'], default: 'WAITING' },
   contactedVia: { type: String, trim: true },
   adminNotes: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 serviceabilityRequestSchema.index({ status: 1 })
 serviceabilityRequestSchema.index({ pincode: 1 })

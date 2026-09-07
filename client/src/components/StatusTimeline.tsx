@@ -34,7 +34,12 @@ export default function StatusTimeline({ history, labels, colors }: StatusTimeli
               <span className={`badge ${colors?.[entry.status] || 'badge-info'}`}>{label}</span>
               {entry.changedBy && <span className="ml-2 text-xs text-gray-400">by {entry.changedBy}</span>}
               <p className="mt-1 text-xs text-gray-400">
-                {new Date(entry.changedAt || entry.createdAt || '').toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {(() => {
+                  const d = new Date(entry.changedAt || entry.createdAt || '')
+                  return isNaN(d.getTime())
+                    ? 'Time not recorded'
+                    : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                })()}
               </p>
               {entry.note && <p className="mt-1 text-xs text-gray-500">{entry.note}</p>}
             </div>

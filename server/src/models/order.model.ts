@@ -60,7 +60,7 @@ const orderItemSchema = new Schema<IOrderItem>({
   price: { type: Number, required: true, min: 0 },
   discount: { type: Number, default: 0, min: 0 },
   total: { type: Number, required: true, min: 0 },
-})
+}, { toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 orderItemSchema.index({ orderId: 1 })
 orderItemSchema.index({ variantId: 1 })
@@ -109,7 +109,7 @@ const orderSchema = new Schema<IOrder>({
   couponRestored: { type: Boolean, default: false },
   paidAt: { type: Date, default: null },
   dedupeKey: { type: String, trim: true, index: true },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 orderSchema.index({ userId: 1 })
 orderSchema.index({ status: 1 })

@@ -37,7 +37,7 @@ const phoneValuationSchema = new Schema<IPhoneValuation>({
   billDeduction: { type: Number, default: 0 },
   boxDeduction: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 phoneValuationSchema.index({ brand: 1, model: 1 }, { unique: true })
 phoneValuationSchema.index({ brand: 1 })

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://om-cellular-iota.vercel.app/sitemap.xml
+Sitemap: https://om-cellular.vercel.app/sitemap.xml

@@ -10,6 +10,7 @@ export const corsOptions: CorsOptions = {
 
     const allowedOrigins = [
       env.CLIENT_URL,
+      'https://om-cellular.vercel.app',
       'https://om-cellular-iota.vercel.app',
       ...extraOrigins,
       'http://localhost:5173',

@@ -31,7 +31,7 @@ export default function AccountOrderDetailPage() {
 
   useEffect(() => {
     if (!id || !order) return
-    warrantyService.getWarrantiesByOrder(id).then(r => setWarranties(r.data || [])).catch(() => setWarranties([]))
+    warrantyService.getWarrantiesByOrder(id).then(r => setWarranties(r.data.data || [])).catch(() => setWarranties([]))
   }, [id, order])
 
   const CANCELABLE = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP']

@@ -28,9 +28,18 @@ export default function BuyPhonesPage() {
 
   const currentCategory = searchParams.get('categoryId') || ''
   const currentBrand = searchParams.get('brandId') || ''
+  const currentBrandName = searchParams.get('brand') || ''
   const currentQuery = searchParams.get('q') || ''
   const currentSort = searchParams.get('sort') || 'newest'
   const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams)
+    if (value) params.set(key, value)
+    else params.delete(key)
+    params.delete('page')
+    setSearchParams(params)
+  }
 
   useEffect(() => {
     api.get('/categories').then(r => {
@@ -40,6 +49,16 @@ export default function BuyPhonesPage() {
       setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))
     }).catch(() => {})
   }, [])
+
+  // Support the ?brand=<name> links used by home/search "popular brand" chips;
+  // resolve the name to a brand id so the listing filter can apply.
+  useEffect(() => {
+    if (currentBrandName && !currentBrand && brands.length) {
+      const match = brands.find((b: any) => (b.name || '').toLowerCase() === currentBrandName.toLowerCase())
+      if (match) updateFilter('brandId', match.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentBrandName, currentBrand, brands])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -61,14 +80,6 @@ export default function BuyPhonesPage() {
   }, [currentCategory, currentBrand, currentQuery, currentSort, currentPage])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
-
-  const updateFilter = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams)
-    if (value) params.set(key, value)
-    else params.delete(key)
-    params.delete('page')
-    setSearchParams(params)
-  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -175,9 +186,9 @@ export default function BuyPhonesPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 md:py-12 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Buy New Phones</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Buy Phones</h1>
             <p className="mt-1.5 text-sm text-gray-500">
-              {pagination ? `${pagination.total} phone${pagination.total === 1 ? '' : 's'} available` : 'Explore smartphones from the brands you trust'}
+              {pagination ? `${pagination.total} certified phone${pagination.total === 1 ? '' : 's'} available` : 'Certified used & refurbished phones from the brands you trust'}
             </p>
           </div>
           <Link to="/sell-phone" className="hidden items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
@@ -286,7 +297,7 @@ export default function BuyPhonesPage() {
                 <p className="mt-1.5 text-sm text-gray-500">
                   {hasActiveFilters
                     ? 'Try removing a filter or searching for something else.'
-                    : 'New phones are being added. Check back soon!'}
+                    : 'More certified phones are being added. Check back soon!'}
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   {hasActiveFilters && (

@@ -21,7 +21,7 @@ const reviewSchema = new Schema<IReview>({
   comment: { type: String },
   isApproved: { type: Boolean, default: false },
   isAdminReply: { type: Boolean, default: false },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 reviewSchema.index({ variantId: 1 })
 reviewSchema.index({ userId: 1 })

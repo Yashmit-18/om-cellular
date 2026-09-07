@@ -13,7 +13,7 @@ const settingSchema = new Schema<ISetting>({
   key: { type: String, required: true, unique: true, trim: true },
   value: { type: String },
   group: { type: String },
-}, { timestamps: true })
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 settingSchema.index({ group: 1 })
 

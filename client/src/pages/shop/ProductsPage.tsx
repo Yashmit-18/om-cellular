@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice, cn } from '../../utils'
 import ProductImage from '../../components/shop/ProductImage'
@@ -13,6 +13,7 @@ export default function ProductsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
@@ -28,9 +29,9 @@ export default function ProductsPage() {
     api.get('/brands').then(r => setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
       setLoading(true)
+      setError(false)
       try {
         const params: Record<string, string> = { page: String(currentPage), limit: '12', sort: currentSort }
         if (currentCategory) params.categoryId = currentCategory
@@ -42,13 +43,16 @@ export default function ProductsPage() {
         setProducts(res.data.data || [])
         setPagination(res.data.pagination || null)
       } catch {
+        setError(true)
         setProducts([])
       } finally {
         setLoading(false)
       }
-    }
+    }, [currentCategory, currentBrand, currentQuery, currentIsFeatured, currentPage, currentSort])
+
+  useEffect(() => {
     fetchProducts()
-  }, [currentCategory, currentBrand, currentQuery, currentIsFeatured, currentPage, currentSort])
+  }, [fetchProducts])
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
@@ -161,12 +165,28 @@ export default function ProductsPage() {
         {/* Product Grid */}
         <div className="flex-1">
           {loading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="card-premium p-4">
+                  <div className="aspect-square animate-pulse rounded-lg bg-gray-100" />
+                  <div className="mt-3 h-3 w-3/4 animate-pulse rounded bg-gray-100" />
+                  <div className="mt-2 h-5 w-1/2 animate-pulse rounded bg-gray-100" />
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="card p-14 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500"><PackageOpen className="h-7 w-7" /></div>
+              <h3 className="mt-4 text-lg font-semibold text-gray-900">Couldn’t load products</h3>
+              <p className="mt-1.5 text-sm text-gray-500">Something went wrong while fetching the catalog. Please try again.</p>
+              <button onClick={fetchProducts} className="btn-primary mt-6">Retry</button>
             </div>
           ) : products.length === 0 ? (
             <div className="card p-12 text-center">
               <p className="text-gray-500">No products found matching your criteria.</p>
+              {activeFilters.length > 0 && (
+                <button onClick={() => { setSearchParams({ sort: 'newest' }) }} className="btn-secondary mt-4">Clear filters</button>
+              )}
             </div>
           ) : (
             <>

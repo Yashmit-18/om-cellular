@@ -48,10 +48,11 @@ export default function ExchangePage() {
   const filteredModels = models.filter(m => m.modelName.toLowerCase().includes(modelSearch.toLowerCase()))
 
   const handleBrandSelect = useCallback(async (brand: string) => {
-    setSelectedBrand(brand); setSelectedModel(null)
-    setBrandSearch(brand); setShowBrandDropdown(false); setModelSearch('')
+    const clean = brand.trim()
+    setSelectedBrand(clean); setSelectedModel(null)
+    setBrandSearch(clean); setShowBrandDropdown(false); setModelSearch('')
     setLoadingModels(true)
-    try { const r = await phoneCatalogService.getModelsByBrand(brand); setModels(r.data || []) }
+    try { const r = await phoneCatalogService.getModelsByBrand(clean); setModels(r.data || []) }
     catch { toast.error('Failed to load models') } finally { setLoadingModels(false) }
   }, [])
 
@@ -107,7 +108,7 @@ export default function ExchangePage() {
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button onClick={resetAll} className="btn-primary">Submit Another Exchange</button>
-            <Link to="/buy-phones" className="btn-secondary">Browse New Phones</Link>
+            <Link to="/buy-phones" className="btn-secondary">Browse Phones</Link>
           </div>
         </div>
       </div>
