@@ -120,11 +120,11 @@ export default function HomePage() {
     setTouchX(null)
   }
 
-  const heroCta = (to: string, label: string, icon: LucideIcon, solid: boolean) => (
+  const heroCta = (to: string, label: string, Icon: LucideIcon, solid: boolean) => (
     <Link to={to} className={solid
       ? 'inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-500 hover:shadow-brand-500/30 hover:-translate-y-0.5'
       : 'inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/20 hover:-translate-y-0.5'}>
-      {icon({ className: 'h-4 w-4' })} {label}
+      <Icon className="h-4 w-4" /> {label}
     </Link>
   )
 
@@ -437,11 +437,12 @@ export default function HomePage() {
           { key: 'exchange', title: 'Exchange Phone', desc: 'Trade in your old phone and walk away with a great deal on your next one.', link: '/exchange' },
         ].map((service) => {
           const style = SERVICE_STYLES[service.key]
+          const ServiceIcon = style?.icon ?? Wrench
           return (
             <Link key={service.key} to={service.link} className={`card-premium group relative overflow-hidden p-6 transition-all hover:-translate-y-1 hover:shadow-xl ${style?.ring || ''}`}>
               <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-brand-500/10 to-transparent transition-transform group-hover:scale-125" />
               <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${style?.tile || 'from-brand-500 to-brand-600'}`}>
-                {style?.icon({ className: 'h-6 w-6' })}
+                <ServiceIcon className="h-6 w-6" />
               </div>
               <h3 className="mt-5 text-lg font-bold text-gray-900">{service.title}</h3>
               <p className="mt-2 text-sm text-gray-500 leading-relaxed">{service.desc}</p>
