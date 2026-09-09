@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Trash2, Edit, Search, Save, X, ChevronDown, Smartphone } from 'lucide-react'
+import { Plus, Trash2, Edit, Search, Save, X, Smartphone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { phoneCatalogService } from '../../services/phoneCatalog.service'
 import type { PhoneCatalogModelEntry } from '../../types'

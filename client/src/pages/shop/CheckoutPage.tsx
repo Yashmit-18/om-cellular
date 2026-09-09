@@ -10,6 +10,7 @@ import { settingsService } from '../../services/settings.service'
 import { serviceabilityService } from '../../services/serviceability.service'
 import { paymentService, loadRazorpayScript, type OnlinePaymentMethod } from '../../services/payment.service'
 import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
+import ProductImage from '../../components/shop/ProductImage'
 
 type PaymentMethod = 'cod' | 'upi' | 'netbanking' | 'online'
 
@@ -160,7 +161,7 @@ export default function CheckoutPage() {
     }
   }
 
-  const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, amount: number) => {
+  const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, _amount: number) => {
     setPaymentState('initializing')
     try {
       const init = await paymentService.init(orderId, method)
@@ -259,7 +260,7 @@ export default function CheckoutPage() {
     setPaymentState('creating')
     try {
       const orderData: any = {
-        items: items.map(item => ({ variantId: item.variantId, quantity: item.quantity, price: item.discountPrice || item.price })),
+        items: items.map(item => ({ variantId: item.variantId, quantity: item.quantity, price: item.discountPrice ?? item.price })),
         paymentMethod,
         couponCode: appliedCoupon?.code || undefined,
         notes: notes || undefined,
@@ -561,12 +562,12 @@ export default function CheckoutPage() {
             <div className="mt-4 max-h-60 space-y-3 overflow-y-auto">
               {items.map(item => (
                 <div key={item.variantId} className="flex gap-3 text-sm">
-                  <img src={item.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                  <ProductImage src={item.image} alt={item.name} className="h-12 w-12 shrink-0 rounded-lg" imgClassName="object-cover" />
                   <div className="flex-1">
                     <p className="font-medium line-clamp-1">{item.name}</p>
                     <p className="text-gray-500">Qty: {item.quantity}</p>
                   </div>
-                  <span className="font-medium">{formatPrice((item.discountPrice || item.price) * item.quantity)}</span>
+                  <span className="font-medium">{formatPrice((item.discountPrice ?? item.price) * item.quantity)}</span>
                 </div>
               ))}
             </div>

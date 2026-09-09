@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Package } from 'lucide-react'
+import { Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { orderService } from '../../services/order.service'
 import { formatDate, formatPrice } from '../../utils'

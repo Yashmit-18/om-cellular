@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -14,7 +14,7 @@ export default function AdminServiceRequestsPage() {
   const [total, setTotal] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
 
-  const load = () => {
+  const load = useCallback(() => {
     const params: any = { page, limit: '20' }
     if (statusFilter) params.status = statusFilter
     serviceabilityService.getRequests(params).then(r => {
@@ -22,9 +22,9 @@ export default function AdminServiceRequestsPage() {
       setTotal(r.data.pagination?.total || 0)
       setLoading(false)
     }).catch(() => setLoading(false))
-  }
+  }, [page, statusFilter])
 
-  useEffect(() => { setLoading(true); load() }, [page, statusFilter])
+  useEffect(() => { setLoading(true); load() }, [load])
 
   const handleStatus = async (requestId: string, status: string, notes: string) => {
     try {

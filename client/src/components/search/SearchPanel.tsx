@@ -31,6 +31,7 @@ export default function SearchPanel() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   const loadModels = useCallback((q: string) => {
     const term = q.trim().toLowerCase()
@@ -110,6 +111,19 @@ export default function SearchPanel() {
     if (inputRef.current) inputRef.current.focus()
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        setQuery('')
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
   const openResults = (q: string) => {
     setOpen(false)
     setQuery('')
@@ -135,9 +149,10 @@ export default function SearchPanel() {
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') { setOpen(false); setQuery('') }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => (i + 1) % totalCount()) }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => (i <= 0 ? totalCount() - 1 : i - 1)) }
+    if (e.key === 'Escape') { setOpen(false); setQuery(''); triggerRef.current?.focus(); return }
+    const count = totalCount()
+    if (e.key === 'ArrowDown' && count > 0) { e.preventDefault(); setActiveIndex(i => (i + 1) % count) }
+    if (e.key === 'ArrowUp' && count > 0) { e.preventDefault(); setActiveIndex(i => (i <= 0 ? count - 1 : i - 1)) }
     if (e.key === 'Enter') {
       if (activeIndex >= 0 && activeIndex < models.length) { openModel(models[activeIndex]); return }
       const pIdx = activeIndex - models.length
@@ -155,6 +170,7 @@ export default function SearchPanel() {
   return (
     <>
       <button
+        ref={triggerRef}
         aria-label="Search"
         onClick={() => setOpen(true)}
         className="flex h-11 min-w-[44px] items-center justify-center rounded-full px-3 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
@@ -164,7 +180,7 @@ export default function SearchPanel() {
 
       {open && (
         <div className="fixed inset-0 z-[70] md:flex md:items-start md:justify-center md:pt-24" role="dialog" aria-modal="true" aria-label="Search">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { setOpen(false); setQuery('') }} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setOpen(false); setQuery(''); triggerRef.current?.focus() }} />
           <div className="relative flex h-full w-full flex-col bg-white shadow-2xl md:h-auto md:max-w-xl md:rounded-2xl">
             <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
               <Search className="h-5 w-5 shrink-0 text-gray-400" />
@@ -182,7 +198,7 @@ export default function SearchPanel() {
                   <X className="h-5 w-5" />
                 </button>
               )}
-              <button aria-label="Close search" onClick={() => { setOpen(false); setQuery('') }} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+              <button aria-label="Close search" onClick={() => { setOpen(false); setQuery(''); triggerRef.current?.focus() }} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
                 <X className="h-5 w-5" />
               </button>
             </div>

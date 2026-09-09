@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ShoppingCart, User, ChevronDown, Search, Store, Wrench, Smartphone, Bell } from 'lucide-react'
+import { Home, ShoppingCart, User, ChevronDown, Store, Wrench, Smartphone, Bell } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useCartStore } from '../../stores/cartStore'
 import { settingsService } from '../../services/settings.service'

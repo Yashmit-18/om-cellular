@@ -5,42 +5,44 @@ import { useEffect } from 'react'
 // client-rendered SPA; full crawler coverage should be added with
 // prerendering/SSR when available.
 export function useDocumentMeta(opts: { title?: string; description?: string; canonical?: string; jsonLd?: Record<string, unknown> }) {
-  const jsonLdKey = JSON.stringify(opts.jsonLd)
+  const { title, description, canonical: canonicalUrl, jsonLd } = opts
+  const jsonLdKey = JSON.stringify(jsonLd)
+  const hasJsonLd = Boolean(jsonLd)
 
   useEffect(() => {
-    if (opts.title) document.title = opts.title
+    if (title) document.title = title
 
-    if (opts.description) {
+    if (description) {
       let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]')
       if (!meta) {
         meta = document.createElement('meta')
         meta.name = 'description'
         document.head.appendChild(meta)
       }
-      meta.content = opts.description
+      meta.content = description
     }
 
     let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
-    if (opts.canonical) {
+    if (canonicalUrl) {
       if (!canonical) {
         canonical = document.createElement('link')
         canonical.rel = 'canonical'
         document.head.appendChild(canonical)
       }
-      canonical.href = opts.canonical
+      canonical.href = canonicalUrl
     }
 
     let ldScript = document.getElementById('page-jsonld')
-    if (opts.jsonLd) {
+    if (hasJsonLd) {
       if (!ldScript) {
         ldScript = document.createElement('script')
         ldScript.id = 'page-jsonld'
         ldScript.setAttribute('type', 'application/ld+json')
         document.head.appendChild(ldScript)
       }
-      ldScript.textContent = JSON.stringify(opts.jsonLd)
+      ldScript.textContent = jsonLdKey
     } else if (ldScript) {
       ldScript.remove()
     }
-  }, [opts.title, opts.description, opts.canonical, jsonLdKey])
+  }, [title, description, canonicalUrl, hasJsonLd, jsonLdKey])
 }

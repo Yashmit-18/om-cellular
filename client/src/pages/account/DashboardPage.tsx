@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Package, Wrench, Smartphone, ArrowRightLeft } from 'lucide-react'
+import { Package, Wrench, Smartphone, ArrowRightLeft } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import api from '../../services/api'
-import { formatDate } from '../../utils'
 
 export default function AccountDashboardPage() {
   const { user } = useAuthStore()

@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Wrench, Smartphone, ArrowRightLeft,
   DollarSign, Image, LayoutTemplate, MessageSquare, HelpCircle, Tag, Settings,
@@ -37,8 +37,6 @@ const links = [
 
 export default function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const location = useLocation()
-
   return (
     <aside className={`flex flex-col border-r border-gray-200 bg-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
       <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">

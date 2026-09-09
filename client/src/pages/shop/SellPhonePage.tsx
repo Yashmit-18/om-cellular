@@ -48,7 +48,6 @@ export default function SellPhonePage() {
 
   const [estimatedValue, setEstimatedValue] = useState<number | null>(null)
   const [valuationState, setValuationState] = useState<LoadState>('idle')
-  const [calculating, setCalculating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [selectingBrand, setSelectingBrand] = useState(false)
   const [requestNumber, setRequestNumber] = useState('')
@@ -127,7 +126,6 @@ export default function SellPhonePage() {
 
   const calculateValue = useCallback(async () => {
     if (!selectedBrand || !selectedModel || !selectedStorage) return
-    setCalculating(true)
     setValuationState('loading')
     try {
       const r = await phoneValuationService.calculateValuation({
@@ -146,8 +144,6 @@ export default function SellPhonePage() {
       }
     } catch {
       setValuationState('empty')
-    } finally {
-      setCalculating(false)
     }
   }, [selectedBrand, selectedModel, selectedStorage, valuationFields])
 

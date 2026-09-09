@@ -31,6 +31,10 @@ export const useCartStore = create<CartState>()(
       items: [],
 
       addItem: (item) => {
+        // A stale product page must never be able to add an unavailable item.
+        // Stock is verified again by the server during checkout, but keeping the
+        // persisted cart valid avoids an impossible client-side checkout state.
+        if (!Number.isFinite(item.stock) || item.stock <= 0) return
         const { items } = get()
         const existing = items.find(i => i.variantId === item.variantId)
         if (existing) {
@@ -70,7 +74,10 @@ export const useCartStore = create<CartState>()(
 
       clearCart: () => set({ items: [] }),
 
-      getTotal: () => get().items.reduce((sum, item) => sum + (item.discountPrice || item.price) * item.quantity, 0),
+      getTotal: () => get().items.reduce((sum, item) => {
+        const unitPrice = item.discountPrice ?? item.price
+        return sum + (Number.isFinite(unitPrice) ? unitPrice : 0) * item.quantity
+      }, 0),
 
       getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
     }),

@@ -11,7 +11,6 @@ export default function AdminBrandsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', sortOrder: 0 })
-  const [uploading, setUploading] = useState(false)
 
   const fetchBrands = useCallback(async () => {
     setLoading(true)

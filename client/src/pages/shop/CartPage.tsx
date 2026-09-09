@@ -47,7 +47,12 @@ export default function CartPage() {
         const price = Math.max(0, Number(v.price) || 0)
         const discountPrice = v.discountPrice != null && Number(v.discountPrice) >= 0 ? Number(v.discountPrice) : null
         refreshItem(item.variantId, { price, discountPrice, stock })
-        const capped = Math.max(1, Math.min(item.quantity, stock || 1))
+        if (stock === 0) {
+          removeItem(item.variantId)
+          removed++
+          return
+        }
+        const capped = Math.min(item.quantity, stock)
         if (capped !== item.quantity) updateQuantity(item.variantId, capped)
       })
       if (removed > 0) toast.error(`${removed} item${removed === 1 ? '' : 's'} removed from your cart — no longer available`)
@@ -96,8 +101,8 @@ export default function CartPage() {
                     {item.name}
                   </Link>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-sm font-semibold">{formatPrice(item.discountPrice || item.price)}</span>
-                    {item.discountPrice && item.discountPrice < item.price && (
+                    <span className="text-sm font-semibold">{formatPrice(item.discountPrice ?? item.price)}</span>
+                    {item.discountPrice != null && item.discountPrice < item.price && (
                       <span className="text-xs text-gray-400 line-through">{formatPrice(item.price)}</span>
                     )}
                   </div>
@@ -113,8 +118,8 @@ export default function CartPage() {
                     </button>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-bold">{formatPrice((item.discountPrice || item.price) * item.quantity)}</span>
-                    <button onClick={() => removeItem(item.variantId)} className="text-red-500 hover:text-red-700">
+                    <span className="text-sm font-bold">{formatPrice((item.discountPrice ?? item.price) * item.quantity)}</span>
+                    <button onClick={() => removeItem(item.variantId)} aria-label={`Remove ${item.name} from cart`} className="flex h-10 w-10 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -122,7 +127,7 @@ export default function CartPage() {
               </div>
             </div>
           ))}
-          <button onClick={clearCart} className="text-sm text-red-500 hover:text-red-700">
+          <button onClick={clearCart} className="min-h-[44px] text-sm text-red-500 hover:text-red-700">
             Clear Cart
           </button>
         </div>

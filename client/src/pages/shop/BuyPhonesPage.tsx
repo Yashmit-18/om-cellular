@@ -33,13 +33,13 @@ export default function BuyPhonesPage() {
   const currentSort = searchParams.get('sort') || 'newest'
   const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
 
-  const updateFilter = (key: string, value: string) => {
+  const updateFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
     if (value) params.set(key, value)
     else params.delete(key)
     params.delete('page')
     setSearchParams(params)
-  }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     api.get('/categories').then(r => {
@@ -55,10 +55,15 @@ export default function BuyPhonesPage() {
   useEffect(() => {
     if (currentBrandName && !currentBrand && brands.length) {
       const match = brands.find((b: any) => (b.name || '').toLowerCase() === currentBrandName.toLowerCase())
-      if (match) updateFilter('brandId', match.id)
+      if (match) {
+        const params = new URLSearchParams(searchParams)
+        params.set('brandId', match.id)
+        params.delete('brand')
+        params.delete('page')
+        setSearchParams(params, { replace: true })
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBrandName, currentBrand, brands])
+  }, [currentBrandName, currentBrand, brands, searchParams, setSearchParams])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -87,11 +92,11 @@ export default function BuyPhonesPage() {
       if (trimmed !== currentQuery) updateFilter('q', trimmed)
     }, 350)
     return () => clearTimeout(timer)
-  }, [searchInput])
+  }, [searchInput, currentQuery, updateFilter])
 
   useEffect(() => {
     if (currentQuery !== searchInput.trim()) setSearchInput(currentQuery)
-  }, [currentQuery])
+  }, [currentQuery, searchInput])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()

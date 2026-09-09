@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
   const handleSetDefault = async (id: string) => {
     try {
-      const res = await api.patch(`/addresses/${id}/default`)
+      await api.patch(`/addresses/${id}/default`)
       setAddresses(prev => prev.map(a => ({ ...a, isDefault: a.id === id })))
       toast.success('Default address updated')
     } catch (err: any) {
