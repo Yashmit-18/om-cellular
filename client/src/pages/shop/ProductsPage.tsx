@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
-import { formatPrice, cn } from '../../utils'
-import ProductImage from '../../components/shop/ProductImage'
+import { cn } from '../../utils'
+import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
 import type { ProductWithVariant, Category, Brand, Pagination } from '../../types'
 
 export default function ProductsPage() {
@@ -179,11 +179,7 @@ export default function ProductsPage() {
           {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card-premium p-4">
-                  <div className="skeleton aspect-square" />
-                  <div className="skeleton mt-3 h-3 w-3/4" />
-                  <div className="skeleton mt-2 h-5 w-1/2" />
-                </div>
+                <ProductCardSkeleton key={i} />
               ))}
             </div>
           ) : error ? (
@@ -212,47 +208,18 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              <div className={cn(
-                viewMode === 'grid' ? 'grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' : 'space-y-4'
-              )}>
-                {products.map(product => (
-                  <Link
-                    key={product.id}
-                    to={`/products/${product.slug || product.id}`}
-                    className={cn(
-                      'card-premium group',
-                      viewMode === 'grid' ? 'p-4' : 'flex p-4'
-                    )}
-                  >
-                    <div className={cn(
-                      'overflow-hidden rounded-xl bg-gray-100',
-                      viewMode === 'grid' ? 'aspect-square' : 'h-32 w-32 shrink-0'
-                    )}>
-                      <ProductImage src={product.primaryImage} alt={product.name} className="h-full w-full" imgClassName="transition-transform group-hover:scale-105" />
-                    </div>
-                    <div className={cn('mt-3', viewMode === 'list' && 'ml-4 flex-1')}>
-                      {product.brand && <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{product.brand.name}</p>}
-                      <h3 className="mt-0.5 text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-brand-700">{product.name}</h3>
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-lg font-bold text-brand-600">{formatPrice(product.lowestPrice)}</span>
-                        {product.highestPrice > product.lowestPrice && (
-                          <span className="text-sm text-gray-400 line-through">{formatPrice(product.highestPrice)}</span>
-                        )}
-                      </div>
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        {product.inStock ? (
-                          <span className="badge-success badge">In Stock</span>
-                        ) : (
-                          <span className="badge-danger badge">Out of Stock</span>
-                        )}
-                        {product.variantCount > 1 && (
-                          <span className="badge-info badge">{product.variantCount} variants</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+<div className={cn(
+                  viewMode === 'grid' ? 'grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' : 'space-y-4'
+                )}>
+                  {products.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      variant={viewMode === 'list' ? 'list' : 'grid'}
+                      className="h-full"
+                    />
+                  ))}
+                </div>
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (

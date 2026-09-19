@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, ArrowRight, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
-import { formatPrice, cn } from '../../utils'
-import ProductImage from '../../components/shop/ProductImage'
+import { cn } from '../../utils'
+import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
 import type { ProductWithVariant, Category, Brand, Pagination } from '../../types'
 
 const PAGE_SIZE = 12
@@ -114,11 +114,7 @@ export default function BuyPhonesPage() {
   const renderSkeleton = () => (
     <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="card-premium p-4">
-          <div className="skeleton aspect-square" />
-          <div className="skeleton mt-3 h-3 w-3/4" />
-          <div className="skeleton mt-2 h-5 w-1/2" />
-        </div>
+        <ProductCardSkeleton key={i} />
       ))}
     </div>
   )
@@ -318,41 +314,7 @@ export default function BuyPhonesPage() {
               <>
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                   {products.map(product => (
-                    <Link
-                      key={product.id}
-                      to={`/products/${product.slug || product.id}`}
-                      className="card-premium group relative overflow-hidden p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                    >
-                      <ProductImage
-                        src={product.primaryImage}
-                        alt={product.name}
-                        className="aspect-square rounded-xl"
-                        imgClassName="transition-transform group-hover:scale-105"
-                      />
-                      <div className="mt-3.5">
-                        {product.brand?.name && (
-                          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{product.brand.name}</p>
-                        )}
-                        <h3 className="mt-1 truncate text-sm font-semibold text-gray-900 group-hover:text-brand-700">{product.name}</h3>
-                        <div className="mt-2 flex items-baseline gap-2">
-                          <span className="text-lg font-bold text-brand-600">{formatPrice(product.lowestPrice)}</span>
-                          {product.highestPrice > product.lowestPrice && (
-                            <span className="text-xs text-gray-400">- {formatPrice(product.highestPrice)}</span>
-                          )}
-                        </div>
-                        <div className="mt-2.5 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className={cn('badge', product.inStock ? 'badge-success' : 'badge-danger')}>
-                              {product.inStock ? 'In Stock' : 'Out of Stock'}
-                            </span>
-                            {product.variantCount > 1 && (
-                              <span className="badge badge-info">{product.variantCount} variants</span>
-                            )}
-                          </div>
-                          <span className="text-xs font-medium text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">View details</span>
-                        </div>
-                      </div>
-                    </Link>
+                    <ProductCard key={product.id} product={product} className="h-full" />
                   ))}
                 </div>
 

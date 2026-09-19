@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Search as SearchIcon, AlertTriangle, Smartphone, PackageOpen, X, History } from 'lucide-react'
 import api from '../../services/api'
-import { formatPrice } from '../../utils'
-import ProductImage from '../../components/shop/ProductImage'
+import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
 import type { ProductWithVariant } from '../../types'
 
 export default function SearchPage() {
@@ -71,11 +70,7 @@ export default function SearchPage() {
         {loading && (
           <div className="mt-8 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="card-premium p-4">
-                <div className="skeleton aspect-square" />
-                <div className="skeleton mt-3 h-3 w-3/4" />
-                <div className="skeleton mt-2 h-5 w-1/2" />
-              </div>
+              <ProductCardSkeleton key={i} />
             ))}
           </div>
         )}
@@ -83,24 +78,7 @@ export default function SearchPage() {
         {results.length > 0 && (
           <div className="mt-8 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             {results.map(p => (
-              <Link key={p.id} to={`/products/${p.slug || p.id}`} className="card-premium group overflow-hidden p-4 transition-all hover:-translate-y-1 hover:shadow-xl">
-                <div className="overflow-hidden rounded-xl bg-gray-100">
-                  <ProductImage src={p.primaryImage} alt={p.name} className="aspect-square" imgClassName="transition-transform duration-500 group-hover:scale-110" />
-                </div>
-                <div className="mt-3">
-                  {p.brand?.name && <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{p.brand.name}</p>}
-                  <h3 className="mt-0.5 text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-brand-700">{p.name}</h3>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-brand-600">{formatPrice(p.lowestPrice)}</span>
-                    {p.highestPrice > p.lowestPrice && (
-                      <span className="text-xs text-gray-400 line-through">{formatPrice(p.highestPrice)}</span>
-                    )}
-                  </div>
-                  <div className="mt-2.5">
-                    {p.inStock ? <span className="badge-success badge">In Stock</span> : <span className="badge-danger badge">Out of Stock</span>}
-                  </div>
-                </div>
-              </Link>
+              <ProductCard key={p.id} product={p} className="h-full" />
             ))}
           </div>
         )}

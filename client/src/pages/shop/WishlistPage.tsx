@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom'
 import { Heart, Trash2, AlertTriangle } from 'lucide-react'
 import { useWishlistStore } from '../../stores/wishlistStore'
 import api from '../../services/api'
-import { formatPrice } from '../../utils'
-import ProductImage from '../../components/shop/ProductImage'
+import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
 import { useEffect, useState } from 'react'
 
 export default function WishlistPage() {
@@ -34,11 +33,7 @@ export default function WishlistPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
           {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-            <div key={i} className="card-premium p-4">
-              <div className="skeleton aspect-square" />
-              <div className="skeleton mt-3 h-3 w-3/4" />
-              <div className="skeleton mt-2 h-5 w-1/2" />
-            </div>
+            <ProductCardSkeleton key={i} />
           ))}
         </div>
       </div>
@@ -79,20 +74,11 @@ export default function WishlistPage() {
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
           {products.map(({ storedId, data: p }) => p && (
-            <div key={storedId} className="card-premium group overflow-hidden p-4 transition-all hover:-translate-y-1 hover:shadow-xl">
-              <Link to={`/products/${p.slug || p.id}`} className="block overflow-hidden rounded-xl bg-gray-100">
-                <ProductImage src={p.primaryImage || ''} alt={p.name} className="aspect-square" imgClassName="transition-transform duration-500 group-hover:scale-110" />
-              </Link>
-              <div className="mt-3">
-                {p.brand?.name && <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{p.brand.name}</p>}
-                <h3 className="mt-0.5 text-sm font-semibold text-gray-900 line-clamp-2"><Link to={`/products/${p.slug || p.id}`} className="hover:text-brand-700">{p.name}</Link></h3>
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="text-lg font-bold text-brand-600">{formatPrice(p.lowestPrice)}</p>
-                </div>
-                <button onClick={() => removeItem(storedId)} className="mt-3 inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-red-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700" aria-label={`Remove ${p.name} from wishlist`}>
-                  <Trash2 className="h-3 w-3" /> Remove
-                </button>
-              </div>
+            <div key={storedId} className="flex h-full flex-col">
+              <ProductCard product={p} showWishlist={false} className="h-full w-full" />
+              <button onClick={() => removeItem(storedId)} className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 text-sm font-medium text-red-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700" aria-label={`Remove ${p.name} from wishlist`}>
+                <Trash2 className="h-4 w-4" /> Remove from wishlist
+              </button>
             </div>
           ))}
         </div>

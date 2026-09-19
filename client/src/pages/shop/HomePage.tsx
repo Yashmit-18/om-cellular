@@ -4,12 +4,12 @@ import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Clock, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
   MapPin, Mail, ExternalLink, ChevronLeft, ShieldCheck, BadgeCheck, Truck, Sparkles,
-  BadgePercent, Copy, Loader2, Check,
+  BadgePercent, Copy, Loader2, Check, TrendingUp,
   type LucideIcon
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
-import ProductImage from '../../components/shop/ProductImage'
+import ProductCard from '../../components/shop/ProductCard'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection, PromoCoupon, ServiceabilityCheckResponse } from '../../types'
 
 const REPAIR_ICONS: Record<string, string> = {
@@ -216,8 +216,8 @@ export default function HomePage() {
   const productRail = (products: ProductWithVariant[]) => (
     <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 no-scrollbar sm:grid sm:mx-0 sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-4">
       {products.slice(0, 8).map(product => (
-        <div key={product.id} className="w-[240px] shrink-0 snap-start sm:w-auto">
-          <ProductCard product={product} />
+        <div key={product.id} className="flex w-[240px] shrink-0 snap-start sm:w-auto">
+          <ProductCard product={product} className="h-full w-full" />
         </div>
       ))}
     </div>
@@ -256,16 +256,25 @@ export default function HomePage() {
     </section>
   )
 
-  const renderBestSellers = (section?: HomepageSection) => bestSellers.length > 0 && (
-    <section className="bg-white py-14 md:py-20">
+  const renderBestSellers = (section?: HomepageSection) => (
+    <section className="bg-gradient-to-b from-brand-50/60 via-gray-50/40 to-white py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Most loved" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Top performing phones this month'} />
+          <SectionHeading eyebrow="Trending now" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Popular picks from our latest collection.'} />
           <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
-            View All <ChevronRight className="h-4 w-4" />
+            View All Phones <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        {productRail(bestSellers)}
+        {bestSellers.length > 0 ? (
+          productRail(bestSellers)
+        ) : (
+          <div className="card mt-8 flex flex-col items-center justify-center gap-3 p-12 text-center">
+            <TrendingUp className="h-10 w-10 text-gray-300" />
+            <h3 className="text-lg font-semibold text-gray-900">No best sellers available right now</h3>
+            <p className="max-w-md text-sm text-gray-500">Popular phones are being refreshed. Browse the full catalogue while you wait.</p>
+            <Link to="/products" className="btn-primary mt-2">Browse All Phones <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -910,38 +919,5 @@ export default function HomePage() {
         </a>
       )}
     </div>
-  )
-}
-
-function ProductCard({ product }: { product: ProductWithVariant }) {
-  return (
-    <Link to={`/products/${product.slug || product.id}`} className="card-premium group relative overflow-hidden p-4 transition-all hover:-translate-y-1 hover:shadow-xl">
-      {product.isBestSeller && (
-        <span className="absolute left-3 top-3 z-10 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">Best Seller</span>
-      )}
-      <div className="relative overflow-hidden rounded-2xl bg-gray-100">
-        <ProductImage
-          src={product.primaryImage}
-          alt={product.name}
-          className="aspect-square"
-          imgClassName="transition-transform duration-500 group-hover:scale-110"
-        />
-        {product.inStock ? (
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 shadow-sm backdrop-blur">In Stock</span>
-        ) : (
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-500 shadow-sm backdrop-blur">Out of Stock</span>
-        )}
-      </div>
-      <div className="mt-4">
-        {product.brand && <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{product.brand.name}</p>}
-        <h3 className="mt-0.5 text-sm font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-lg font-extrabold text-brand-600">{formatPrice(product.lowestPrice)}</span>
-          {product.highestPrice > product.lowestPrice && (
-            <span className="text-sm text-gray-400 line-through">{formatPrice(product.highestPrice)}</span>
-          )}
-        </div>
-      </div>
-    </Link>
   )
 }
