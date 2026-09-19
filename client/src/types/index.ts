@@ -7,7 +7,7 @@ export type Condition = 'NEW' | 'LIKE_NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR'
 export type RepairStatus = 'BOOKING_RECEIVED' | 'APPROVED' | 'IN_DIAGNOSIS' | 'DIAGNOSED' | 'REJECTED' | 'IN_REPAIR' | 'AWAITING_PARTS' | 'COMPLETED' | 'READY_FOR_PICKUP' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
 export type RequestStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'INSPECTED' | 'OFFER_MADE' | 'OFFER_ACCEPTED' | 'OFFER_DECLINED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'PICKED_UP' | 'PAYMENT_PENDING' | 'PAYMENT_COMPLETED' | 'COMPLETED' | 'CANCELLED'
 export type NotificationType = 'ORDER' | 'PROMOTION' | 'SYSTEM' | 'REPAIR' | 'SELL' | 'EXCHANGE'
-export type SectionType = 'featured_products' | 'new_arrivals' | 'best_sellers' | 'categories' | 'banners' | 'testimonials' | 'custom'
+export type SectionType = 'featured_products' | 'new_arrivals' | 'best_sellers' | 'categories' | 'banners' | 'testimonials' | 'custom' | 'promo_banner'
 export type ContactStatus = 'PENDING' | 'READ' | 'REPLIED' | 'ARCHIVED'
 export type RequestedService = 'delivery' | 'repair' | 'pickupDrop' | 'sell' | 'exchange'
 export type NotifyStatus = 'WAITING' | 'NOTIFIED' | 'CLOSED'
@@ -627,6 +627,33 @@ export interface ProductWithVariant extends Product {
   inStock: boolean
   variantCount: number
   primaryImage: string
+}
+
+export interface PromoCoupon {
+  id: string
+  code: string
+  type: DiscountType
+  value: number
+  minOrderAmount: number | null
+  maxDiscount: number | null
+  description: string | null
+  expiresAt: string | null
+  applicableTo: string
+}
+
+export interface ServiceabilityResult {
+  configured: boolean
+  serviceable: boolean
+  areaCount: number
+  city?: string
+  state?: string
+}
+
+export interface ServiceabilityCheckResponse {
+  pincode: string
+  configured: boolean
+  serviceable: boolean
+  results: Record<string, ServiceabilityResult>
 }
 
 export interface SearchResult {

@@ -2,14 +2,15 @@ import { Fragment, useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
-  Phone, Shield, Clock, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
+  Phone, Clock, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
   MapPin, Mail, ExternalLink, ChevronLeft, ShieldCheck, BadgeCheck, Truck, Sparkles,
+  BadgePercent, Copy, Loader2, Check,
   type LucideIcon
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
 import ProductImage from '../../components/shop/ProductImage'
-import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection } from '../../types'
+import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection, PromoCoupon, ServiceabilityCheckResponse } from '../../types'
 
 const REPAIR_ICONS: Record<string, string> = {
   'Screen Repair': '📱', 'Battery Replacement': '🔋', 'Charging Port': '🔌',
@@ -54,6 +55,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [currentBanner, setCurrentBanner] = useState(0)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [activeCoupons, setActiveCoupons] = useState<PromoCoupon[]>([])
+  const [copiedCoupon, setCopiedCoupon] = useState('')
+  const [pincode, setPincode] = useState('')
+  const [pinStatus, setPinStatus] = useState<'idle' | 'loading' | 'success' | 'unavailable' | 'unconfigured' | 'error'>('idle')
+  const [pinResult, setPinResult] = useState<ServiceabilityCheckResponse | null>(null)
+  const [pinError, setPinError] = useState('')
 
   const fetchData = useCallback(async () => {
     try {
@@ -70,6 +77,7 @@ export default function HomePage() {
         api.get('/categories'),
         api.get('/products?isNewArrival=true&limit=8'),
         api.get('/products?isBestSeller=true&limit=8'),
+        api.get('/coupons/promo'),
       ])
       if (results[0].status === 'fulfilled') setBanners(results[0].value.data.data || [])
       if (results[1].status === 'fulfilled') setFeatured(results[1].value.data.data || [])
@@ -92,6 +100,7 @@ export default function HomePage() {
       if (results[9].status === 'fulfilled') setCategories(results[9].value.data.data || [])
       if (results[10].status === 'fulfilled') setNewArrivals(results[10].value.data.data || [])
       if (results[11].status === 'fulfilled') setBestSellers(results[11].value.data.data || [])
+      if (results[12].status === 'fulfilled') setActiveCoupons(results[12].value.data.data || [])
     } catch { /* silently fail */ } finally { setLoading(false) }
   }, [])
 
@@ -140,7 +149,7 @@ export default function HomePage() {
                 <div className="container-custom">
                   <div className="max-w-xl">
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur">
-                      <ShieldCheck className="h-3.5 w-3.5 text-brand-400" /> India&apos;s trusted mobile destination
+                      <ShieldCheck className="h-3.5 w-3.5 text-brand-400" /> Certified used &amp; refurbished phones
                     </span>
                     <h1 className="mt-5 text-3xl font-extrabold text-white md:text-5xl leading-tight">{banner.title}</h1>
                     {banner.subtitle && <p className="mt-4 text-base text-gray-300 leading-relaxed md:text-lg">{banner.subtitle}</p>}
@@ -285,29 +294,32 @@ export default function HomePage() {
   )
 
   const renderCategories = (section?: HomepageSection) => {
-    const items = categories.length > 0 ? categories.slice(0, 16) : brands.slice(0, 16)
-    if (items.length === 0) return null
+    if (categories.length === 0) return null
     return (
-      <section className="container-custom py-14 md:py-20">
-        <div className="text-center">
-          <SectionHeading eyebrow="Explore" title={section?.title || 'Popular Brands'} subtitle={section?.subtitle || 'Certified devices from the brands you trust'} />
-        </div>
-        <div className="mt-9 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible md:grid-cols-6 lg:grid-cols-8">
-          {items.map((item: any) => (
-            <Link key={item.id || item._id} to={`/products?${categories.length > 0 ? 'categoryId' : 'brandId'}=${item.id || item._id}`}
-              className="card-premium group flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-lg sm:w-auto sm:p-4">
-              {item.logo ? (
-                <img src={item.logo} alt={item.name} className="h-10 w-10 object-contain transition-transform group-hover:scale-110" />
-              ) : item.image ? (
-                <img src={item.image} alt={item.name} className="h-10 w-10 object-contain transition-transform group-hover:scale-110" />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 text-sm font-bold text-brand-600">
-                  {item.name.charAt(0)}
-                </div>
-              )}
-              <span className="text-xs font-medium text-gray-700">{item.name}</span>
-            </Link>
-          ))}
+      <section className="bg-gradient-to-b from-white to-gray-50/60 py-14 md:py-20">
+        <div className="container-custom">
+          <div className="text-center">
+            <SectionHeading eyebrow="Explore" title={section?.title || 'Shop by Category'} subtitle={section?.subtitle || 'Smartphones, tablets, smartwatches and accessories for every need'} />
+          </div>
+          <div className="mt-9 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {categories.slice(0, 8).map((cat: any) => (
+              <Link key={cat.id || cat._id} to={`/products?categoryId=${cat.id || cat._id}`}
+                className="card-premium group relative overflow-hidden p-6 text-center transition-all hover:-translate-y-1 hover:shadow-xl">
+                <div className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-32 rounded-full bg-gradient-to-br from-brand-500/10 to-transparent transition-transform group-hover:scale-150" />
+                {cat.image ? (
+                  <img src={cat.image} alt={cat.name} className="mx-auto h-16 w-16 rounded-2xl object-cover transition-transform group-hover:scale-110" />
+                ) : (
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-2xl font-bold text-white shadow-lg shadow-brand-500/25">
+                    {cat.name.charAt(0)}
+                  </div>
+                )}
+                <h3 className="mt-4 font-semibold text-gray-900">{cat.name}</h3>
+                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-600">
+                  View collection <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                </p>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     )
@@ -316,7 +328,7 @@ export default function HomePage() {
   const renderTestimonials = () => testimonials.length > 0 && (
     <section className="container-custom py-14 md:py-20">
       <div className="text-center">
-        <SectionHeading eyebrow="Word of mouth" title="What Our Customers Say" subtitle="Trusted by hundreds of happy customers" />
+        <SectionHeading eyebrow="Word of mouth" title="What Our Customers Say" subtitle="Real reviews from the OM Cellular community" />
       </div>
       <div className="mt-10 grid gap-6 md:grid-cols-3">
         {testimonials.slice(0, 6).map(t => (
@@ -376,10 +388,16 @@ export default function HomePage() {
     best_sellers: renderBestSellers,
     categories: renderCategories,
     testimonials: renderTestimonials,
+    promo_banner: () => null,
     custom: (s) => (s ? renderCustom(s) : null),
   }
 
   const hasCmsSections = homepageSections.length > 0
+  const gatedHas = (type: string) => homepageSections.some(s => s.type === type)
+
+  const discountedFeatured = featured.filter(p =>
+    (p.variants || []).some(v => (v.discountPrice ?? 0) > 0 && (v.discountPrice ?? v.price) < v.price)
+  )
 
   // Content sections that are gated/ordered by the CMS homepage-sections.
   const renderGatedContent = () => {
@@ -398,31 +416,172 @@ export default function HomePage() {
 
   // ---- ALWAYS-ON / separately-managed sections (not gated by homepage-sections) ----
 
-  const renderTrustBar = () => (
-    <section className="relative overflow-hidden border-b border-white/10 bg-navy-950">
-      <div className="absolute inset-0 bg-gradient-to-r from-brand-600/15 via-navy-950 to-violet-600/15" />
-      <div className="container-custom relative py-7">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4">
+  const renderWhyUs = () => (
+    <section className="border-t border-gray-100 bg-white py-14 md:py-20">
+      <div className="container-custom">
+        <div className="text-center">
+          <SectionHeading eyebrow="Why OM Cellular" title="Built Around Your Mobile" subtitle="Honest pricing, thorough checks and support at every step" />
+        </div>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { icon: BadgeCheck, title: '100% Quality Checked', desc: 'Every device verified' },
-            { icon: Shield, title: 'Genuine Parts', desc: 'Quality components' },
-            { icon: Truck, title: 'Fast Delivery', desc: 'Ships across India' },
-            { icon: Clock, title: 'Transparent Pricing', desc: 'No hidden charges' },
+            { icon: ShieldCheck, title: 'Quality-Checked Devices', desc: 'Every certified phone is inspected and graded before it is listed for sale.' },
+            { icon: BadgeCheck, title: 'Transparent Valuation', desc: 'Instant estimates for your phone, then a confirmed price after physical inspection.' },
+            { icon: Truck, title: 'Doorstep Pickup & Delivery', desc: 'Sell, exchange or repair with pickup options, and track your order at every step.' },
+            { icon: Clock, title: 'Upfront Repair Pricing', desc: 'Clear repair charges before we start work, with genuine parts and a service warranty.' },
+            { icon: MessageCircle, title: 'One-to-One Support', desc: 'Call, WhatsApp or email us — a real person helps you before and after your order.' },
+            { icon: Smartphone, title: 'Flexible Payment Options', desc: 'Pay by cash on delivery or online at checkout, whichever works for you.' },
           ].map((item) => (
-            <div key={item.title} className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-                <item.icon className="h-5 w-5 text-brand-400" />
+            <div key={item.title} className="card-premium group p-6 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/25 transition-transform group-hover:scale-110">
+                <item.icon className="h-6 w-6" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{item.title}</p>
-                <p className="text-xs text-gray-400">{item.desc}</p>
-              </div>
+              <h3 className="mt-5 font-bold text-gray-900">{item.title}</h3>
+              <p className="mt-2 text-sm text-gray-500 leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
   )
+
+  const renderPromoStrip = () => {
+    const cmsPromos = homepageSections.filter(s => s.type === 'promo_banner')
+    const defaults = [
+      { id: 'default-buy', title: 'Certified Used & Refurbished Phones', subtitle: 'Quality-checked devices with warranty, ready to ship across India.', ctaText: 'Shop Phones', ctaLink: '/buy-phones', image: '', accent: 'from-brand-600 via-brand-700 to-brand-800' },
+      { id: 'default-sell', title: 'Trade In or Sell Your Old Phone', subtitle: 'Get an instant estimate, a confirmed price after inspection, and doorstep pickup.', ctaText: 'Sell or Exchange', ctaLink: '/sell-phone', image: '', accent: 'from-violet-600 via-violet-700 to-indigo-800' },
+      { id: 'default-repair', title: 'Expert Phone Repair', subtitle: 'Genuine parts, upfront pricing and a service warranty on every job.', ctaText: 'Book a Repair', ctaLink: '/repair', image: '', accent: 'from-slate-800 via-navy-900 to-navy-950' },
+    ]
+    const tiles = (cmsPromos.length > 0 ? cmsPromos : defaults).map((t, i) => ({
+      id: t.id || `promo-${i}`,
+      title: t.title || 'OM Cellular',
+      subtitle: t.subtitle || '',
+      ctaText: t.ctaText || 'Learn more',
+      ctaLink: t.ctaLink || '/products',
+      image: (t as any).image || '',
+      accent: (t as any).accent || 'from-brand-600 to-brand-800',
+    }))
+    return (
+      <section className="bg-white pb-2 pt-10">
+        <div className="container-custom">
+          <div className="grid gap-5 md:grid-cols-2">
+            {tiles.map((tile, i) => (
+              <Link key={tile.id} to={tile.ctaLink}
+                className={`group relative overflow-hidden rounded-2xl p-7 text-white shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-brand-600 to-brand-800'}`}>
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl transition-transform group-hover:scale-125" />
+                {tile.image && (
+                  <img src={tile.image} alt={tile.title} className="absolute inset-0 h-full w-full object-cover opacity-25" />
+                )}
+                <div className="relative">
+                  <BadgePercent className="h-6 w-6 text-white/90" />
+                  <h2 className="mt-3 text-xl font-extrabold md:text-2xl">{tile.title}</h2>
+                  {tile.subtitle && <p className="mt-2 max-w-lg text-sm text-white/85 leading-relaxed">{tile.subtitle}</p>}
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold">
+                    {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  const renderCouponOffers = (coupons: PromoCoupon[]) => (
+    <section className="bg-gradient-to-b from-gray-50/60 to-white py-14 md:py-20">
+      <div className="container-custom">
+        <div className="text-center">
+          <SectionHeading eyebrow="Grab a deal" title="Current Offers" subtitle="Apply the code at checkout — the best discount is applied automatically" />
+        </div>
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {coupons.slice(0, 6).map(coupon => (
+            <div key={coupon.id} className="card-premium relative overflow-hidden p-6 transition-all hover:-translate-y-1 hover:shadow-xl">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-brand-500/15 to-transparent" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-600 to-violet-600 px-3 py-1 text-xs font-bold text-white shadow-md">
+                  <BadgePercent className="h-3.5 w-3.5" /> {coupon.value}{coupon.type === 'PERCENTAGE' ? '% OFF' : ' OFF'}
+                </span>
+                {coupon.expiresAt && (
+                  <span className="text-[11px] font-medium text-gray-400">Valid till {new Date(coupon.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                )}
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">{coupon.description || 'Save on your next order'}</h3>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <code className="rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-bold tracking-wider text-brand-700">{coupon.code}</code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(coupon.code).then(() => setCopiedCoupon(coupon.id)).catch(() => {})
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-brand-300 hover:text-brand-600"
+                  aria-label={`Copy code ${coupon.code}`}
+                >
+                  {copiedCoupon === coupon.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedCoupon === coupon.id ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              {(coupon.minOrderAmount ?? 0) > 0 && (
+                <p className="mt-3 text-xs text-gray-400">Min. order {formatPrice(coupon.minOrderAmount!)}{(coupon.maxDiscount ?? 0) > 0 ? ` · up to ${formatPrice(coupon.maxDiscount!)} off` : ''}</p>
+              )}
+              <Link to="/products" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-colors hover:text-brand-700">
+                Shop now <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+
+  const renderOffers = () => {
+    if (activeCoupons.length > 0) return renderCouponOffers(activeCoupons)
+    if (discountedFeatured.length >= 4) {
+      return (
+        <section className="bg-gradient-to-b from-gray-50/60 to-white py-14 md:py-20">
+          <div className="container-custom">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <SectionHeading eyebrow="Limited-time deals" title="Deals & Offers" subtitle="Certified devices at reduced prices, while stock lasts" />
+              <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+                View All <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+            {productRail(discountedFeatured)}
+          </div>
+        </section>
+      )
+    }
+    return null
+  }
+
+  const checkPincode = async (pin: string) => {
+    const trimmed = pin.trim()
+    if (!/^\d{6}$/.test(trimmed)) {
+      setPinStatus('error')
+      setPinError('Please enter a valid 6-digit PIN code')
+      return
+    }
+    setPinStatus('loading')
+    setPinError('')
+    try {
+      const { data } = await api.post('/serviceability/check', { pincode: trimmed, services: ['delivery'] })
+      const result: ServiceabilityCheckResponse = data?.data
+      setPinResult(result)
+      if (!result.configured) setPinStatus('unconfigured')
+      else if (result.serviceable) setPinStatus('success')
+      else setPinStatus('unavailable')
+    } catch {
+      setPinStatus('error')
+      setPinError('Could not check your PIN right now. Please try again.')
+    }
+  }
+
+  const pinHelp = {
+    load: 'Checking availability…',
+    ok: (city?: string, state?: string) => `Delivery available at ${pincode}` + (city ? `, ${city}${state ? `, ${state}` : ''}` : ''),
+    no: (city?: string, _state?: string) => `Delivery is not yet available at ${pincode}` + (city ? ` (${city})` : ''),
+    soon: 'We are expanding our delivery coverage — check back soon.',
+    err: pinError || 'Could not check your PIN right now. Please try again.',
+  }
 
   const renderServiceCards = () => (
     <section className="container-custom py-14 md:py-20">
@@ -458,18 +617,57 @@ export default function HomePage() {
 
   const renderDeliveryCta = () => {
     const freeThreshold = parseInt(settings.free_shipping_threshold || '') || 0
+    const delivery = pinResult?.results?.delivery
     return (
       <section className="container-custom py-4">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 via-brand-700 to-violet-700 px-6 py-12 text-center shadow-xl shadow-brand-600/20 md:px-16 md:py-14">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-violet-400/20 blur-2xl" />
           <Truck className="mx-auto h-10 w-10 text-white/90" />
-          <h2 className="mt-4 text-2xl font-extrabold text-white md:text-3xl">Nationwide Delivery, Right to Your Door</h2>
+          <h2 className="mt-4 text-2xl font-extrabold text-white md:text-3xl">Delivery Right to Your Door</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-white/85 leading-relaxed md:text-base">
             {freeThreshold > 0
               ? `Every phone is quality-checked, packed securely, and covered by warranty. Enjoy free delivery on orders above ${formatPrice(freeThreshold)}.`
               : 'Every phone is quality-checked, packed securely, and covered by warranty. Order online and track your device every step of the way.'}
           </p>
+          <div className="mx-auto mt-7 max-w-md">
+            <label htmlFor="pincode-check" className="sr-only">Check delivery PIN code</label>
+            <div className="flex items-center gap-2 rounded-xl bg-white/10 p-2 backdrop-blur ring-1 ring-white/20">
+              <MapPin className="ml-2 h-5 w-5 shrink-0 text-white/80" />
+              <input
+                id="pincode-check"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={6}
+                value={pincode}
+                onChange={(e) => { setPincode(e.target.value.replace(/\D/g, '')) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') checkPincode(pincode) }}
+                placeholder="Enter PIN to check delivery"
+                className="w-full bg-transparent py-2 text-sm text-white placeholder-white/60 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => checkPincode(pincode)}
+                disabled={pinStatus === 'loading' || pincode.length !== 6}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-sm font-bold text-brand-700 shadow transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pinStatus === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Check
+              </button>
+            </div>
+            <p role="status" aria-live="polite" className={`mt-3 min-h-5 text-sm font-medium ${
+              pinStatus === 'success' ? 'text-emerald-200'
+              : pinStatus === 'unavailable' || pinStatus === 'error' ? 'text-amber-200'
+              : 'text-white/85'
+            }`}>
+              {pinStatus === 'loading' && pinHelp.load}
+              {pinStatus === 'success' && pinHelp.ok(delivery?.city, delivery?.state)}
+              {pinStatus === 'unavailable' && pinHelp.no(delivery?.city, delivery?.state)}
+              {pinStatus === 'unconfigured' && pinHelp.soon}
+              {pinStatus === 'error' && pinHelp.err}
+            </p>
+          </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link to="/buy-phones" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-brand-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">
               <Smartphone className="h-4 w-4" /> Shop Phones
@@ -686,34 +884,22 @@ export default function HomePage() {
 
   return (
     <div>
-      {hasCmsSections ? (
-        <>
-          {renderGatedContent()}
-          {renderTrustBar()}
-          {renderServiceCards()}
-          {renderSellSection()}
-          {renderRepairSection()}
-          {renderDeliveryCta()}
-          {renderInfoCards()}
-          {renderFaq()}
-          {renderContact()}
-        </>
-      ) : (
-        <>
-          {renderHero()}
-          {renderTrustBar()}
-          {renderServiceCards()}
-          {renderSellSection()}
-          {renderRepairSection()}
-          {renderDeliveryCta()}
-          {renderFeatured()}
-          {renderBrands()}
-          {renderInfoCards()}
-          {renderTestimonials()}
-          {renderFaq()}
-          {renderContact()}
-        </>
-      )}
+      {renderHero()}
+      {renderPromoStrip()}
+      {hasCmsSections && renderGatedContent()}
+      {renderServiceCards()}
+      {!gatedHas('featured_products') && renderFeatured()}
+      {renderOffers()}
+      {renderBrands()}
+      {!gatedHas('categories') && renderCategories()}
+      {renderWhyUs()}
+      {!hasCmsSections && renderSellSection()}
+      {!hasCmsSections && renderRepairSection()}
+      {renderDeliveryCta()}
+      {renderInfoCards()}
+      {!gatedHas('testimonials') && renderTestimonials()}
+      {renderFaq()}
+      {renderContact()}
 
       {/* WhatsApp Floating Button */}
       {whatsAppUrl && (

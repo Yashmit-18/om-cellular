@@ -29,6 +29,40 @@ router.get('/', requireAdmin, async (req: Request, res: Response) => {
   }
 })
 
+// Public: list active promo codes that are safe to display in customer-facing
+// offer sections. Only surfaces presentation-safe fields and never includes
+// usage counters or product/category targets. A code is excluded once its
+// expiry or usage limit makes it invalid, so advertised offers stay accurate.
+router.get('/promo', async (_req: Request, res: Response) => {
+  try {
+    const now = new Date()
+    const coupons = await Coupon.find({
+      isActive: true,
+      $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gte: now } }],
+    })
+    const usable = coupons.filter((c) => !c.usageLimit || (c.usedCount || 0) < c.usageLimit)
+    const promo = usable
+      .map((c) => ({
+        id: String(c._id),
+        code: c.code,
+        type: c.type,
+        value: c.value,
+        minOrderAmount: c.minOrderAmount ?? null,
+        maxDiscount: c.maxDiscount ?? null,
+        description: c.description ?? null,
+        expiresAt: c.expiresAt ?? null,
+        applicableTo: c.applicableTo || 'ALL',
+      }))
+      .sort((a, b) => {
+        const rank = (c: { type: string; value: number }) => (c.type === 'PERCENTAGE' ? c.value : c.value > 0 ? 1 : 0)
+        return rank(b) - rank(a)
+      })
+    return res.json({ success: true, data: promo })
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
+
 router.get('/validate/:code', optionalAuth, async (req: RouteRequest, res: Response) => {
   try {
     const coupon = await Coupon.findOne({ code: req.params.code.toUpperCase() })
