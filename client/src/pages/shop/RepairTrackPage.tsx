@@ -1,26 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Wrench } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Wrench, AlertCircle, Search } from 'lucide-react'
 import { repairService } from '../../services/repair.service'
 import { formatDate, formatPrice } from '../../utils'
-import { REPAIR_STATUS_COLORS } from '../../constants'
+import { REPAIR_STATUS_LABELS, REPAIR_STATUS_COLORS } from '../../constants'
 import { storeAddressText, googleMapsSearchUrl } from '../../utils'
+import StatusTimeline from '../../components/StatusTimeline'
 
 export default function RepairTrackPage() {
   const [searchParams] = useSearchParams()
   const [bookingNumber, setBookingNumber] = useState(searchParams.get('booking') || '')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
 
   const handleTrack = async () => {
-    if (!bookingNumber.trim()) { toast.error('Enter booking number'); return }
+    if (!bookingNumber.trim()) return
     setLoading(true)
+    setError(false)
     try {
       const res = await repairService.trackRepair(bookingNumber)
       setResult(res.data || res.data?.data || res)
     } catch {
-      toast.error('Repair not found')
+      setError(true)
       setResult(null)
     } finally {
       setLoading(false)
@@ -37,53 +39,69 @@ export default function RepairTrackPage() {
   }, [searchParams])
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <Wrench className="mx-auto h-12 w-12 text-brand-500" />
-        <h1 className="mt-4 text-3xl font-bold">Track Repair</h1>
-        <p className="mt-2 text-gray-500">Enter your booking number to track status</p>
-      </div>
-      <div className="mt-8 card p-6">
-        <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
-          <input value={bookingNumber} onChange={e => setBookingNumber(e.target.value)} placeholder="Booking number" className="input flex-1" />
-          <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Tracking...' : 'Track'}</button>
-        </form>
-        {result && (
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Booking #</p><p className="font-bold">{result.bookingNumber}</p></div>
-              <span className={`badge ${REPAIR_STATUS_COLORS[result.status] || 'badge-info'}`}>{result.status}</span>
+    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+            <Wrench className="h-3.5 w-3.5" /> Repair status
+          </span>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Track Your Repair</h1>
+          <p className="mt-2 text-gray-500">Enter your booking number to see live status updates</p>
+        </div>
+
+        <div className="card mt-8 p-6">
+          <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
+            <input
+              value={bookingNumber}
+              onChange={e => setBookingNumber(e.target.value)}
+              placeholder="Booking number"
+              className="input flex-1"
+              aria-label="Booking number"
+            />
+            <button type="submit" disabled={loading} className="btn-primary">
+              <Search className="mr-1.5 h-4 w-4" />{loading ? 'Tracking...' : 'Track'}
+            </button>
+          </form>
+
+          {error && (
+            <div className="mt-6 rounded-xl border border-red-100 bg-red-50 p-4 text-center">
+              <AlertCircle className="mx-auto h-7 w-7 text-red-500" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Repair not found</p>
+              <p className="mt-0.5 text-xs text-gray-500">Check your booking number and try again, or contact us for assistance.</p>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-gray-500">Device</p><p className="font-medium">{result.brand} {result.model}</p></div>
-              <div><p className="text-gray-500">Created</p><p className="font-medium">{formatDate(result.createdAt)}</p></div>
-              {result.estimatedCost ? <div><p className="text-gray-500">Estimated Cost</p><p className="font-medium">{formatPrice(result.estimatedCost)}</p></div> : null}
-              {result.technicianName && <div><p className="text-gray-500">Technician</p><p className="font-medium">{result.technicianName}</p></div>}
-              <div><p className="text-gray-500">Service Mode</p><p className="font-medium">{result.serviceMode === 'DOORSTEP_PICKUP' ? 'Doorstep Pickup' : 'Store Drop-off'}</p></div>
-              {result.pickupFee > 0 && <div><p className="text-gray-500">Pickup Fee</p><p className="font-medium">{formatPrice(result.pickupFee)}</p></div>}
-            </div>
-            {result.serviceMode === 'STORE_DROP' && (
-              <p className="mt-2 rounded-lg bg-brand-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700">Get directions</a></p>
-            )}
-            {result.pickupAddress && <p className="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Pickup address: {result.pickupAddress}</p>}
-            {result.statusHistory && result.statusHistory.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold mt-4">Status History</h3>
-                <div className="mt-2 space-y-2">
-                  {result.statusHistory.map((h: any, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3 text-sm">
-                      <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
-                      <div>
-                        <p className="font-medium">{h.status}</p>
-                        <p className="text-xs text-gray-400">{formatDate(h.changedAt)}</p>
-                      </div>
-                    </div>
-                  ))}
+          )}
+
+          {result && (
+            <div className="animate-fade-in mt-6 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-500">Booking #</p>
+                  <p className="font-bold">{result.bookingNumber}</p>
                 </div>
+                <span className={`badge ${REPAIR_STATUS_COLORS[result.status] || 'badge-info'}`}>{REPAIR_STATUS_LABELS[result.status] || result.status}</span>
               </div>
-            )}
-          </div>
-        )}
+              <div className="grid grid-cols-2 gap-4 rounded-xl bg-gray-50 p-4 text-sm sm:grid-cols-4">
+                <div><p className="text-gray-500">Device</p><p className="mt-0.5 font-medium">{result.brand} {result.model}</p></div>
+                <div><p className="text-gray-500">Created</p><p className="mt-0.5 font-medium">{formatDate(result.createdAt)}</p></div>
+                {result.estimatedCost ? <div><p className="text-gray-500">Estimated Cost</p><p className="mt-0.5 font-medium">{formatPrice(result.estimatedCost)}</p></div> : null}
+                {result.pickupFee > 0 && <div><p className="text-gray-500">Pickup Fee</p><p className="mt-0.5 font-medium">{formatPrice(result.pickupFee)}</p></div>}
+                <div><p className="text-gray-500">Service Mode</p><p className="mt-0.5 font-medium capitalize">{result.serviceMode === 'DOORSTEP_PICKUP' ? 'Doorstep Pickup' : 'Store Drop-off'}</p></div>
+              </div>
+              {result.serviceMode === 'STORE_DROP' && (
+                <p className="rounded-lg bg-brand-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700">Get directions</a></p>
+              )}
+              {result.pickupAddress && <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Pickup address: {result.pickupAddress}</p>}
+              {result.statusHistory && result.statusHistory.length > 0 && (
+                <div>
+                  <h3 className="mt-4 text-sm font-semibold">Status History</h3>
+                  <div className="mt-3 rounded-xl border border-gray-100 p-4">
+                    <StatusTimeline history={result.statusHistory} labels={REPAIR_STATUS_LABELS} colors={REPAIR_STATUS_COLORS} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

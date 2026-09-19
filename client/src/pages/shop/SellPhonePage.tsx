@@ -284,7 +284,7 @@ export default function SellPhonePage() {
                     value={brandSearch}
                     onChange={e => setBrandSearch(e.target.value)}
                     placeholder="Search brands..."
-                    className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-12 pr-4 text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    className="input w-full !pl-12"
                   />
                 </div>
 
@@ -359,7 +359,7 @@ export default function SellPhonePage() {
                     value={modelSearch}
                     onChange={e => setModelSearch(e.target.value)}
                     placeholder={`Search ${selectedBrand} models...`}
-                    className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-12 pr-4 text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    className="input w-full !pl-12"
                   />
                 </div>
 
@@ -402,7 +402,7 @@ export default function SellPhonePage() {
                             >
                               <span className="flex items-center gap-3">
                                 {model.image
-                                  ? <img src={model.image} alt={`${model.modelName}`} className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 object-contain" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.visibility = 'hidden' }} />
+                                  ? <img src={model.image} alt={`${model.modelName}`} className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 object-contain" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                   : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-brand-600"><Smartphone className="h-5 w-5" /></span>}
                                 <span className="font-medium text-gray-900">{model.modelName}</span>
                               </span>
@@ -616,7 +616,7 @@ export default function SellPhonePage() {
                       inputMode="numeric"
                     />
                     {form.imei.replace(/\s+/g, '') && (isValidImei(form.imei)
-                      ? <p className="mt-1 text-xs text-green-600">Valid IMEI — helps us verify ownership and speed up your offer.</p>
+                      ? <p className="mt-1 text-xs text-emerald-600">Valid IMEI — helps us verify ownership and speed up your offer.</p>
                       : <p className="mt-1 text-xs text-red-500">Enter a valid 15-digit IMEI to verify this device.</p>)}
                   </div>
                   <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/50 p-4">

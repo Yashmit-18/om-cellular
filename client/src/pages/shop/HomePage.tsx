@@ -599,7 +599,7 @@ export default function HomePage() {
                 </span>
               </button>
               {openFaq === i && (
-                <div className="border-t border-gray-100 px-5 pb-5">
+                <div className="animate-fade-in border-t border-gray-100 px-5 pb-5">
                   <p className="text-sm text-gray-600 leading-relaxed">{faq.answer}</p>
                 </div>
               )}

@@ -79,7 +79,7 @@ export default function AdminProductEditPage() {
             {product.variants.map((v: any) => (
               <div key={v.id} className="flex items-center justify-between rounded-lg border p-4">
                 <div><p className="font-medium">{v.name}</p><p className="text-sm text-gray-500">SKU: {v.sku}</p></div>
-                <div className="text-right"><p className="font-bold">{formatPrice(v.discountPrice || v.price)}</p><p className="text-sm text-gray-500">Stock: {v.stock}</p></div>
+                <div className="text-right"><p className="font-bold">{formatPrice(v.discountPrice ?? v.price)}</p><p className="text-sm text-gray-500">Stock: {v.stock}</p></div>
               </div>
             ))}
           </div>

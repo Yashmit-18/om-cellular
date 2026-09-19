@@ -38,7 +38,7 @@ export default function ContactPage() {
   return (
     <div className="container-custom py-12">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Contact Us</h1>
+        <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">Contact Us</h1>
         <p className="mt-2 text-gray-500">We&apos;d love to hear from you</p>
       </div>
 

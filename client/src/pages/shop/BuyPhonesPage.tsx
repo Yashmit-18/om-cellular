@@ -114,10 +114,10 @@ export default function BuyPhonesPage() {
   const renderSkeleton = () => (
     <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="aspect-square animate-pulse rounded-lg bg-gray-100" />
-          <div className="mt-3 h-3 w-3/4 animate-pulse rounded bg-gray-100" />
-          <div className="mt-2 h-5 w-1/2 animate-pulse rounded bg-gray-100" />
+        <div key={i} className="card-premium p-4">
+          <div className="skeleton aspect-square" />
+          <div className="skeleton mt-3 h-3 w-3/4" />
+          <div className="skeleton mt-2 h-5 w-1/2" />
         </div>
       ))}
     </div>
@@ -210,7 +210,7 @@ export default function BuyPhonesPage() {
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Search phones by name or model..."
-              className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="input !py-2.5 !pl-10 !pr-10 !text-sm"
             />
             {searchInput && (
               <button type="button" onClick={() => { setSearchInput(''); updateFilter('q', '') }} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600" aria-label="Clear search">
@@ -221,18 +221,18 @@ export default function BuyPhonesPage() {
 
           <div className="flex items-center gap-2 lg:ml-auto">
             {hasActiveFilters && (
-              <button onClick={clearAll} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-500 transition-colors hover:border-red-200 hover:text-red-600">
+              <button onClick={clearAll} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-500 transition-colors hover:border-red-200 hover:text-red-600">
                 <X className="h-4 w-4" /> Clear filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
               </button>
             )}
             <select
               value={currentSort}
               onChange={e => updateFilter('sort', e.target.value)}
-              className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none"
+              className="input !w-auto !py-2.5 !px-3"
             >
               {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
-            <button onClick={() => setShowFilters(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-700 lg:hidden">
+            <button onClick={() => setShowFilters(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-700 lg:hidden">
               <SlidersHorizontal className="h-4 w-4" /> Filters
             </button>
           </div>
@@ -321,7 +321,7 @@ export default function BuyPhonesPage() {
                     <Link
                       key={product.id}
                       to={`/products/${product.slug || product.id}`}
-                      className="group rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg"
+                      className="card-premium group relative overflow-hidden p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
                     >
                       <ProductImage
                         src={product.primaryImage}
@@ -342,11 +342,11 @@ export default function BuyPhonesPage() {
                         </div>
                         <div className="mt-2.5 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5">
-                            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', product.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+                            <span className={cn('badge', product.inStock ? 'badge-success' : 'badge-danger')}>
                               {product.inStock ? 'In Stock' : 'Out of Stock'}
                             </span>
                             {product.variantCount > 1 && (
-                              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">{product.variantCount} variants</span>
+                              <span className="badge badge-info">{product.variantCount} variants</span>
                             )}
                           </div>
                           <span className="text-xs font-medium text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">View details</span>

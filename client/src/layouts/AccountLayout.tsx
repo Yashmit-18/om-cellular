@@ -32,17 +32,32 @@ export default function AccountLayout() {
 
   if (!user) return <Navigate to="/login" replace />
 
+  const isActive = (to: string) =>
+    to === '/account'
+      ? location.pathname === '/account'
+      : location.pathname === to || location.pathname.startsWith(to + '/')
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="grid gap-8 md:grid-cols-[240px_1fr]">
-        <aside className="card p-4">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 md:py-12">
+      <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+        <aside className="card h-fit p-4 lg:sticky lg:top-24">
+          <div className="mb-4 flex items-center gap-3 border-b border-gray-100 px-2 pb-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-sm shadow-brand-600/25">
+              {user.name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">Hello, {user.name?.split(' ')[0]}</p>
+              <p className="truncate text-xs text-gray-500">{user.email}</p>
+            </div>
+          </div>
           <nav className="space-y-1">
             {accountLinks.map(({ to, label, icon: Icon }) => (
               <Link
                 key={to}
                 to={to}
+                aria-current={isActive(to) ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  location.pathname === to
+                  isActive(to)
                     ? 'bg-brand-50 text-brand-600'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}

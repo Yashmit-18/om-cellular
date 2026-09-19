@@ -134,7 +134,27 @@ export default function RepairBookPage() {
     } finally { setSubmitting(false) }
   }
 
-  if (loading) return <div className="flex h-96 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" /></div>
+  if (loading) {
+    return (
+      <div className="container-custom py-12">
+        <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-50" />
+        <div className="mx-auto mt-4 h-6 w-44 rounded bg-gray-100" />
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="card-premium p-6">
+              <div className="skeleton h-5 w-1/2" />
+              <div className="skeleton mt-3 h-3 w-3/4" />
+              <div className="skeleton mt-3 h-3 w-2/3" />
+              <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+                <div className="skeleton h-6 w-20" />
+                <div className="skeleton h-9 w-28" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   if (view === 'success') {
     return (
@@ -360,13 +380,13 @@ export default function RepairBookPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-amber-50/40 via-white to-white">
+    <div className="bg-gradient-to-b from-brand-50/40 via-white to-white">
       <div className="container-custom py-12 pb-24">
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
-            <Wrench className="h-7 w-7 text-amber-600" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
+            <Wrench className="h-7 w-7 text-brand-600" />
           </div>
-          <h1 className="mt-4 text-3xl font-bold text-gray-900">Repair Services</h1>
+          <h1 className="mt-4 text-3xl font-bold text-gray-900 md:text-4xl">Repair Services</h1>
           <p className="mt-2 text-gray-500">Professional phone repair with genuine parts and warranty</p>
         </div>
 
@@ -375,7 +395,7 @@ export default function RepairBookPage() {
             {services.map(service => (
               <div key={service.id} className="card-premium flex flex-col p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50"><Wrench className="h-5 w-5 text-amber-600" /></div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50"><Wrench className="h-5 w-5 text-brand-600" /></div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{service.name}</h3>
                     <p className="mt-1 text-sm text-gray-500">{service.description || 'Professional repair service'}</p>

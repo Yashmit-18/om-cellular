@@ -167,13 +167,13 @@ export default function ProductDetailPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
+          <div className="skeleton aspect-square rounded-2xl" />
           <div className="space-y-4">
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="h-8 w-2/3 animate-pulse rounded bg-gray-100" />
-            <div className="h-10 w-40 animate-pulse rounded bg-gray-100" />
-            <div className="h-24 w-full animate-pulse rounded bg-gray-100" />
-            <div className="h-12 w-full animate-pulse rounded bg-gray-100" />
+            <div className="skeleton h-4 w-24" />
+            <div className="skeleton h-8 w-2/3" />
+            <div className="skeleton h-10 w-40" />
+            <div className="skeleton h-24 w-full" />
+            <div className="skeleton h-12 w-full" />
           </div>
         </div>
       </div>
@@ -197,9 +197,9 @@ export default function ProductDetailPage() {
   const images = getImageList(product.images, selectedVariant?.images)
   const specs = parseSpecs(selectedVariant?.specifications)
   const whatsIncluded = parseArrayItems(selectedVariant?.whatsIncluded)
-  const displayPrice = selectedVariant ? (selectedVariant.discountPrice || selectedVariant.price) : 0
-  const lowestAny = variants.length > 0 ? Math.min(...variants.map(v => v.discountPrice || v.price)) : 0
-  const highestAny = variants.length > 0 ? Math.max(...variants.map(v => v.discountPrice || v.price)) : 0
+  const displayPrice = selectedVariant ? (selectedVariant.discountPrice ?? selectedVariant.price) : 0
+  const lowestAny = variants.length > 0 ? Math.min(...variants.map(v => v.discountPrice ?? v.price)) : 0
+  const highestAny = variants.length > 0 ? Math.max(...variants.map(v => v.discountPrice ?? v.price)) : 0
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
@@ -269,7 +269,7 @@ export default function ProductDetailPage() {
                 {selectedVariant.discountPrice && selectedVariant.discountPrice < selectedVariant.price && (
                   <>
                     <span className="text-lg text-gray-400 line-through">{formatPrice(selectedVariant.price)}</span>
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <span className="badge badge-success">
                       {calculateDiscount(selectedVariant.price, selectedVariant.discountPrice)}% off
                     </span>
                   </>
@@ -281,14 +281,14 @@ export default function ProductDetailPage() {
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 {selectedVariant.stock > 0 ? (
                   <>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    <span className="badge badge-success">
                       <Check className="h-3 w-3" /> In Stock ({selectedVariant.stock} available)
                     </span>
                     <span className="text-gray-400">·</span>
                     <span className="text-gray-500">Free shipping</span>
                   </>
                 ) : (
-                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">Out of Stock</span>
+                  <span className="badge badge-danger">Out of Stock</span>
                 )}
               </div>
             </>
@@ -315,7 +315,7 @@ export default function ProductDetailPage() {
                       {[variant.ram, variant.color].filter(Boolean).join(' · ') || variant.name}
                     </span>
                     <span className="mt-0.5 block text-xs font-semibold text-brand-600">
-                      {formatPrice(variant.discountPrice || variant.price)}
+                      {formatPrice(variant.discountPrice ?? variant.price)}
                     </span>
                   </button>
                 ))}
@@ -327,7 +327,7 @@ export default function ProductDetailPage() {
           {selectedVariant && selectedVariant.stock > 0 && (
             <div className="mt-6 flex items-center gap-4">
               <h3 className="text-sm font-semibold text-gray-900">Quantity</h3>
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-1.5">
+              <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-1.5">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50" aria-label="Decrease quantity">
                   <Minus className="h-4 w-4" />
                 </button>
@@ -356,7 +356,7 @@ export default function ProductDetailPage() {
             <button
               onClick={handleWishlist}
               disabled={!selectedVariant}
-              className={cn('rounded-xl border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600')}
+              className={cn('rounded-lg border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600')}
               aria-label="Toggle wishlist"
             >
               <Heart className={cn('h-5 w-5', selectedVariant && hasItem(selectedVariant.id) && 'fill-current')} />
@@ -390,10 +390,10 @@ export default function ProductDetailPage() {
           {/* Badges */}
           {(product.isFeatured || product.isNewArrival || product.isBestSeller || selectedVariant?.badge) && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {product.isFeatured && <span className="badge-info badge">Featured</span>}
-              {product.isNewArrival && <span className="badge badge bg-purple-100 text-purple-800">New Arrival</span>}
-              {product.isBestSeller && <span className="badge badge bg-amber-100 text-amber-800">Best Seller</span>}
-              {selectedVariant?.badge && <span className="badge badge bg-emerald-100 text-emerald-800">{selectedVariant.badge}</span>}
+              {product.isFeatured && <span className="badge badge-info">Featured</span>}
+              {product.isNewArrival && <span className="badge badge-success">New Arrival</span>}
+              {product.isBestSeller && <span className="badge badge-warning">Best Seller</span>}
+              {selectedVariant?.badge && <span className="badge badge-info">{selectedVariant.badge}</span>}
             </div>
           )}
 

@@ -191,7 +191,7 @@ export default function AccountOrderDetailPage() {
       )}
       {warranties.length > 0 && (
         <div className="mt-4 card p-4">
-          <h3 className="flex items-center gap-2 font-semibold mb-3"><ShieldCheck className="h-4 w-4 text-green-600" /> Warranty</h3>
+          <h3 className="flex items-center gap-2 font-semibold mb-3"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Warranty</h3>
           <div className="space-y-3">
             {warranties.map((w: any) => (
               <div key={w._id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3 text-sm">

@@ -318,11 +318,18 @@ export default function CheckoutPage() {
     }
   }
 
-  if (items.length === 0 && !placedOrderId) return null
+  if (items.length === 0 && !placedOrderId) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Checkout</h1>
+        <p className="mt-3 text-sm text-gray-500">Your cart is empty — taking you back to shopping…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
-      <h1 className="text-2xl font-bold">Checkout</h1>
+      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Checkout</h1>
 
       {!user ? (
         <div className="mt-6 card p-8 text-center">

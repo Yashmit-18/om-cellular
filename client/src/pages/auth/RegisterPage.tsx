@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../../stores/authStore'
@@ -14,6 +14,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const { register, login } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') || '/'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +45,7 @@ export default function RegisterPage() {
       await register({ name, phone: phoneDigits, email: email || undefined, password })
       await login(phoneDigits, password)
       toast.success('Account created successfully!')
-      navigate('/')
+      navigate(redirect)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Registration failed')
     } finally {

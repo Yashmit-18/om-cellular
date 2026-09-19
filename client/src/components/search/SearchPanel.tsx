@@ -287,7 +287,7 @@ export default function SearchPanel() {
 
             {query.trim() && (
               <div className="border-t border-gray-100 px-4 py-3">
-                <button onClick={() => openResults(query)} className="flex w-full items-center justify-between rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700">
+                <button onClick={() => openResults(query)} className="btn-primary w-full justify-between">
                   Search all products
                   <Search className="h-4 w-4" />
                 </button>

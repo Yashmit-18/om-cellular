@@ -78,20 +78,34 @@ export default function Header() {
     { to: '/exchange', label: 'Exchange' },
   ]
 
+  const isNavActive = (to: string) => location.pathname === to || location.pathname.startsWith(to + '/')
+
   return (
     <>
       <header className="sticky top-0 z-[60] border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
         <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-2">
-            <Link to="/" className="flex shrink-0 items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-base font-black text-white">OM</span>
+            <Link to="/" className="group flex shrink-0 items-center gap-2" aria-label="OM Cellular home">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-base font-black text-white shadow-sm shadow-brand-600/30 transition-transform group-hover:scale-105">OM</span>
               <span className="hidden text-lg font-bold tracking-tight text-brand-700 sm:inline">OM Cellular</span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden items-center gap-0.5 md:flex">
               {navLinks.map(link => (
-                <Link key={link.to} to={link.to} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900">
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  aria-current={isNavActive(link.to) ? 'page' : undefined}
+                  className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isNavActive(link.to)
+                      ? 'text-brand-700'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
                   {link.label}
+                  {isNavActive(link.to) && (
+                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-brand-600" aria-hidden="true" />
+                  )}
                 </Link>
               ))}
             </nav>
@@ -158,7 +172,7 @@ export default function Header() {
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 rounded-full px-2 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-600">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-xs font-semibold text-white">
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <ChevronDown className="hidden h-4 w-4 sm:inline" />
@@ -206,9 +220,11 @@ export default function Header() {
             const Icon = item.icon
             return (
               <Link key={item.to} to={item.to}
-                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium ${active ? 'text-brand-600' : 'text-gray-500'}`}>
-                <Icon className={`h-6 w-6 ${active ? 'text-brand-600' : 'text-gray-400'}`} />
-                <span>{item.label}</span>
+                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${active ? 'text-brand-600' : 'text-gray-500'}`}>
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active ? 'bg-brand-50' : ''}`}>
+                  <Icon className={`h-[22px] w-[22px] ${active ? 'text-brand-600' : 'text-gray-400'}`} />
+                </span>
+                <span className={active ? 'font-semibold' : ''}>{item.label}</span>
               </Link>
             )
           })}

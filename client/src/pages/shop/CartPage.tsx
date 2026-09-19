@@ -64,8 +64,8 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
-        <ShoppingBag className="mx-auto h-16 w-16 text-gray-300" />
-        <h1 className="mt-4 text-2xl font-bold">Your cart is empty</h1>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400"><ShoppingBag className="h-7 w-7" /></div>
+        <h1 className="mt-4 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Your cart is empty</h1>
         <p className="mt-2 text-gray-500">Start shopping to add items to your cart.</p>
         <Link to="/products" className="btn-primary mt-6 inline-flex">
           <ChevronRight className="mr-1 h-4 w-4" /> Continue Shopping
@@ -79,7 +79,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
-      <h1 className="text-2xl font-bold">Shopping Cart ({getItemCount()} items)</h1>
+      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Shopping Cart ({getItemCount()} items)</h1>
 
       {refreshing && (
         <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
