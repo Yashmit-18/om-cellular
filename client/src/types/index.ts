@@ -568,6 +568,29 @@ export interface ProductFilter extends PaginationParams {
   isNewArrival?: boolean
 }
 
+export interface FacetCount {
+  id: string
+  name: string
+  slug?: string
+  count: number
+}
+
+export interface ConditionFacet {
+  value: string
+  label: string
+  count: number
+}
+
+export interface ProductFacets {
+  price: { min: number; max: number }
+  brands: FacetCount[]
+  categories: FacetCount[]
+  conditions: ConditionFacet[]
+  storages: string[]
+  rams: string[]
+  colors: string[]
+}
+
 export interface RepairBookingFilter extends PaginationParams {
   status?: RepairStatus
   serviceId?: string

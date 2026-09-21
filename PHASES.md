@@ -94,6 +94,7 @@ working tree for the owner to review first (branch `mern-migration`).
 | D8 | Sell/Repair/Footer/Forms long-tail + verification + **final report, no commit/push** | ✅ done |
 | D9 | Homepage merchandising (Fresh Arrivals / Editor's Picks / Featured) with product-uniqueness helper + tests, premium motion & editorial banner palettes, honest labels (**report, no commit/push**) | ✅ done |
 | D10 | Final homepage visual QA + premium composition refinement (hero full-circle tertiary nav, unified navy service chips, Featured 3-up editorial showcase, delivery CTA breathing room, honest repair load-error state) + verified D8/D9 + **committed & pushed to origin/mern-migration** | ✅ done |
+| D11 | Server-side product filtering + sorting (price range + brand checkboxes mandatory; multi-brand/category, condition/storage/RAM/colour, in-stock, on-sale, discount/rating sorts, `GET /products/filters` facets endpoint, pure `productFilter.service` + 17 unit tests, URL-synced filter UI with chips/mobile drawer) + **committed & pushed to origin/mern-migration** | ✅ done |
 
 **How to review / ship:** everything is uncommitted on `mern-migration`. Run
 `npm run build` + `npm run lint` in `client/`, `npm test` + `npm run build` in

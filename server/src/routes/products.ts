@@ -5,8 +5,17 @@ import { ProductVariant } from '../models/productVariant.model'
 import { recordInventoryMovement } from '../models/inventoryLedger.model'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
-import { slugify, paginate } from '../utils/helpers'
+import { slugify } from '../utils/helpers'
 import { validateVariantPayload, isDuplicateKeyError, variantListMatchesRole, publicVariantProject } from '../services/productVariant.service'
+import {
+  parseProductQuery,
+  buildProductMatch,
+  buildVariantAttrCondition,
+  buildPostLookupMatch,
+  buildSortDoc,
+  cleanStringValues,
+  sortStorageValues,
+} from '../services/productFilter.service'
 
 const router = Router()
 
@@ -41,53 +50,41 @@ function computeProductSummary(p: any, variants: any[]) {
   }
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function normalizeSearchTerm(value: string): string {
-  return escapeRegex(String(value || '').trim().replace(/\s+/g, ' '))
-}
-
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = '1', limit = '20', search, query, brand, brandId, category, categoryId, condition, sort = 'newest', isFeatured, isRefurbished, isNewArrival, isBestSeller, minPrice, maxPrice, includeAll } = req.query
-    const { limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
+    const parsed = parseProductQuery(req.query as Record<string, any>, { isAdmin: req.user?.role === 'ADMIN' })
+    const { limit: safeLimit, page: safePage } = parsed
 
     const emptyPagination = { page: safePage, limit: safeLimit, total: 0, totalPages: 1, hasNext: false, hasPrev: false }
 
-    const brandRef = (brand || brandId) as string | undefined
-    if (brandRef && !(typeof brandRef === 'string' && mongoose.Types.ObjectId.isValid(brandRef))) {
-      return res.json({ success: true, data: [], pagination: emptyPagination })
-    }
-
-    const categoryRef = (category || categoryId) as string | undefined
-    if (categoryRef && !(typeof categoryRef === 'string' && mongoose.Types.ObjectId.isValid(categoryRef))) {
+    // A malformed id can never match, so short-circuit exactly like the old
+    // single-value behaviour instead of throwing a CastError downstream.
+    if (parsed.invalidBrand || parsed.invalidCategory) {
       return res.json({ success: true, data: [], pagination: emptyPagination })
     }
 
     // Inactive/draft products are only visible to admins; public callers (or
     // anyone without an admin token) can never list them, even via includeAll.
-    const includeInactive = includeAll === 'true' && req.user?.role === 'ADMIN'
-    const match: any = includeInactive ? {} : { isActive: true }
-    const searchTerm = normalizeSearchTerm(((search || query) as string) || '')
-    if (searchTerm) match.$or = [{ name: { $regex: searchTerm, $options: 'i' } }, { description: { $regex: searchTerm, $options: 'i' } }, { slug: { $regex: searchTerm, $options: 'i' } }]
-    if (brandRef) match.brandId = new mongoose.Types.ObjectId(brandRef)
-    if (categoryRef) match.categoryId = new mongoose.Types.ObjectId(categoryRef)
-    if (condition) match.condition = condition
-    if (isFeatured === 'true') match.isFeatured = true
-    if (isRefurbished === 'true') match.isRefurbished = true
-    if (isNewArrival === 'true') match.isNewArrival = true
-    if (isBestSeller === 'true') match.isBestSeller = true
+    const match = buildProductMatch(parsed)
+    const variantAttrCondition = buildVariantAttrCondition(parsed)
+    const postLookupMatch = buildPostLookupMatch(parsed)
+    const sortDoc = buildSortDoc(parsed.sort)
 
-    const min = minPrice ? Number(minPrice) : null
-    const max = maxPrice ? Number(maxPrice) : null
-    const priceMatch: any = {}
-    if (min !== null && !Number.isNaN(min)) priceMatch.lowestPrice = { ...(priceMatch.lowestPrice || {}), $gte: min }
-    if (max !== null && !Number.isNaN(max)) priceMatch.lowestPrice = { ...(priceMatch.lowestPrice || {}), $lte: max }
-
-    const sortBy = sort === 'name' ? 'name' : sort === 'price_asc' ? 'price_asc' : sort === 'price_desc' ? 'price_desc' : 'newest'
-    const sortDoc = sortBy === 'name' ? { name: 1 } : sortBy === 'price_asc' ? { lowestPrice: 1, createdAt: -1 } : sortBy === 'price_desc' ? { lowestPrice: -1, createdAt: -1 } : { createdAt: -1 }
+    const summaryFields: any = {
+      lowestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $min: '$variants._effectivePrice' }] },
+      highestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $max: '$variants._effectivePrice' }] },
+      variantCount: { $size: '$variants' },
+      maxDiscount: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $max: '$variants._discountPct' }] },
+      inStock: {
+        $in: [
+          true,
+          { $map: { input: '$variants', as: 'v', in: { $gt: [{ $ifNull: ['$$v.stock', 0] }, 0] } } },
+        ],
+      },
+    }
+    if (variantAttrCondition) {
+      summaryFields._matchedVariants = { $filter: { input: '$variants', as: 'v', cond: variantAttrCondition } }
+    }
 
     const pipeline: any[] = [
       { $match: match },
@@ -118,6 +115,19 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
                         '$$v.price',
                       ],
                     },
+                    _discountPct: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $gt: ['$$v.price', 0] },
+                            { $ne: ['$$v.discountPrice', null] },
+                            { $lt: ['$$v.discountPrice', '$$v.price'] },
+                          ],
+                        },
+                        { $multiply: [{ $divide: [{ $subtract: ['$$v.price', '$$v.discountPrice'] }, '$$v.price'] }, 100] },
+                        0,
+                      ],
+                    },
                   },
                 ],
               },
@@ -125,19 +135,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
           },
         },
       },
-      {
-        $addFields: {
-          lowestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $min: '$variants._effectivePrice' }] },
-          highestPrice: { $cond: [{ $eq: [{ $size: '$variants' }, 0] }, 0, { $max: '$variants._effectivePrice' }] },
-          variantCount: { $size: '$variants' },
-          inStock: {
-            $in: [
-              true,
-              { $map: { input: '$variants', as: 'v', in: { $gt: [{ $ifNull: ['$$v.stock', 0] }, 0] } } },
-            ],
-          },
-        },
-      },
+      { $addFields: summaryFields },
       {
         $lookup: { from: 'brands', localField: 'brandId', foreignField: '_id', as: '_brand' },
       },
@@ -150,7 +148,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
           category: { $arrayElemAt: ['$_category', 0] },
         },
       },
-      ...(Object.keys(priceMatch).length ? [{ $match: priceMatch }] : []),
+      ...(Object.keys(postLookupMatch).length ? [{ $match: postLookupMatch }] : []),
       { $sort: sortDoc },
       {
         $facet: {
@@ -169,15 +167,18 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     // pipeline stays free of fragile array/string shape handling.
     // Aggregated rows are plain POJOs — Mongoose's `id` virtual never runs on
     // them, so expose `id` explicitly for both the product and its variants.
-    const data = raw.map((p: any) => ({
-      ...p,
-      id: String(p._id),
-      variants: (p.variants || []).map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
-      primaryImage:
-        (Array.isArray(p.images) && p.images.find(Boolean)) ||
-        (p.variants || []).map(extractVariantImage).find(Boolean) ||
-        '',
-    }))
+    const data = raw.map((p: any) => {
+      const { _matchedVariants, ...rest } = p
+      return {
+        ...rest,
+        id: String(rest._id),
+        variants: (rest.variants || []).map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
+        primaryImage:
+          (Array.isArray(rest.images) && rest.images.find(Boolean)) ||
+          (rest.variants || []).map(extractVariantImage).find(Boolean) ||
+          '',
+      }
+    })
 
     return res.json({
       success: true,
@@ -186,6 +187,105 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     })
   } catch (error) {
     console.error('GET /products error:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
+
+// Facet source for the listing filter UI. Must stay above GET /:id so the
+// literal "filters" segment is never treated as a product id.
+router.get('/filters', optionalAuth, async (_req: AuthRequest, res: Response) => {
+  try {
+    const [priceAgg, brandAgg, categoryAgg, conditionAgg, variantAgg] = await Promise.all([
+      Product.aggregate([
+        { $match: { isActive: true } },
+        {
+          $lookup: {
+            from: 'productvariants',
+            let: { pid: '$_id' },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ['$productId', '$$pid'] }, { $eq: ['$isActive', true] }] } } },
+              {
+                $project: {
+                  _p: {
+                    $cond: [
+                      { $and: [{ $ne: ['$discountPrice', null] }, { $lt: ['$discountPrice', '$price'] }] },
+                      '$discountPrice',
+                      '$price',
+                    ],
+                  },
+                },
+              },
+            ],
+            as: 'variants',
+          },
+        },
+        { $match: { 'variants.0': { $exists: true } } },
+        { $addFields: { _lowest: { $min: '$variants._p' } } },
+        { $group: { _id: null, min: { $min: '$_lowest' }, max: { $max: '$_lowest' } } },
+      ]),
+      Product.aggregate([
+        { $match: { isActive: true, brandId: { $ne: null } } },
+        { $group: { _id: '$brandId', count: { $sum: 1 } } },
+        { $lookup: { from: 'brands', localField: '_id', foreignField: '_id', as: 'brand' } },
+        { $unwind: '$brand' },
+        { $match: { 'brand.isActive': true } },
+        { $project: { _id: 0, id: { $toString: '$_id' }, name: '$brand.name', slug: '$brand.slug', count: 1 } },
+        { $sort: { name: 1 } },
+      ]),
+      Product.aggregate([
+        { $match: { isActive: true, categoryId: { $ne: null } } },
+        { $group: { _id: '$categoryId', count: { $sum: 1 } } },
+        { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
+        { $unwind: '$category' },
+        { $match: { 'category.isActive': true } },
+        { $project: { _id: 0, id: { $toString: '$_id' }, name: '$category.name', slug: '$category.slug', count: 1 } },
+        { $sort: { name: 1 } },
+      ]),
+      Product.aggregate([
+        { $match: { isActive: true, condition: { $nin: [null, ''] } } },
+        { $group: { _id: '$condition', count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } },
+        { $project: { _id: 0, value: '$_id', count: 1 } },
+      ]),
+      ProductVariant.aggregate([
+        { $match: { isActive: true } },
+        { $lookup: { from: 'products', localField: 'productId', foreignField: '_id', as: 'product' } },
+        { $unwind: '$product' },
+        { $match: { 'product.isActive': true } },
+        {
+          $group: {
+            _id: null,
+            storages: { $addToSet: '$storage' },
+            rams: { $addToSet: '$ram' },
+            colors: { $addToSet: '$color' },
+          },
+        },
+      ]),
+    ])
+
+    const price = priceAgg[0] || { min: 0, max: 0 }
+    const variantOptions = variantAgg[0] || { storages: [], rams: [], colors: [] }
+    const CONDITIONS: Record<string, string> = { NEW: 'Brand New', LIKE_NEW: 'Like New', EXCELLENT: 'Excellent', GOOD: 'Good', FAIR: 'Fair' }
+    const conditions = (conditionAgg || []).map((c: any) => ({
+      value: c.value,
+      label: CONDITIONS[c.value] || c.value,
+      count: c.count,
+    }))
+
+    return res.json({
+      success: true,
+      data: {
+        price: { min: Number(price.min) || 0, max: Number(price.max) || 0 },
+        brands: brandAgg || [],
+        categories: categoryAgg || [],
+        conditions,
+        storages: sortStorageValues(cleanStringValues(variantOptions.storages || [])),
+        rams: sortStorageValues(cleanStringValues(variantOptions.rams || [])),
+        colors: cleanStringValues(variantOptions.colors || []).sort((a, b) => a.localeCompare(b)),
+      },
+    })
+  } catch (error) {
+    console.error('GET /products/filters error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

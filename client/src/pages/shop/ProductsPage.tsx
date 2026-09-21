@@ -2,130 +2,234 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
-import { cn } from '../../utils'
+import { cn, getConditionLabel, formatPrice } from '../../utils'
 import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
-import type { ProductWithVariant, Category, Brand, Pagination } from '../../types'
+import ProductFilters, { type MultiFilterKey, type FlagFilterKey, type ProductFilterSelection } from '../../components/shop/ProductFilters'
+import type { ProductWithVariant, ProductFacets, Pagination } from '../../types'
+
+const MULTI_PARAM: Record<MultiFilterKey, string> = {
+  brandIds: 'brandId',
+  conditions: 'condition',
+  storages: 'storage',
+  rams: 'ram',
+  colors: 'color',
+}
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'discount', label: 'Biggest Discount' },
+  { value: 'rating', label: 'Top Rated' },
+  { value: 'name', label: 'Name: A-Z' },
+]
+
+function parseList(value: string | null): string[] {
+  if (!value) return []
+  return value.split(',').map(v => v.trim()).filter(Boolean)
+}
+
+interface ActiveChip {
+  id: string
+  label: string
+  onRemove: () => void
+}
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<ProductWithVariant[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
+  const [facets, setFacets] = useState<ProductFacets | null>(null)
+  const [facetsLoading, setFacetsLoading] = useState(true)
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const currentCategory = searchParams.get('categoryId') || ''
-  const currentBrand = searchParams.get('brandId') || ''
+  const categoryIds = parseList(searchParams.get('categoryId'))
+  const brandIds = parseList(searchParams.get('brandId'))
+  const conditions = parseList(searchParams.get('condition'))
+  const storages = parseList(searchParams.get('storage'))
+  const rams = parseList(searchParams.get('ram'))
+  const colors = parseList(searchParams.get('color'))
+  const priceMinParam = searchParams.get('minPrice') || ''
+  const priceMaxParam = searchParams.get('maxPrice') || ''
+  const inStock = searchParams.get('inStock') === 'true'
+  const discount = searchParams.get('discount') === 'true'
   const currentQuery = searchParams.get('query') || ''
   const currentIsFeatured = searchParams.get('isFeatured') || ''
   const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
   const currentSort = searchParams.get('sort') || 'newest'
 
+  const selection: ProductFilterSelection = {
+    categoryIds,
+    brandIds,
+    conditions,
+    storages,
+    rams,
+    colors,
+    priceMin: priceMinParam,
+    priceMax: priceMaxParam,
+    inStock,
+    discount,
+  }
+
   useEffect(() => {
-    api.get('/categories').then(r => setCategories((r.data.data || []).map((c: any) => ({ ...c, id: c.id || c._id })))).catch(() => {})
-    api.get('/brands').then(r => setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))).catch(() => {})
+    setFacetsLoading(true)
+    api.get('/products/filters')
+      .then(r => setFacets(r.data.data || null))
+      .catch(() => setFacets(null))
+      .finally(() => setFacetsLoading(false))
   }, [])
 
   const requestSeq = useRef(0)
 
   const fetchProducts = useCallback(async () => {
-      const seq = ++requestSeq.current
-      setLoading(true)
-      setError(false)
-      try {
-        const params: Record<string, string> = { page: String(currentPage), limit: '12', sort: currentSort }
-        if (currentCategory) params.categoryId = currentCategory
-        if (currentBrand) params.brandId = currentBrand
-        if (currentQuery) params.query = currentQuery
-        if (currentIsFeatured) params.isFeatured = currentIsFeatured
-        const query = new URLSearchParams(params).toString()
-        const res = await api.get(`/products?${query}`)
-        if (seq !== requestSeq.current) return
-        setProducts(res.data.data || [])
-        setPagination(res.data.pagination || null)
-      } catch {
-        if (seq !== requestSeq.current) return
-        setError(true)
-        setProducts([])
-      } finally {
-        if (seq === requestSeq.current) setLoading(false)
-      }
-    }, [currentCategory, currentBrand, currentQuery, currentIsFeatured, currentPage, currentSort])
+    const seq = ++requestSeq.current
+    setLoading(true)
+    setError(false)
+    try {
+      const params: Record<string, string> = { page: String(currentPage), limit: '12', sort: currentSort }
+      if (categoryIds.length) params.categoryId = categoryIds.join(',')
+      if (brandIds.length) params.brandId = brandIds.join(',')
+      if (conditions.length) params.condition = conditions.join(',')
+      if (storages.length) params.storage = storages.join(',')
+      if (rams.length) params.ram = rams.join(',')
+      if (colors.length) params.color = colors.join(',')
+      if (priceMinParam) params.minPrice = priceMinParam
+      if (priceMaxParam) params.maxPrice = priceMaxParam
+      if (inStock) params.inStock = 'true'
+      if (discount) params.discount = 'true'
+      if (currentQuery) params.query = currentQuery
+      if (currentIsFeatured) params.isFeatured = currentIsFeatured
+      const query = new URLSearchParams(params).toString()
+      const res = await api.get(`/products?${query}`)
+      if (seq !== requestSeq.current) return
+      setProducts(res.data.data || [])
+      setPagination(res.data.pagination || null)
+    } catch {
+      if (seq !== requestSeq.current) return
+      setError(true)
+      setProducts([])
+    } finally {
+      if (seq === requestSeq.current) setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
 
-  const updateFilter = (key: string, value: string) => {
+  // Local price drafts so typing doesn't fire a request per keystroke.
+  const [priceMin, setPriceMin] = useState(priceMinParam)
+  const [priceMax, setPriceMax] = useState(priceMaxParam)
+
+  useEffect(() => {
+    setPriceMin(priceMinParam)
+    setPriceMax(priceMaxParam)
+  }, [priceMinParam, priceMaxParam])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (priceMin === priceMinParam && priceMax === priceMaxParam) return
+      const params = new URLSearchParams(searchParams)
+      if (priceMin) params.set('minPrice', priceMin); else params.delete('minPrice')
+      if (priceMax) params.set('maxPrice', priceMax); else params.delete('maxPrice')
+      params.delete('page')
+      setSearchParams(params, { replace: true })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [priceMin, priceMax, priceMinParam, priceMaxParam, searchParams, setSearchParams])
+
+  const writeList = (key: string, values: string[]) => {
     const params = new URLSearchParams(searchParams)
-    if (value) {
-      params.set(key, value)
-    } else {
-      params.delete(key)
-    }
+    if (values.length) params.set(key, values.join(',')); else params.delete(key)
     params.delete('page')
     setSearchParams(params)
   }
 
-  const activeFilters = [
-    currentCategory && { key: 'categoryId', value: currentCategory, label: categories.find(c => c.id === currentCategory)?.name || 'Category' },
-    currentBrand && { key: 'brandId', value: currentBrand, label: brands.find(b => b.id === currentBrand)?.name || 'Brand' },
-    currentQuery && { key: 'query', value: currentQuery, label: currentQuery },
-    currentIsFeatured && { key: 'isFeatured', value: currentIsFeatured, label: 'Featured' },
-  ].filter(Boolean) as { key: string; value: string; label: string }[]
+  const setSort = (value: string) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('sort', value)
+    params.delete('page')
+    setSearchParams(params)
+  }
 
-  const renderFilters = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Categories</h3>
-        <div className="mt-3 space-y-1">
-          <button
-            onClick={() => updateFilter('categoryId', '')}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
-          >
-            <span>All Categories</span>
-          </button>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => updateFilter('categoryId', cat.id)}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
-            >
-              <span>{cat.name}</span>
-              {typeof cat._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>{cat._count.products}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Brands</h3>
-        <div className="mt-3 space-y-1">
-          <button
-            onClick={() => updateFilter('brandId', '')}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
-          >
-            <span>All Brands</span>
-          </button>
-          {brands.map(brand => (
-            <button
-              key={brand.id}
-              onClick={() => updateFilter('brandId', brand.id)}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
-            >
-              <span>{brand.name}</span>
-              {typeof brand._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>{brand._count.products}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', String(page))
+    setSearchParams(params)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const toggleMulti = (key: MultiFilterKey, value: string) => {
+    const current = selection[key]
+    const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value]
+    writeList(MULTI_PARAM[key], next)
+  }
+
+  const selectCategory = (id: string) => writeList('categoryId', id ? [id] : [])
+
+  const toggleFlag = (key: FlagFilterKey) => {
+    const params = new URLSearchParams(searchParams)
+    const next = !(searchParams.get(key) === 'true')
+    if (next) params.set(key, 'true'); else params.delete(key)
+    params.delete('page')
+    setSearchParams(params)
+  }
+
+  const onPriceChange = (min: string, max: string) => {
+    setPriceMin(min)
+    setPriceMax(max)
+  }
+
+  const clearFilters = () => {
+    const params = new URLSearchParams()
+    if (currentQuery) params.set('query', currentQuery)
+    setSearchParams(params)
+  }
+
+  const chips: ActiveChip[] = []
+  categoryIds.forEach(id => {
+    const name = facets?.categories.find(c => c.id === id)?.name
+    chips.push({ id: `cat-${id}`, label: name || 'Category', onRemove: () => writeList('categoryId', []) })
+  })
+  brandIds.forEach(id => {
+    const name = facets?.brands.find(b => b.id === id)?.name
+    chips.push({ id: `brand-${id}`, label: name || 'Brand', onRemove: () => writeList('brandId', brandIds.filter(v => v !== id)) })
+  })
+  conditions.forEach(v => chips.push({ id: `cond-${v}`, label: getConditionLabel(v), onRemove: () => writeList('condition', conditions.filter(x => x !== v)) }))
+  storages.forEach(v => chips.push({ id: `store-${v}`, label: v, onRemove: () => writeList('storage', storages.filter(x => x !== v)) }))
+  rams.forEach(v => chips.push({ id: `ram-${v}`, label: `${v} RAM`, onRemove: () => writeList('ram', rams.filter(x => x !== v)) }))
+  colors.forEach(v => chips.push({ id: `color-${v}`, label: v, onRemove: () => writeList('color', colors.filter(x => x !== v)) }))
+  if (priceMinParam || priceMaxParam) {
+    const label = priceMinParam && priceMaxParam
+      ? `${formatPrice(Number(priceMinParam))} – ${formatPrice(Number(priceMaxParam))}`
+      : priceMinParam
+        ? `From ${formatPrice(Number(priceMinParam))}`
+        : `Up to ${formatPrice(Number(priceMaxParam))}`
+    chips.push({ id: 'price', label, onRemove: () => onPriceChange('', '') })
+  }
+  if (inStock) chips.push({ id: 'inStock', label: 'In stock', onRemove: () => toggleFlag('inStock') })
+  if (discount) chips.push({ id: 'discount', label: 'On sale', onRemove: () => toggleFlag('discount') })
+  if (currentIsFeatured) chips.push({ id: 'isFeatured', label: 'Featured', onRemove: () => writeList('isFeatured', []) })
+  if (currentQuery) chips.push({ id: 'query', label: `“${currentQuery}”`, onRemove: () => writeList('query', []) })
+
+  const activeFilterCount = chips.filter(c => c.id !== 'query' && c.id !== 'isFeatured').length
+
+  const filterPanel = (idPrefix: string) => (
+    <ProductFilters
+      facets={facets}
+      facetsLoading={facetsLoading}
+      selection={selection}
+      onToggle={toggleMulti}
+      onSelectCategory={selectCategory}
+      onToggleFlag={toggleFlag}
+      onPriceChange={onPriceChange}
+      onClear={clearFilters}
+      idPrefix={idPrefix}
+    />
   )
 
   return (
@@ -142,8 +246,11 @@ export default function ProductsPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowFilters(true)} aria-label="Open filters" className="btn-secondary !px-3 !py-2 md:hidden">
+          <button onClick={() => setShowFilters(true)} aria-label="Open filters" className="btn-secondary relative !px-3 !py-2 md:hidden">
             <SlidersHorizontal className="h-4 w-4" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-navy-950">{activeFilterCount}</span>
+            )}
           </button>
           <div className="hidden md:flex items-center gap-1 rounded-lg border border-gray-200 p-1">
             <button onClick={() => setViewMode('grid')} aria-label="Grid view" aria-pressed={viewMode === 'grid'} className={cn('rounded p-1.5', viewMode === 'grid' && 'bg-gray-100')}><Grid className="h-4 w-4" /></button>
@@ -151,39 +258,43 @@ export default function ProductsPage() {
           </div>
           <select
             value={currentSort}
-            onChange={(e) => updateFilter('sort', e.target.value)}
+            onChange={(e) => setSort(e.target.value)}
             aria-label="Sort products"
             className="input !w-auto !py-2.5"
           >
-            <option value="newest">Newest</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="name">Name: A-Z</option>
+            {SORT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
         </div>
       </div>
 
       {/* Active Filters */}
-      {activeFilters.length > 0 && (
+      {chips.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {activeFilters.map(f => (
+          {chips.map(f => (
             <button
-              key={f.key + f.value}
-              onClick={() => updateFilter(f.key, '')}
+              key={f.id}
+              onClick={f.onRemove}
               className="badge-info badge flex max-w-full items-center gap-1"
               aria-label={`Remove filter: ${f.label}`}
             >
               <span className="truncate">{f.label}</span> <X className="h-3 w-3 shrink-0" />
             </button>
           ))}
+          {activeFilterCount > 1 && (
+            <button onClick={clearFilters} className="cursor-pointer rounded-full px-3 py-1 text-xs font-medium text-gray-500 hover:text-navy-900">
+              Clear all
+            </button>
+          )}
         </div>
       )}
 
       <div className="mt-6 flex gap-8">
         {/* Sidebar Filters */}
         <aside className="hidden w-64 shrink-0 md:block">
-          <div className="sticky top-24 space-y-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            {renderFilters()}
+          <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            {filterPanel('sidebar')}
           </div>
         </aside>
 
@@ -191,13 +302,17 @@ export default function ProductsPage() {
         {showFilters && (
           <div className="fixed inset-0 z-50 md:hidden">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-            <div className="absolute left-0 top-0 h-full w-80 max-w-[85%] overflow-y-auto bg-white p-5 shadow-xl">
-              <div className="mb-5 flex items-center justify-between">
+            <div className="absolute left-0 top-0 flex h-full w-80 max-w-[85%] flex-col bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-100 p-5">
                 <h2 className="text-lg font-bold text-gray-900">Filters</h2>
-                <button onClick={() => setShowFilters(false)} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+                <button onClick={() => setShowFilters(false)} aria-label="Close filters" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
               </div>
-              {renderFilters()}
-              <button onClick={() => { setShowFilters(false); setSearchParams({ sort: 'newest' }) }} className="btn-secondary mt-6 w-full">Clear all filters</button>
+              <div className="flex-1 overflow-y-auto p-5">{filterPanel('drawer')}</div>
+              <div className="border-t border-gray-100 p-4">
+                <button onClick={() => setShowFilters(false)} className="btn-primary w-full">
+                  {loading ? 'Loading…' : `Show ${pagination?.total ?? 0} result${pagination?.total === 1 ? '' : 's'}`}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -222,13 +337,13 @@ export default function ProductsPage() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400"><PackageOpen className="h-7 w-7" /></div>
               <h3 className="mt-4 text-lg font-semibold text-gray-900">No products found</h3>
               <p className="mt-1.5 text-sm text-gray-500">
-                {activeFilters.length > 0
-                  ? 'Try removing a filter or searching for something else.'
+                {chips.length > 0
+                  ? 'Try removing a filter or widening your price range.'
                   : 'More certified products are being added. Check back soon!'}
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
-                {activeFilters.length > 0 && (
-                  <button onClick={() => { setSearchParams({ sort: 'newest' }) }} className="btn-secondary">Clear filters</button>
+                {chips.length > 0 && (
+                  <button onClick={clearFilters} className="btn-secondary">Clear filters</button>
                 )}
                 <Link to="/sell-phone" className="btn-primary">Sell your phone instead</Link>
                 <Link to="/contact" className="btn-ghost">Contact us</Link>
@@ -236,24 +351,24 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-<div className={cn(
-                  viewMode === 'grid' ? 'grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' : 'space-y-4'
-                )}>
-                  {products.map(product => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      variant={viewMode === 'list' ? 'list' : 'grid'}
-                      className="h-full"
-                    />
-                  ))}
-                </div>
+              <div className={cn(
+                viewMode === 'grid' ? 'grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' : 'space-y-4'
+              )}>
+                {products.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    variant={viewMode === 'list' ? 'list' : 'grid'}
+                    className="h-full"
+                  />
+                ))}
+              </div>
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
                 <div className="mt-10 flex items-center justify-center gap-1.5">
                   <button
-                    onClick={() => updateFilter('page', String(currentPage - 1))}
+                    onClick={() => goToPage(currentPage - 1)}
                     disabled={!pagination.hasPrev}
                     className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous page"
@@ -269,7 +384,7 @@ export default function ProductsPage() {
                     return (
                       <button
                         key={page}
-                        onClick={() => updateFilter('page', String(page))}
+                        onClick={() => goToPage(page)}
                         className={cn('h-11 w-11 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                       >
                         {page}
@@ -277,7 +392,7 @@ export default function ProductsPage() {
                     )
                   })}
                   <button
-                    onClick={() => updateFilter('page', String(currentPage + 1))}
+                    onClick={() => goToPage(currentPage + 1)}
                     disabled={!pagination.hasNext}
                     className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next page"
