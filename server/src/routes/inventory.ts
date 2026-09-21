@@ -1,33 +1,71 @@
 import { Router, Request, Response } from 'express'
+import mongoose from 'mongoose'
 import { Inventory } from '../models/inventory.model'
 import { ProductVariant } from '../models/productVariant.model'
 import { InventoryLedgerEntry, recordInventoryMovement } from '../models/inventoryLedger.model'
 import { requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { paginate } from '../utils/helpers'
+import {
+  buildInventoryRow,
+  inventoryAdjustmentError,
+  inventoryDelta,
+  isLowStock,
+  validateInventoryItems,
+} from '../services/inventory.service'
 
 const router = Router()
 
+// Admin inventory list. Rows are DERIVED from ProductVariant (the authoritative
+// stock source) so the screen stays correct even when the Inventory mirror
+// drifts (e.g. variant stock edited via the variant-management flow), and every
+// variant is visible — including deactivated ones and new variants that have no
+// Inventory document yet. Thresholds/reserved come from the Inventory
+// collection (default low-stock threshold 5); newest ledger movement annotates
+// each row.
 router.get('/', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { page = '1', limit = '20', lowStock } = req.query
     const { skip, limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
-    const where: any = {}
-    if (lowStock === 'true') {
-      const inventory = await Inventory.find({}).select('variantId lowStockThreshold quantity')
-      const lowStockVariantIds = inventory
-        .filter((entry) => entry.quantity <= entry.lowStockThreshold)
-        .map((entry) => entry.variantId)
-      where.variantId = { $in: lowStockVariantIds }
-    }
-
-    const [items, total] = await Promise.all([
-      Inventory.find(where).populate({ path: 'variantId', populate: { path: 'productId', select: 'name slug' } }).sort({ updatedAt: -1 }).skip(skip).limit(safeLimit),
-      Inventory.countDocuments(where),
+    const [variants, total] = await Promise.all([
+      ProductVariant.find({})
+        .populate('productId', 'name slug isActive')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean(),
+      ProductVariant.countDocuments({}),
     ])
 
-    return res.json({ success: true, data: items, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } })
+    const ids = variants.map((v: any) => v._id)
+    const [thresholds, movements] = await Promise.all([
+      Inventory.find({ variantId: { $in: ids } })
+        .select('variantId reservedQuantity lowStockThreshold')
+        .lean(),
+      InventoryLedgerEntry.aggregate([
+        { $match: { variantId: { $in: ids } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$variantId', createdAt: { $first: '$createdAt' }, reason: { $first: '$reason' }, note: { $first: '$note' } } },
+      ]),
+    ])
+    const thresholdMap = new Map(thresholds.map((t: any) => [String(t.variantId), t]))
+    const movementMap = new Map(movements.map((m: any) => [String(m._id), m]))
+
+    let rows = variants.map((v: any) => {
+      const threshold: any = thresholdMap.get(String(v._id))
+      return buildInventoryRow(v, {
+        lowStockThreshold: threshold?.lowStockThreshold,
+        reservedQuantity: threshold?.reservedQuantity,
+        lastMovement: movementMap.get(String(v._id)),
+      })
+    })
+
+    if (lowStock === 'true') {
+      rows = rows.filter((r: any) => isLowStock(r.quantity, r.lowStockThreshold))
+    }
+
+    return res.json({ success: true, data: rows, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -54,43 +92,55 @@ router.get('/ledger', requireAdmin, async (req: Request, res: Response) => {
 
 router.get('/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const item = await Inventory.findById(req.params.id).populate({ path: 'variantId', populate: { path: 'productId', select: 'name slug' } })
-    if (!item) return res.status(404).json({ success: false, message: 'Inventory item not found' })
-    return res.json({ success: true, data: item })
+    const { id } = req.params
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid variant id' })
+    }
+    const variant: any = await ProductVariant.findById(id).populate('productId', 'name slug isActive').lean()
+    if (!variant) return res.status(404).json({ success: false, message: 'Inventory item not found' })
+    const [threshold, lastMovement] = await Promise.all([
+      Inventory.findOne({ variantId: id }).select('reservedQuantity lowStockThreshold').lean(),
+      InventoryLedgerEntry.findOne({ variantId: id }).sort({ createdAt: -1 }).lean(),
+    ])
+    return res.json({
+      success: true,
+      data: buildInventoryRow(variant, {
+        lowStockThreshold: (threshold as any)?.lowStockThreshold,
+        reservedQuantity: (threshold as any)?.reservedQuantity,
+        lastMovement,
+      }),
+    })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
 
+// Absolute stock SET (existing convention). The whole payload is validated and
+// every variant existence-checked BEFORE any write, so an invalid item leaves
+// no partial writes, ghost Inventory rows or bogus ledger entries behind.
 router.put('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { items } = req.body
-    if (!items || !Array.isArray(items)) return res.status(400).json({ success: false, message: 'Items array is required' })
+    const input = validateInventoryItems(items)
+    if (!input.ok) return res.status(400).json({ success: false, message: input.message })
+
+    const variants = await ProductVariant.find({ _id: { $in: input.resolved.map((i) => i.variantId) } }).lean()
+    const variantMap = new Map(variants.map((v: any) => [String(v._id), v]))
+    for (const item of input.resolved) {
+      const variant: any = variantMap.get(item.variantId)
+      if (!variant) return res.status(404).json({ success: false, message: 'Variant not found' })
+      const error = inventoryAdjustmentError(item, variant)
+      if (error) return res.status(400).json({ success: false, message: error })
+    }
 
     const results = []
-    for (const item of items) {
-      if (!item.variantId) continue
+    for (const item of input.resolved) {
+      const variant: any = variantMap.get(item.variantId)
       const previous = await Inventory.findOne({ variantId: item.variantId })
 
-      // Validate numbers before touching the database — NaN/negative input must
-      // never produce a 500 or a corrupt inventory row.
-      const quantity = item.quantity
-      const reservedQuantity = item.reservedQuantity
-      const lowStockThreshold = item.lowStockThreshold
-      if (quantity !== undefined && (!Number.isFinite(Number(quantity)) || Number(quantity) < 0)) {
-        return res.status(400).json({ success: false, message: `quantity for ${item.variantId} must be a non-negative number` })
-      }
-      if (reservedQuantity !== undefined && (!Number.isFinite(Number(reservedQuantity)) || Number(reservedQuantity) < 0)) {
-        return res.status(400).json({ success: false, message: `reservedQuantity for ${item.variantId} must be a non-negative number` })
-      }
-      if (lowStockThreshold !== undefined && (!Number.isFinite(Number(lowStockThreshold)) || Number(lowStockThreshold) < 0)) {
-        return res.status(400).json({ success: false, message: `lowStockThreshold for ${item.variantId} must be a non-negative number` })
-      }
-      const quantityValue = quantity !== undefined ? Number(quantity) : Number(previous?.quantity ?? 0)
-      const reservedValue = reservedQuantity !== undefined ? Number(reservedQuantity) : Number(previous?.reservedQuantity ?? 0)
-      if (quantityValue < reservedValue) {
-        return res.status(400).json({ success: false, message: `quantity for ${item.variantId} cannot be lower than its reserved quantity` })
-      }
+      const quantityValue = item.quantity !== undefined ? item.quantity : Number(previous?.quantity ?? 0)
+      const reservedValue = item.reservedQuantity !== undefined ? item.reservedQuantity : Number(previous?.reservedQuantity ?? 0)
+      const thresholdValue = item.lowStockThreshold !== undefined ? item.lowStockThreshold : previous?.lowStockThreshold
 
       const updated = await Inventory.findOneAndUpdate(
         { variantId: item.variantId },
@@ -98,20 +148,20 @@ router.put('/', requireAdmin, async (req: AuthRequest, res: Response) => {
           variantId: item.variantId,
           quantity: quantityValue,
           reservedQuantity: reservedValue,
-          lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : previous?.lowStockThreshold,
+          lowStockThreshold: thresholdValue,
         },
         { upsert: true, new: true }
       )
 
-      if (quantity !== undefined) {
+      if (item.quantity !== undefined) {
         await ProductVariant.findByIdAndUpdate(item.variantId, { stock: quantityValue })
       }
 
-      const delta = previous ? quantityValue - (previous.quantity ?? 0) : quantityValue
+      const delta = item.quantity !== undefined ? inventoryDelta(variant.stock, item.quantity) : 0
       if (delta !== 0) {
         await recordInventoryMovement({
           variantId: item.variantId,
-          productId: (updated.toObject() as any).productId,
+          productId: variant.productId,
           delta,
           reason: 'MANUAL_ADJUSTMENT',
           quantityAfter: quantityValue,
