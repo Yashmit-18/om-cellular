@@ -77,9 +77,47 @@ function buildVariantDoc(model, brand, color, storageVariants) {
     storage,
     color,
     condition: 'Refurbished',
+    isRefurbished: true,
     specifications: specs,
     whatsIncluded: whatsIncluded(),
     badge: /ultra|pro max|rog|fold/.test(norm(model)) ? 'Premium' : undefined,
+  }
+}
+
+// The spec key used for a variant's size/storage label, per category. Non-phone
+// categories use an explicit label (e.g. "256GB" for tablets, "44mm" for watches).
+function labelKeyFor(categorySlug) {
+  if (categorySlug === 'tablets') return 'Storage'
+  if (categorySlug === 'smartwatches') return 'Size'
+  return ''
+}
+
+// Variant builder for the expansion catalog (tablets / smartwatches / accessories).
+// Uses only the explicit, real data stored on the catalog model document so no
+// smartphone heuristics leak into non-phone specs or pricing.
+function buildExpansionVariantDoc(model, categorySlug, color, labelDef) {
+  const label = labelDef.label || ''
+  const specs = Array.isArray(model.specs) ? model.specs.map(s => ({ ...s })) : []
+  const lk = labelKeyFor(categorySlug)
+  if (lk && label) specs.push({ key: lk, value: label })
+
+  const name = [model.modelName, label, color].filter(Boolean).join(' ')
+  const sku = ['OMC', model.slug, label ? slugify(label) : 'std', slugify(color)].join('-')
+  const condition = model.condition || 'Refurbished'
+
+  return {
+    name,
+    sku,
+    price: Number(labelDef.price) || 0,
+    discountPrice: Number(labelDef.discountPrice) || 0,
+    ram: labelDef.ram || '',
+    storage: categorySlug === 'tablets' ? label : '',
+    color,
+    condition,
+    isRefurbished: condition !== 'New',
+    specifications: specs,
+    whatsIncluded: Array.isArray(model.whatsIncluded) ? model.whatsIncluded : [],
+    badge: model.isFeatured ? 'Premium' : undefined,
   }
 }
 
@@ -90,8 +128,15 @@ async function buildProducts(db, { log = () => {} } = {}) {
   const brands = db.collection('brands')
   const categories = db.collection('categories')
 
-  const smartphones = await categories.findOne({ slug: 'smartphones' })
-  const categoryId = smartphones ? smartphones._id : null
+  const categoryIdCache = {}
+  async function categoryIdFor(slug) {
+    const key = slug || 'smartphones'
+    if (!(key in categoryIdCache)) {
+      const cat = await categories.findOne({ slug: key })
+      categoryIdCache[key] = cat ? cat._id : null
+    }
+    return categoryIdCache[key]
+  }
 
   const models = await catalog.find({ isActive: true }).sort({ brandName: 1, sortOrder: 1, modelName: 1 }).toArray()
 
@@ -111,34 +156,55 @@ async function buildProducts(db, { log = () => {} } = {}) {
     if (processed % 25 === 0 && processed > 0) log(`Processed ${processed}/${models.length} catalog models...`)
     processed++
 
+    const categorySlug = model.categorySlug || 'smartphones'
+    const isExpansion = categorySlug !== 'smartphones'
     const image = model.image || ''
-    if (!image) { skippedNoImage++; continue }
+    // Smartphones require a verified image; expansion devices (tablets, watches,
+    // accessories) may intentionally ship without one.
+    if (!image && !isExpansion) { skippedNoImage++; continue }
 
     const brand = await brands.findOne({ slug: slugify(model.brandName) })
     const brandId = brand ? brand._id : null
+    const categoryId = await categoryIdFor(categorySlug)
     const name = productName(model.brandName, model.modelName)
     const mL = norm(model.modelName)
 
     // Canonical slug from the display name (brand-prefixed once). Duplicate
     // entries for the same device (e.g. "GT 6 Pro" / "Realme GT 6 Pro")
-    // collapse onto one product.
-    let slug = seenNames.get(name) || ''
-    if (!slug) {
-      slug = slugify(name)
-      seenNames.set(name, slug)
+    // collapse onto one product. Expansion entries keep their explicit slug so
+    // devices whose names collide once slugified (e.g. "Tab S9" / "Tab S9+")
+    // stay distinct.
+    let slug
+    if (isExpansion) {
+      slug = model.slug
+    } else {
+      slug = seenNames.get(name) || ''
+      if (!slug) {
+        slug = slugify(name)
+        seenNames.set(name, slug)
+      }
     }
 
-    const chip = chipsetFor(model.brandName, model.modelName)
-    const display = displayFor(model.modelName, tierOf(model.modelName))
-    const description = buildDescription(model.brandName, model.modelName, chip, display)
+    let description = model.description
+    if (!description) {
+      const chip = chipsetFor(model.brandName, model.modelName)
+      const display = displayFor(model.modelName, tierOf(model.modelName))
+      description = buildDescription(model.brandName, model.modelName, chip, display)
+    }
 
     const existingProduct = await products.findOne({ slug })
 
-    const flags = {
-      isFeatured: tierKeywords(model.modelName) || /pro|ultra|fold|flip|max/.test(mL),
-      isNewArrival: NEW_ARRIVAL_RE.test(mL),
-      isBestSeller: BEST_SELLER_RE.test(mL),
-    }
+    const flags = isExpansion
+      ? {
+          isFeatured: !!model.isFeatured,
+          isNewArrival: !!model.isNewArrival,
+          isBestSeller: !!model.isBestSeller,
+        }
+      : {
+          isFeatured: tierKeywords(model.modelName) || /pro|ultra|fold|flip|max/.test(mL),
+          isNewArrival: NEW_ARRIVAL_RE.test(mL),
+          isBestSeller: BEST_SELLER_RE.test(mL),
+        }
     if (existingProduct) {
       // Preserve merchant-set flags after first sync.
       flags.isFeatured = existingProduct.isFeatured ?? flags.isFeatured
@@ -154,19 +220,21 @@ async function buildProducts(db, { log = () => {} } = {}) {
       brandId,
       categoryId,
       catalogModelSlug: model.slug,
-      images: [image],
+      images: image ? [image] : [],
       isFeatured: flags.isFeatured,
       isNewArrival: flags.isNewArrival,
       isBestSeller: flags.isBestSeller,
-      isRefurbished: true,
-      condition: 'Refurbished',
-      warranty: '1 Year OM Cellular Warranty',
+      isRefurbished: (model.condition || 'Refurbished') !== 'New',
+      condition: model.condition || 'Refurbished',
+      warranty: (model.condition || 'Refurbished') === 'New'
+        ? '1 Year Brand Warranty'
+        : '1 Year OM Cellular Warranty',
       returnPolicy: existingProduct && existingProduct.returnPolicy
         ? existingProduct.returnPolicy
         : '7-day replacement for manufacturing defects',
       seoTitle: `${name} - Buy Online at OM Cellular`,
       seoDescription: description.slice(0, 150),
-      seoKeywords: `${model.brandName} ${model.modelName} buy phone kota`.toLowerCase(),
+      seoKeywords: `${model.brandName} ${model.modelName} buy online kota`.toLowerCase(),
       rating,
       ratingCount,
       isActive: true,
@@ -182,15 +250,21 @@ async function buildProducts(db, { log = () => {} } = {}) {
     const productDoc = await products.findOne({ slug })
     const productId = productDoc._id
 
-    const variantsToBuild = Array.isArray(model.storageVariants) && model.storageVariants.length > 0
-      ? model.storageVariants
-      : [{ storage: '128GB', ram: '8GB' }]
+    const variantsToBuild = isExpansion
+      ? (Array.isArray(model.labels) ? model.labels : [])
+      : (Array.isArray(model.storageVariants) && model.storageVariants.length > 0
+          ? model.storageVariants
+          : [{ storage: '128GB', ram: '8GB' }])
 
-    const colors = colorsFor(model.brandName).slice(0, 2)
+    const colors = isExpansion
+      ? (Array.isArray(model.colors) && model.colors.length > 0 ? model.colors : ['Standard'])
+      : colorsFor(model.brandName).slice(0, 2)
 
     for (const sv of variantsToBuild) {
       for (const color of colors) {
-        const v = buildVariantDoc(model.modelName, model.brandName, color, sv)
+        const v = isExpansion
+          ? buildExpansionVariantDoc(model, categorySlug, color, sv)
+          : buildVariantDoc(model.modelName, model.brandName, color, sv)
         const existingV = await variants.findOne({ sku: v.sku })
         if (existingV) {
           const setV = {
@@ -201,15 +275,15 @@ async function buildProducts(db, { log = () => {} } = {}) {
             ram: v.ram,
             storage: v.storage,
             color: v.color,
-            condition: 'Refurbished',
-            isRefurbished: true,
+            condition: v.condition,
+            isRefurbished: v.isRefurbished,
             specifications: v.specifications,
             whatsIncluded: v.whatsIncluded,
             badge: v.badge,
             isActive: true,
             updatedAt: new Date(),
           }
-          if (!existingV.images || !Array.isArray(existingV.images) || existingV.images.length === 0 || /placehold\.co|\/placeholder/.test((existingV.images[0] || ''))) {
+          if (image && (!existingV.images || !Array.isArray(existingV.images) || existingV.images.length === 0 || /placehold\.co|\/placeholder/.test((existingV.images[0] || '')))) {
             setV.images = [image]
           }
           if (!existingV.stock || existingV.stock === 0) setV.stock = 5 + (hash(v.sku) % 18)
@@ -228,11 +302,11 @@ async function buildProducts(db, { log = () => {} } = {}) {
             ram: v.ram,
             storage: v.storage,
             color: v.color,
-            condition: 'Refurbished',
-            images: [image],
+            condition: v.condition,
+            images: image ? [image] : [],
             specifications: v.specifications,
             whatsIncluded: v.whatsIncluded,
-            isRefurbished: true,
+            isRefurbished: v.isRefurbished,
             featured: true,
             badge: v.badge,
             isActive: true,
@@ -247,7 +321,7 @@ async function buildProducts(db, { log = () => {} } = {}) {
     // Fill product images if they (or their variants) came from our old placeholder seed.
     const current = await products.findOne({ slug })
     const needsImage = !current.images || current.images.length === 0 || /placehold\.co|\/placeholder/.test((current.images[0] || ''))
-    if (needsImage) {
+    if (image && needsImage) {
       await products.updateOne({ _id: productId }, { $set: { images: [image], updatedAt: new Date() } })
     }
   }
@@ -332,7 +406,11 @@ async function syncValuationRules(db, { log = () => {} } = {}) {
     boxDeduction: 300,
   }
 
-  const models = await catalog.find({ isActive: true }).toArray()
+  // Valuation rules model phone trade-ins only; skip tablets/watches/accessories.
+  const models = await catalog.find({
+    isActive: true,
+    $or: [{ categorySlug: { $exists: false } }, { categorySlug: 'smartphones' }],
+  }).toArray()
   let created = 0
   let reactivated = 0
   for (const model of models) {
@@ -376,4 +454,11 @@ async function syncValuationRules(db, { log = () => {} } = {}) {
   return { created, reactivated }
 }
 
-module.exports = { buildProducts, syncValuationRules, productName, isCatalogProduct }
+module.exports = {
+  buildProducts,
+  syncValuationRules,
+  productName,
+  isCatalogProduct,
+  labelKeyFor,
+  buildExpansionVariantDoc,
+}

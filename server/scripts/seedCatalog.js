@@ -10,6 +10,7 @@ require('dns').setServers(['8.8.8.8', '1.1.1.1'])
 
 const { MongoClient } = require('mongodb')
 const { runPhoneCatalog } = require('./seedPhoneCatalog')
+const { runCatalogExpansion } = require('./seedCatalogExpansion')
 const { runImageBackfill } = require('./seedCatalogImages')
 const { buildProducts, syncValuationRules } = require('./lib/productCatalog')
 
@@ -25,13 +26,16 @@ async function main() {
     await client.connect()
     const db = client.db()
 
-    console.log('\n=== STEP 1/3: PHONE CATALOG MODELS ===')
+    console.log('\n=== STEP 1/4: PHONE CATALOG MODELS ===')
     await runPhoneCatalog(db)
 
-    console.log('\n=== STEP 2/3: REAL IMAGE BACKFILL ===')
+    console.log('\n=== STEP 2/4: NON-PHONE CATALOG (TABLETS / WATCHES / ACCESSORIES) ===')
+    await runCatalogExpansion(db)
+
+    console.log('\n=== STEP 3/4: REAL IMAGE BACKFILL ===')
     await runImageBackfill(db, { concurrency: 3 })
 
-    console.log('\n=== STEP 3/3: PRODUCTS + VARIANTS + VALUATIONS ===')
+    console.log('\n=== STEP 4/4: PRODUCTS + VARIANTS + VALUATIONS ===')
     await buildProducts(db, { log: (m) => console.log(m) })
     await syncValuationRules(db, { log: (m) => console.log(m) })
 

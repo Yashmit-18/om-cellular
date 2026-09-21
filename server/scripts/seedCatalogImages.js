@@ -28,6 +28,10 @@ async function runImageBackfill(db, { concurrency = 3, log = console.log } = {})
     if (m.image) {
       const ok = await verifyImageUrl(m.image)
       if (ok) continue
+    } else if (m.categorySlug && m.categorySlug !== 'smartphones') {
+      // Non-phone devices without an image (e.g. accessories) intentionally
+      // render an icon fallback — GSMArena has no verified images for them.
+      continue
     }
     touching.push({ brand: m.brandName, model: m.modelName, _id: m._id, existing: m.image })
   }

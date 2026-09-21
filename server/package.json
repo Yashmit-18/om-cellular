@@ -16,6 +16,7 @@
     "seed:products": "node scripts/seedProducts.js",
     "seed:images": "node scripts/seedCatalogImages.js",
     "seed:catalog": "node scripts/seedCatalog.js",
+    "seed:catalog:expand": "node scripts/seedCatalogExpansion.js",
     "seed:cms": "node scripts/seedCms.js",
     "seed:coupons": "node scripts/seedCoupons.js"
   },

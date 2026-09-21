@@ -57,6 +57,12 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     .filter(Boolean)
     .join(' · ')
 
+  const categoryName = (product.category?.name || '').toLowerCase()
+  const imageKind = categoryName.includes('tablet') ? 'tablet'
+    : categoryName.includes('watch') ? 'watch'
+    : categoryName.includes('accessor') ? 'headphones'
+    : 'smartphone'
+
   const wishlistId = best?.id || product.id
   const wished = showWishlist && wishlist.hasItem(wishlistId)
 
@@ -150,6 +156,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
           src={product.primaryImage}
           alt={product.name}
           contain
+          kind={imageKind}
           className="relative h-[200px] sm:h-[240px] md:h-[250px] lg:h-[265px]"
           imgClassName="p-4 transition-[transform,opacity] duration-300 group-hover:scale-[1.025] motion-reduce:transition-none"
         />
@@ -169,6 +176,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
             src={product.primaryImage}
             alt={product.name}
             contain
+            kind={imageKind}
             className="h-28 w-28 sm:h-32 sm:w-32 rounded-xl"
             imgClassName="p-2 transition-transform duration-300 group-hover:scale-[1.025] motion-reduce:transition-none"
           />

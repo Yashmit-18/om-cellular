@@ -1,0 +1,987 @@
+[
+  {
+    "brandName": "Apple",
+    "modelName": "iPad Air (2022)",
+    "slug": "apple-ipad-air-2022",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/apple-ipad-air-2022.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "The Apple iPad Air (2022) pairs the Apple M1 chip with a 10.9-inch Liquid Retina display and USB-C, in a thin, lightweight aluminium body. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "10.9-inch Liquid Retina, 2360 x 1640" },
+      { "key": "Processor", "value": "Apple M1" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "28.6Wh, up to 10 hours" },
+      { "key": "Camera", "value": "12MP rear, 12MP front" },
+      { "key": "Operating System", "value": "iPadOS" },
+      { "key": "Connectivity", "value": "Wi-Fi 6, Bluetooth 5.0, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Space Grey", "Blue"],
+    "whatsIncluded": ["1x iPad Air", "USB-C Charging Cable", "Adapter", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "64GB", "price": 54900, "discountPrice": 33900 },
+      { "label": "256GB", "price": 69900, "discountPrice": 41900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "iPad mini (2021)",
+    "slug": "apple-ipad-mini-2021",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/apple-ipad-mini-2021.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Apple iPad mini (2021) squeezes the A15 Bionic chip and an 8.3-inch Liquid Retina display into a compact, one-hand-friendly tablet. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "8.3-inch Liquid Retina, 2266 x 1488" },
+      { "key": "Processor", "value": "Apple A15 Bionic" },
+      { "key": "RAM", "value": "4GB" },
+      { "key": "Battery", "value": "19.3Wh, up to 10 hours" },
+      { "key": "Camera", "value": "12MP rear, 12MP front" },
+      { "key": "Operating System", "value": "iPadOS" },
+      { "key": "Connectivity", "value": "Wi-Fi 6, Bluetooth 5.0, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Space Grey", "Purple"],
+    "whatsIncluded": ["1x iPad mini", "USB-C Charging Cable", "Adapter", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "64GB", "price": 49900, "discountPrice": 30900 },
+      { "label": "256GB", "price": 64900, "discountPrice": 38900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "iPad Pro 11 (2022)",
+    "slug": "apple-ipad-pro-11-2022",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/apple-ipad-pro-11-2022.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Apple iPad Pro 11 (2022) brings the Apple M2 chip, a 120Hz ProMotion display and Thunderbolt to a portable 11-inch tablet. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11-inch Liquid Retina, 2388 x 1668, 120Hz" },
+      { "key": "Processor", "value": "Apple M2" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "28.65Wh, up to 10 hours" },
+      { "key": "Camera", "value": "12MP wide + 10MP ultrawide, 12MP front" },
+      { "key": "Operating System", "value": "iPadOS" },
+      { "key": "Connectivity", "value": "Wi-Fi 6E, Bluetooth 5.3, USB-C (Thunderbolt)" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Space Grey", "Silver"],
+    "whatsIncluded": ["1x iPad Pro", "USB-C Charging Cable", "Adapter", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 81900, "discountPrice": 55900 },
+      { "label": "256GB", "price": 92900, "discountPrice": 62900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab S9",
+    "slug": "samsung-galaxy-tab-s9",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-s9.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "The Samsung Galaxy Tab S9 pairs a 11-inch Dynamic AMOLED 2X 120Hz display with the Snapdragon 8 Gen 2 for Galaxy and an included S Pen. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11-inch Dynamic AMOLED 2X, 2560 x 1600, 120Hz" },
+      { "key": "Processor", "value": "Snapdragon 8 Gen 2 for Galaxy" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "8400mAh, 45W fast charging" },
+      { "key": "Camera", "value": "13MP rear, 12MP ultrawide front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 6E, Bluetooth 5.3, USB-C" },
+      { "key": "In the Box", "value": "S Pen included" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Beige"],
+    "whatsIncluded": ["1x Galaxy Tab S9", "S Pen", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 72999, "discountPrice": 45900 },
+      { "label": "256GB", "price": 81999, "discountPrice": 51900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab S9+",
+    "slug": "samsung-galaxy-tab-s9-plus",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-s9-plus.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Tab S9+ offers a larger 12.4-inch Dynamic AMOLED 2X display, Snapdragon 8 Gen 2 for Galaxy and an included S Pen. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "12.4-inch Dynamic AMOLED 2X, 2800 x 1752, 120Hz" },
+      { "key": "Processor", "value": "Snapdragon 8 Gen 2 for Galaxy" },
+      { "key": "RAM", "value": "12GB" },
+      { "key": "Battery", "value": "10090mAh, 45W fast charging" },
+      { "key": "Camera", "value": "13MP + 8MP rear, 12MP front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 6E, Bluetooth 5.3, USB-C" },
+      { "key": "In the Box", "value": "S Pen included" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Beige"],
+    "whatsIncluded": ["1x Galaxy Tab S9+", "S Pen", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "256GB", "price": 92999, "discountPrice": 58900 },
+      { "label": "512GB", "price": 104999, "discountPrice": 65900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab S9 Ultra",
+    "slug": "samsung-galaxy-tab-s9-ultra",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-s9-ultra.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Tab S9 Ultra is a 14.6-inch Dynamic AMOLED 2X powerhouse with the Snapdragon 8 Gen 2 for Galaxy and an included S Pen. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "14.6-inch Dynamic AMOLED 2X, 2960 x 1848, 120Hz" },
+      { "key": "Processor", "value": "Snapdragon 8 Gen 2 for Galaxy" },
+      { "key": "RAM", "value": "12GB" },
+      { "key": "Battery", "value": "11200mAh, 45W fast charging" },
+      { "key": "Camera", "value": "13MP + 8MP rear, 12MP + 12MP front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 6E, Bluetooth 5.3, USB-C" },
+      { "key": "In the Box", "value": "S Pen included" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Beige"],
+    "whatsIncluded": ["1x Galaxy Tab S9 Ultra", "S Pen", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "256GB", "price": 108999, "discountPrice": 71900 },
+      { "label": "512GB", "price": 120999, "discountPrice": 79900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab S8",
+    "slug": "samsung-galaxy-tab-s8",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-s8.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Tab S8 combines an 11-inch 120Hz display, Snapdragon 8 Gen 1 performance and an included S Pen. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11-inch TFT LCD, 2560 x 1600, 120Hz" },
+      { "key": "Processor", "value": "Snapdragon 8 Gen 1" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "8000mAh, 45W fast charging" },
+      { "key": "Camera", "value": "13MP + 6MP rear, 12MP front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 6E, Bluetooth 5.2, USB-C" },
+      { "key": "In the Box", "value": "S Pen included" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Silver"],
+    "whatsIncluded": ["1x Galaxy Tab S8", "S Pen", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 58999, "discountPrice": 33900 },
+      { "label": "256GB", "price": 64999, "discountPrice": 37900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab A9+",
+    "slug": "samsung-galaxy-tab-a9-plus",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-a9-plus.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "The Samsung Galaxy Tab A9+ is a value 11-inch tablet with a 90Hz display, quad speakers and Snapdragon 695 performance for everyday streaming and browsing. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11-inch TFT LCD, 1920 x 1200, 90Hz" },
+      { "key": "Processor", "value": "Snapdragon 695" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "7040mAh, 15W charging" },
+      { "key": "Camera", "value": "8MP rear, 5MP front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 5, Bluetooth 5.1, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Silver"],
+    "whatsIncluded": ["1x Galaxy Tab A9+", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "64GB", "price": 21999, "discountPrice": 13400 },
+      { "label": "128GB", "price": 24999, "discountPrice": 15400 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Tab A9",
+    "slug": "samsung-galaxy-tab-a9",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-tab-a9.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Tab A9 is a compact, affordable 8.7-inch tablet for media and light productivity. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "8.7-inch TFT LCD, 1340 x 800" },
+      { "key": "Processor", "value": "MediaTek Helio G99" },
+      { "key": "RAM", "value": "4GB" },
+      { "key": "Battery", "value": "5100mAh, 15W charging" },
+      { "key": "Camera", "value": "8MP rear, 2MP front" },
+      { "key": "Operating System", "value": "Android (One UI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 5, Bluetooth 5.3, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Silver"],
+    "whatsIncluded": ["1x Galaxy Tab A9", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "64GB", "price": 14999, "discountPrice": 9400 },
+      { "label": "128GB", "price": 16999, "discountPrice": 10900 }
+    ]
+  },
+  {
+    "brandName": "Xiaomi",
+    "modelName": "Pad 5",
+    "slug": "xiaomi-pad-5",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-pad-5.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Xiaomi Pad 5 offers an 11-inch 120Hz display, Snapdragon 860 performance and quad speakers at a friendly price. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11-inch IPS LCD, 2560 x 1600, 120Hz" },
+      { "key": "Processor", "value": "Snapdragon 860" },
+      { "key": "RAM", "value": "6GB" },
+      { "key": "Battery", "value": "8720mAh, 33W fast charging" },
+      { "key": "Camera", "value": "13MP rear, 8MP front" },
+      { "key": "Operating System", "value": "Android (MIUI)" },
+      { "key": "Connectivity", "value": "Wi-Fi 5, Bluetooth 5.0, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Cosmic Gray", "Pearl White"],
+    "whatsIncluded": ["1x Xiaomi Pad 5", "USB-C Cable", "Adapter", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 26999, "discountPrice": 14900 },
+      { "label": "256GB", "price": 29999, "discountPrice": 16900 }
+    ]
+  },
+  {
+    "brandName": "Lenovo",
+    "modelName": "Tab P12",
+    "slug": "lenovo-tab-p12",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/lenovo-tab-p12.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Lenovo Tab P12 is a 12.7-inch 3K entertainment tablet with quad JBL speakers and an included Tab Pen Plus. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "12.7-inch 3K IPS LCD, 2944 x 1840" },
+      { "key": "Processor", "value": "MediaTek Dimensity 7050" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "10200mAh, 30W charging" },
+      { "key": "Camera", "value": "13MP rear, 13MP front" },
+      { "key": "Operating System", "value": "Android" },
+      { "key": "Connectivity", "value": "Wi-Fi 6, Bluetooth 5.1, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Storm Grey", "Oat"],
+    "whatsIncluded": ["1x Lenovo Tab P12", "Tab Pen Plus", "USB-C Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 34999, "discountPrice": 18900 },
+      { "label": "256GB", "price": 39999, "discountPrice": 21900 }
+    ]
+  },
+  {
+    "brandName": "OnePlus",
+    "modelName": "Pad",
+    "slug": "oneplus-pad",
+    "categorySlug": "tablets",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/oneplus-pad.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The OnePlus Pad features an 11.61-inch 144Hz display, MediaTek Dimensity 9000 performance and 67W SUPERVOOC charging. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "11.61-inch IPS LCD, 2800 x 2000, 144Hz" },
+      { "key": "Processor", "value": "MediaTek Dimensity 9000" },
+      { "key": "RAM", "value": "8GB" },
+      { "key": "Battery", "value": "9510mAh, 67W SUPERVOOC" },
+      { "key": "Camera", "value": "13MP rear, 8MP front" },
+      { "key": "Operating System", "value": "Android (OxygenOS)" },
+      { "key": "Connectivity", "value": "Wi-Fi 6, Bluetooth 5.3, USB-C" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Halo Green"],
+    "whatsIncluded": ["1x OnePlus Pad", "USB-C Cable", "Adapter", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "128GB", "price": 39999, "discountPrice": 23900 },
+      { "label": "256GB", "price": 44999, "discountPrice": 26900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "Watch Ultra",
+    "slug": "apple-watch-ultra",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/apple-watch-ultra.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Apple Watch Ultra is a rugged 49mm titanium smartwatch with a bright always-on display, dual-frequency GPS and the longest battery life in an Apple Watch. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "49mm LTPO OLED, 502 x 410, 2000 nits" },
+      { "key": "Battery", "value": "Up to 36 hours, 60 hours in Low Power Mode" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood Oxygen, Temperature" },
+      { "key": "Connectivity", "value": "4G LTE, Wi-Fi, Bluetooth 5.3, GPS" },
+      { "key": "Water Resistance", "value": "100m (WR100) and EN13319 dive rated" },
+      { "key": "Operating System", "value": "watchOS" },
+      { "key": "Case", "value": "Titanium" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Titanium"],
+    "whatsIncluded": ["1x Apple Watch Ultra", "Sport Loop Band", "Magnetic Charging Cable", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "49mm", "price": 89900, "discountPrice": 45900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Watch6",
+    "slug": "samsung-galaxy-watch6",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-watch6.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "The Samsung Galaxy Watch6 pairs a bright Super AMOLED display with comprehensive health tracking and Wear OS 4. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.3-inch (40mm) / 1.5-inch (44mm) Super AMOLED" },
+      { "key": "Battery", "value": "300mAh (40mm) / 425mAh (44mm)" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood oxygen, Temperature" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3, Wi-Fi, NFC, GPS" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS (One UI Watch)" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Silver"],
+    "whatsIncluded": ["1x Galaxy Watch6", "Charging Puck", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "40mm", "price": 29999, "discountPrice": 16900 },
+      { "label": "44mm", "price": 32999, "discountPrice": 18900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Watch6 Classic",
+    "slug": "samsung-galaxy-watch6-classic",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-watch6-classic.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Watch6 Classic brings back the signature rotating bezel, a stainless-steel case and Wear OS 4 health tracking. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.3-inch (43mm) / 1.5-inch (47mm) Super AMOLED" },
+      { "key": "Battery", "value": "300mAh (43mm) / 425mAh (47mm)" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood oxygen, Temperature" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3, Wi-Fi, NFC, GPS" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS (One UI Watch)" },
+      { "key": "Case", "value": "Stainless steel with rotating bezel" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black", "Silver"],
+    "whatsIncluded": ["1x Galaxy Watch6 Classic", "Charging Puck", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "43mm", "price": 36999, "discountPrice": 21900 },
+      { "label": "47mm", "price": 40999, "discountPrice": 24400 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Watch5",
+    "slug": "samsung-galaxy-watch5",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-watch5.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Watch5 features a Super AMOLED display, body-composition and sleep tracking with Wear OS 3.5. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.2-inch (40mm) / 1.4-inch (44mm) Super AMOLED" },
+      { "key": "Battery", "value": "284mAh (40mm) / 410mAh (44mm)" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood oxygen, Temperature" },
+      { "key": "Connectivity", "value": "Bluetooth 5.2, Wi-Fi, NFC, GPS" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS (One UI Watch)" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Graphite", "Silver"],
+    "whatsIncluded": ["1x Galaxy Watch5", "Charging Puck", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "40mm", "price": 27999, "discountPrice": 14900 },
+      { "label": "44mm", "price": 30999, "discountPrice": 16400 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Watch4",
+    "slug": "samsung-galaxy-watch4",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-watch4.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Samsung Galaxy Watch4 introduced Wear OS powered by Samsung with body composition and advanced health tracking. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.2-inch (40mm) / 1.4-inch (44mm) Super AMOLED" },
+      { "key": "Battery", "value": "247mAh (40mm) / 361mAh (44mm)" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood oxygen, Body composition" },
+      { "key": "Connectivity", "value": "Bluetooth 5.0, Wi-Fi, NFC, GPS" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS (One UI Watch)" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black", "Silver"],
+    "whatsIncluded": ["1x Galaxy Watch4", "Charging Puck", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "40mm", "price": 19999, "discountPrice": 9400 },
+      { "label": "44mm", "price": 21999, "discountPrice": 10400 }
+    ]
+  },
+  {
+    "brandName": "Xiaomi",
+    "modelName": "Watch S3",
+    "slug": "xiaomi-watch-s3",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-watch-s3.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "The Xiaomi Watch S3 offers a 1.43-inch AMOLED display, swappable bezels and up to 15 days of battery life. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.43-inch AMOLED, 466 x 466" },
+      { "key": "Battery", "value": "486mAh, up to 15 days" },
+      { "key": "Sensors", "value": "Heart rate, Blood oxygen, Sleep tracking" },
+      { "key": "Connectivity", "value": "Bluetooth 5.2, GPS" },
+      { "key": "Water Resistance", "value": "5ATM" },
+      { "key": "Operating System", "value": "HyperOS" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black", "Silver"],
+    "whatsIncluded": ["1x Xiaomi Watch S3", "Charging Cable", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "46mm", "price": 10999, "discountPrice": 6400 }
+    ]
+  },
+  {
+    "brandName": "Xiaomi",
+    "modelName": "Watch S1 Active",
+    "slug": "xiaomi-watch-s1-active",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-watch-s1-active.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Xiaomi Watch S1 Active is a lightweight 1.43-inch AMOLED smartwatch with 117 workout modes and up to 12 days of battery. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.43-inch AMOLED, 466 x 466" },
+      { "key": "Battery", "value": "470mAh, up to 12 days" },
+      { "key": "Sensors", "value": "Heart rate, Blood oxygen, Sleep tracking" },
+      { "key": "Connectivity", "value": "Bluetooth 5.2, GPS" },
+      { "key": "Water Resistance", "value": "5ATM" },
+      { "key": "Operating System", "value": "MIUI Watch" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black", "White"],
+    "whatsIncluded": ["1x Xiaomi Watch S1 Active", "Charging Cable", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "46mm", "price": 8999, "discountPrice": 5100 }
+    ]
+  },
+  {
+    "brandName": "OnePlus",
+    "modelName": "Watch 2",
+    "slug": "oneplus-watch-2",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/oneplus-watch-2.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The OnePlus Watch 2 runs dual engines (Wear OS 4 + RTOS) for up to 100 hours of battery, with a 1.43-inch AMOLED display and 5ATM + IP68 durability. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.43-inch AMOLED, 466 x 466" },
+      { "key": "Battery", "value": "500mAh, up to 100 hours" },
+      { "key": "Sensors", "value": "Heart rate, Blood oxygen, Sleep tracking" },
+      { "key": "Connectivity", "value": "Bluetooth 5.0, Wi-Fi, GPS" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS 4 + RTOS" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black Steel", "Radiant Steel"],
+    "whatsIncluded": ["1x OnePlus Watch 2", "Charging Cable", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "46mm", "price": 24999, "discountPrice": 14400 }
+    ]
+  },
+  {
+    "brandName": "Realme",
+    "modelName": "Watch 2",
+    "slug": "realme-watch-2",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/realme-watch-2.jpg",
+    "condition": "Refurbished",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The realme Watch 2 is a budget 1.4-inch smartwatch with SpO2 and heart-rate tracking and up to 12 days of battery life. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.4-inch LCD, 320 x 320" },
+      { "key": "Battery", "value": "315mAh, up to 12 days" },
+      { "key": "Sensors", "value": "Heart rate, Blood oxygen" },
+      { "key": "Connectivity", "value": "Bluetooth 5.0" },
+      { "key": "Water Resistance", "value": "IP68" },
+      { "key": "Operating System", "value": "realme OS" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Black", "Blue"],
+    "whatsIncluded": ["1x realme Watch 2", "Charging Cable", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "35mm", "price": 3999, "discountPrice": 2100 }
+    ]
+  },
+  {
+    "brandName": "Google",
+    "modelName": "Pixel Watch 2",
+    "slug": "google-pixel-watch-2",
+    "categorySlug": "smartwatches",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/google-pixel-watch-2.jpg",
+    "condition": "Refurbished",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "The Google Pixel Watch 2 combines a 1.2-inch always-on AMOLED display with Fitbit health tracking, ECG and Wear OS 4. Refurbished and quality-checked by OM Cellular with a 1-year warranty.",
+    "specs": [
+      { "key": "Display", "value": "1.2-inch AMOLED, 450 x 450, 1000 nits" },
+      { "key": "Battery", "value": "306mAh, up to 24 hours" },
+      { "key": "Sensors", "value": "Heart rate, ECG, Blood oxygen, Temperature, EDA" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3, Wi-Fi, GPS, LTE (optional)" },
+      { "key": "Water Resistance", "value": "5ATM + IP68" },
+      { "key": "Operating System", "value": "Wear OS 4" },
+      { "key": "Warranty", "value": "1 Year OM Cellular Warranty" }
+    ],
+    "colors": ["Matte Black", "Polished Silver"],
+    "whatsIncluded": ["1x Pixel Watch 2", "Charging Cable", "Quick Start Guide", "1 Year OM Cellular Warranty"],
+    "labels": [
+      { "label": "41mm", "price": 39999, "discountPrice": 22900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "AirPods Pro (2nd generation)",
+    "slug": "apple-airpods-pro-2nd-generation",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "Apple AirPods Pro (2nd generation) with active noise cancellation, adaptive transparency and a USB-C MagSafe charging case. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 6 hours (30 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C, MagSafe and Qi wireless" },
+      { "key": "Compatibility", "value": "iPhone, iPad, Mac and Android" },
+      { "key": "Durability", "value": "IP54 (earbuds and case)" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["White"],
+    "whatsIncluded": ["1x AirPods Pro", "MagSafe Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 24900, "discountPrice": 19900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "AirPods (3rd generation)",
+    "slug": "apple-airpods-3rd-generation",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Apple AirPods (3rd generation) with spatial audio and a MagSafe charging case. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear" },
+      { "key": "Battery Life", "value": "Up to 6 hours (30 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.0" },
+      { "key": "Charging", "value": "Lightning, MagSafe and Qi wireless" },
+      { "key": "Compatibility", "value": "Apple devices" },
+      { "key": "Durability", "value": "IPX4" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["White"],
+    "whatsIncluded": ["1x AirPods", "MagSafe Charging Case", "Lightning Cable"],
+    "labels": [
+      { "label": "", "price": 19900, "discountPrice": 15900 }
+    ]
+  },
+  {
+    "brandName": "Apple",
+    "modelName": "20W USB-C Power Adapter",
+    "slug": "apple-20w-usb-c-power-adapter",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Apple 20W USB-C Power Adapter for fast charging iPhone and iPad. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "USB-C wall charger" },
+      { "key": "Output", "value": "20W USB Power Delivery" },
+      { "key": "Compatibility", "value": "iPhone, iPad and USB-C devices" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["White"],
+    "whatsIncluded": ["1x 20W USB-C Power Adapter"],
+    "labels": [
+      { "label": "", "price": 1900, "discountPrice": 1699 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Buds2 Pro",
+    "slug": "samsung-galaxy-buds2-pro",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Samsung Galaxy Buds2 Pro true wireless earbuds with intelligent ANC, 24-bit Hi-Fi audio and a compact charging case. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 5 hours (18 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C and Qi wireless" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IPX7" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Graphite", "White"],
+    "whatsIncluded": ["1x Galaxy Buds2 Pro", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 17999, "discountPrice": 11900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "Galaxy Buds Live",
+    "slug": "samsung-galaxy-buds-live",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Samsung Galaxy Buds Live feature a distinctive open-type design with ANC and a comfortable, all-day fit. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless open-type with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 6 hours (21 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.0" },
+      { "key": "Charging", "value": "USB-C and Qi wireless" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IPX2" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Mystic Black", "Mystic Bronze"],
+    "whatsIncluded": ["1x Galaxy Buds Live", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 14999, "discountPrice": 7900 }
+    ]
+  },
+  {
+    "brandName": "Samsung",
+    "modelName": "25W USB-C Fast Charger",
+    "slug": "samsung-25w-usb-c-fast-charger",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Samsung 25W USB-C Super Fast Charging wall adapter for Galaxy phones and tablets. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "USB-C wall charger" },
+      { "key": "Output", "value": "25W Super Fast Charging (USB PD PPS)" },
+      { "key": "Compatibility", "value": "Samsung Galaxy and USB-C devices" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Black", "White"],
+    "whatsIncluded": ["1x 25W USB-C Fast Charger"],
+    "labels": [
+      { "label": "", "price": 1999, "discountPrice": 1499 }
+    ]
+  },
+  {
+    "brandName": "OnePlus",
+    "modelName": "Buds Pro 2",
+    "slug": "oneplus-buds-pro-2",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "OnePlus Buds Pro 2 true wireless earbuds with dual-driver acoustics, adaptive ANC and up to 39 hours of playtime. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 6 hours (39 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C and wireless charging" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IP55" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Obsidian Black", "Misty White"],
+    "whatsIncluded": ["1x OnePlus Buds Pro 2", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 11999, "discountPrice": 7900 }
+    ]
+  },
+  {
+    "brandName": "OnePlus",
+    "modelName": "80W SUPERVOOC Charger",
+    "slug": "oneplus-80w-supervooc-charger",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "OnePlus 80W SUPERVOOC USB-C wall adapter for fast charging supported OnePlus devices. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "USB-C wall charger" },
+      { "key": "Output", "value": "80W SUPERVOOC" },
+      { "key": "Compatibility", "value": "OnePlus devices and USB-C devices" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["White"],
+    "whatsIncluded": ["1x 80W SUPERVOOC Charger"],
+    "labels": [
+      { "label": "", "price": 2499, "discountPrice": 1999 }
+    ]
+  },
+  {
+    "brandName": "Nothing",
+    "modelName": "Ear (2)",
+    "slug": "nothing-ear-2",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": true,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Nothing Ear (2) true wireless earbuds with adaptive ANC, Hi-Res Audio certification and a transparent design. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 6.3 hours (36 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C and Qi wireless" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IP54" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["White", "Black"],
+    "whatsIncluded": ["1x Nothing Ear (2)", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 9999, "discountPrice": 6999 }
+    ]
+  },
+  {
+    "brandName": "Nothing",
+    "modelName": "Ear (a)",
+    "slug": "nothing-ear-a",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": true,
+    "isBestSeller": false,
+    "description": "Nothing Ear (a) true wireless earbuds with ANC, a compact case and up to 42.5 hours of total playtime. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 9.5 hours (42.5 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IP54" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Yellow", "Black", "White"],
+    "whatsIncluded": ["1x Nothing Ear (a)", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 7999, "discountPrice": 5999 }
+    ]
+  },
+  {
+    "brandName": "Realme",
+    "modelName": "Buds Air 5 Pro",
+    "slug": "realme-buds-air-5-pro",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "realme Buds Air 5 Pro true wireless earbuds with 50dB ANC and up to 40 hours of total playback. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 11 hours (40 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IP55" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Sunrise Beige", "Astral Black"],
+    "whatsIncluded": ["1x realme Buds Air 5 Pro", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 4999, "discountPrice": 3499 }
+    ]
+  },
+  {
+    "brandName": "boAt",
+    "modelName": "Airdopes 141",
+    "slug": "boat-airdopes-141",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": true,
+    "description": "boAt Airdopes 141 true wireless earbuds with ENx noise cancellation, low-latency BEAST mode and up to 42 hours of playtime. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear" },
+      { "key": "Battery Life", "value": "Up to 6 hours (42 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.1" },
+      { "key": "Charging", "value": "USB-C" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IPX4" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Bold Black", "White"],
+    "whatsIncluded": ["1x boAt Airdopes 141", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 1499, "discountPrice": 999 }
+    ]
+  },
+  {
+    "brandName": "Noise",
+    "modelName": "Buds VS104",
+    "slug": "noise-buds-vs104",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Noise Buds VS104 true wireless earbuds with quad-mic ENC, Instacharge and up to 45 hours of total playtime. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear" },
+      { "key": "Battery Life", "value": "Up to 6 hours (45 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.3" },
+      { "key": "Charging", "value": "USB-C" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IPX5" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Jet Black", "Snow White"],
+    "whatsIncluded": ["1x Noise Buds VS104", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 1499, "discountPrice": 999 }
+    ]
+  },
+  {
+    "brandName": "Anker",
+    "modelName": "PowerCore 10000",
+    "slug": "anker-powercore-10000",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "Anker PowerCore 10000 power bank with 10000mAh capacity and 22.5W fast charging in a compact body. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "Portable power bank" },
+      { "key": "Capacity", "value": "10000mAh" },
+      { "key": "Output", "value": "22.5W USB-C and USB-A" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Black"],
+    "whatsIncluded": ["1x PowerCore 10000 Power Bank", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 2499, "discountPrice": 1699 }
+    ]
+  },
+  {
+    "brandName": "JBL",
+    "modelName": "Tune 230NC TWS",
+    "slug": "jbl-tune-230nc-tws",
+    "categorySlug": "accessories",
+    "image": "",
+    "condition": "New",
+    "isFeatured": false,
+    "isNewArrival": false,
+    "isBestSeller": false,
+    "description": "JBL Tune 230NC TWS true wireless earbuds with active noise cancellation, JBL Pure Bass sound and up to 40 hours of playtime. Brand new and sealed.",
+    "specs": [
+      { "key": "Type", "value": "True wireless in-ear with Active Noise Cancellation" },
+      { "key": "Battery Life", "value": "Up to 10 hours (40 hours with case)" },
+      { "key": "Connectivity", "value": "Bluetooth 5.2" },
+      { "key": "Charging", "value": "USB-C" },
+      { "key": "Compatibility", "value": "Android and iOS" },
+      { "key": "Durability", "value": "IPX4" },
+      { "key": "Warranty", "value": "1 Year Brand Warranty" }
+    ],
+    "colors": ["Black", "White"],
+    "whatsIncluded": ["1x JBL Tune 230NC TWS", "Charging Case", "Ear Tips", "USB-C Cable"],
+    "labels": [
+      { "label": "", "price": 6999, "discountPrice": 3999 }
+    ]
+  }
+]
