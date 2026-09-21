@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users, Wrench, Smartphone, ArrowRightLeft,
   DollarSign, Image, LayoutTemplate, MessageSquare, HelpCircle, Tag, Settings,
   ClipboardList, Box, MessageCircle, ChevronLeft, ChevronRight, Store, Phone, Info,
-  MapPin, BellRing, Megaphone, RotateCcw,
+  MapPin, BellRing, Megaphone, RotateCcw, FolderOpen,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -11,6 +11,7 @@ const links = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/products', label: 'Products', icon: Package },
   { to: '/admin/brands', label: 'Brands', icon: Store },
+  { to: '/admin/categories', label: 'Categories', icon: FolderOpen },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/customers', label: 'Customers', icon: Users },
   { to: '/admin/repairs', label: 'Repair Bookings', icon: Wrench },

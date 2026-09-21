@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
@@ -8,6 +8,7 @@ import { settingsService } from '../services/settings.service'
 
 export default function ShopLayout() {
   const { fetchUser } = useAuthStore()
+  const location = useLocation()
   const [whatsAppUrl, setWhatsAppUrl] = useState('')
 
   useEffect(() => { fetchUser() }, [fetchUser])
@@ -31,7 +32,9 @@ export default function ShopLayout() {
         <Outlet />
       </main>
       <Footer />
-      {whatsAppUrl && (
+      {/* Hide the FAB on product detail pages so it cannot overlap the sticky
+          mobile buy bar */}
+      {whatsAppUrl && !location.pathname.startsWith('/products/') && (
         <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
           className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all duration-300 hover:bg-emerald-600 hover:shadow-xl hover:scale-110 md:bottom-6 md:right-6"
           aria-label="Chat on WhatsApp">

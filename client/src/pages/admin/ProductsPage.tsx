@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Edit, Trash2, Search } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
@@ -8,6 +8,7 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     const params: Record<string, string> = { limit: '50' }
@@ -28,7 +29,7 @@ export default function AdminProductsPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
-        <button className="btn-primary text-sm"><Plus className="mr-1 h-4 w-4" /> Add Product</button>
+        <button onClick={() => navigate('/admin/products/new')} className="btn-primary text-sm"><Plus className="mr-1 h-4 w-4" /> Add Product</button>
       </div>
       <div className="mt-4">
         <div className="relative max-w-sm">

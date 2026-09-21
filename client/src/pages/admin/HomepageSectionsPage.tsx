@@ -3,10 +3,11 @@ import CmsCrudPage from '../../components/admin/CmsCrudPage'
 const fields = [
   { name: 'title', label: 'Title', type: 'text' as const, placeholder: 'Section title', required: true },
   { name: 'subtitle', label: 'Subtitle', type: 'text' as const, placeholder: 'Section subtitle' },
-  { name: 'type', label: 'Type', type: 'select' as const, options: ['featured_products', 'new_arrivals', 'best_sellers', 'categories', 'custom', 'promo_banner'] },
+  { name: 'type', label: 'Type', type: 'select' as const, options: ['featured_products', 'new_arrivals', 'best_sellers', 'categories', 'banners', 'testimonials', 'promo_banner', 'custom'] },
   { name: 'ctaText', label: 'CTA Text', type: 'text' as const, placeholder: 'View All' },
   { name: 'ctaLink', label: 'CTA Link', type: 'text' as const, placeholder: '/products' },
   { name: 'image', label: 'Image URL', type: 'text' as const, placeholder: 'https://...' },
+  { name: 'background', label: 'Background Color', type: 'text' as const, placeholder: '#f9fafb' },
   { name: 'sortOrder', label: 'Sort Order', type: 'number' as const },
   { name: 'isActive', label: 'Enabled', type: 'checkbox' as const },
 ]

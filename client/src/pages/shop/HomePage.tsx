@@ -909,15 +909,6 @@ export default function HomePage() {
       {!gatedHas('testimonials') && renderTestimonials()}
       {renderFaq()}
       {renderContact()}
-
-      {/* WhatsApp Floating Button */}
-      {whatsAppUrl && (
-        <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all hover:bg-emerald-600 hover:shadow-xl hover:scale-110 md:bottom-6 md:right-6"
-          aria-label="Chat on WhatsApp">
-          <MessageCircle className="h-6 w-6" />
-        </a>
-      )}
     </div>
   )
 }

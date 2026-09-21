@@ -72,6 +72,57 @@ export default function ProductsPage() {
     currentIsFeatured && { key: 'isFeatured', value: currentIsFeatured, label: 'Featured' },
   ].filter(Boolean) as { key: string; value: string; label: string }[]
 
+  const renderFilters = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">Categories</h3>
+        <div className="mt-3 space-y-1">
+          <button
+            onClick={() => updateFilter('categoryId', '')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+          >
+            <span>All Categories</span>
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => updateFilter('categoryId', cat.id)}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            >
+              <span>{cat.name}</span>
+              {typeof cat._count?.products === 'number' && (
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{cat._count.products}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">Brands</h3>
+        <div className="mt-3 space-y-1">
+          <button
+            onClick={() => updateFilter('brandId', '')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+          >
+            <span>All Brands</span>
+          </button>
+          {brands.map(brand => (
+            <button
+              key={brand.id}
+              onClick={() => updateFilter('brandId', brand.id)}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            >
+              <span>{brand.name}</span>
+              {typeof brand._count?.products === 'number' && (
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{brand._count.products}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 md:py-12">
@@ -86,7 +137,7 @@ export default function ProductsPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowFilters(!showFilters)} className="btn-secondary !px-3 !py-2 md:hidden">
+          <button onClick={() => setShowFilters(true)} className="btn-secondary !px-3 !py-2 md:hidden">
             <SlidersHorizontal className="h-4 w-4" />
           </button>
           <div className="hidden md:flex items-center gap-1 rounded-lg border border-gray-200 p-1">
@@ -123,56 +174,26 @@ export default function ProductsPage() {
 
       <div className="mt-6 flex gap-8">
         {/* Sidebar Filters */}
-        <aside className={cn('w-64 shrink-0', showFilters ? 'block' : 'hidden md:block')}>
-          <div className={cn('space-y-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm', 'md:sticky md:top-24')}>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Categories</h3>
-              <div className="mt-3 space-y-1">
-                <button
-                  onClick={() => updateFilter('categoryId', '')}
-                  className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
-                >
-                  <span>All Categories</span>
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => updateFilter('categoryId', cat.id)}
-                    className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
-                  >
-                    <span>{cat.name}</span>
-                    {typeof cat._count?.products === 'number' && (
-                      <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{cat._count.products}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Brands</h3>
-              <div className="mt-3 space-y-1">
-                <button
-                  onClick={() => updateFilter('brandId', '')}
-                  className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
-                >
-                  <span>All Brands</span>
-                </button>
-                {brands.map(brand => (
-                  <button
-                    key={brand.id}
-                    onClick={() => updateFilter('brandId', brand.id)}
-                    className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
-                  >
-                    <span>{brand.name}</span>
-                    {typeof brand._count?.products === 'number' && (
-                      <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{brand._count.products}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <aside className="hidden w-64 shrink-0 md:block">
+          <div className="sticky top-24 space-y-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            {renderFilters()}
           </div>
         </aside>
+
+        {/* Mobile filter drawer */}
+        {showFilters && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
+            <div className="absolute left-0 top-0 h-full w-80 max-w-[85%] overflow-y-auto bg-white p-5 shadow-xl">
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+                <button onClick={() => setShowFilters(false)} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+              </div>
+              {renderFilters()}
+              <button onClick={() => { setShowFilters(false); setSearchParams({ sort: 'newest' }) }} className="btn-secondary mt-6 w-full">Clear all filters</button>
+            </div>
+          </div>
+        )}
 
         {/* Product Grid */}
         <div className="flex-1">

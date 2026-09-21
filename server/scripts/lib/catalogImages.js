@@ -98,20 +98,28 @@ async function verifyImageUrl(url) {
     if (!contentType.startsWith('image/')) return false
     const contentLength = parseInt(res.headers.get('content-length') || '0', 10)
     if (contentLength && contentLength < 2000) return false
-    // Read only the first chunk(s) of the body to make sure it isn't an HTML error page.
+    // Read the first chunk(s) of the body: confirm real image bytes arrived and
+    // the payload isn't an HTML error page. A 200 with an empty body (some CDN
+    // assets serve a 0-byte file with an image/* content-type) must count as
+    // broken — that is what produced the storefront's dead OnePlus image.
     const reader = res.body && res.body.getReader ? res.body.getReader() : null
+    if (!reader) return false
+    let bytes = 0
     let bodyStart = ''
-    if (reader) {
-      try {
-        const first = await reader.read()
-        const second = first.done ? null : await reader.read()
-        if (first.value) bodyStart += Buffer.from(first.value).toString('utf8')
-        if (second && second.value) bodyStart += Buffer.from(second.value).toString('utf8')
-      } catch { /* ignore */ } finally {
-        reader.cancel().catch(() => {})
+    try {
+      for (let i = 0; i < 4; i++) {
+        const { value, done } = await reader.read()
+        if (done) break
+        if (value && value.length) {
+          bytes += value.length
+          if (bodyStart.length < 4096) bodyStart += Buffer.from(value).toString('utf8').slice(0, 4096 - bodyStart.length)
+        }
       }
+    } catch { /* network hiccup while reading */ } finally {
+      reader.cancel().catch(() => {})
     }
-    if (bodyStart.length > 0 && /<html|<!\w/i.test(bodyStart)) return false
+    if (bytes < 2000) return false
+    if (/<html|<!\w/i.test(bodyStart)) return false
     return true
   } catch {
     return false
@@ -141,11 +149,25 @@ async function scrapeGsmarenaUrl(query) {
     }
   }
 
+  // Pull every bigpic URL from the results page along with the surrounding
+  // text (anchor labels, image alt/title) so we can tell which phone a given
+  // thumbnail actually belongs to. The old "first match wins" pick wrongly
+  // assigned e.g. Xiaomi 12's photo to Redmi 12 and Note 13 Pro 5G's photo to
+  // Redmi Note 13 5G — the search page lists many phones, and the first bigpic
+  // on the page is not necessarily the queried model.
   const matches = (html) => {
     const out = []
-    const re = /https?:\/\/[a-z0-9.]+gsmarena\.com\/vv\/bigpic\/[^"'?# ]+\.(?:jpe?g|png)/gi
+    const re = /(?:https?:)?\/\/[a-z0-9.-]*gsmarena\.com\/vv\/bigpic\/[^"'?#\s]+\.(?:jpe?g|png)/gi
     let m
-    while ((m = re.exec(html))) out.push(m[0])
+    while ((m = re.exec(html))) {
+      const url = m[0].replace(/^\/\//, 'https://')
+      const start = Math.max(0, m.index - 160)
+      const end = Math.min(html.length, m.index + url.length + 260)
+      let block = html.slice(start, end)
+      block = block.replace(/<img\b[^>]*\b(?:alt|title)=["']([^"']*)["'][^>]*>/gi, (_, t) => ` ${t}`)
+      const context = normalizeForMatch(block.replace(/<[^>]*>/g, ' ').replace(/&[a-z0-9#]+;/g, ' '))
+      out.push({ url, context })
+    }
     return out
   }
 
@@ -157,12 +179,61 @@ async function scrapeGsmarenaUrl(query) {
       wait *= 2
       continue
     }
-    if (!page.html) return null
-    const found = matches(page.html)
-    if (found.length > 0) return found[0]
-    return null
+    if (!page.html) return []
+    return pickBigpicCandidates(query, matches(page.html))
   }
-  return null
+  return []
+}
+
+function normalizeForMatch(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function tokenize(text) {
+  return normalizeForMatch(text).split(' ').filter(Boolean)
+}
+
+// Score one result context against the queried phone. All query tokens present
+// verbatim => exact match (>= 100). Partial coverage scores lower; extra
+// context tokens (other phones listed near the thumbnail) cost points.
+function scoreContext(queryTokens, contextTokens, contextSet) {
+  if (!queryTokens.length || !contextTokens.length) return 0
+  let covered = 0
+  let exact = true
+  for (const t of queryTokens) {
+    if (contextSet.has(t)) covered++
+    else exact = false
+  }
+  if (covered === 0) return 0
+  const extra = Math.max(0, contextTokens.length - queryTokens.length)
+  return (covered / queryTokens.length) * 100 + (exact ? 100 : 0) - extra * 2
+}
+
+// Choose the bigpic URLs most plausibly belonging to the queried phone.
+// Returns an ordered list (best first) so callers can verify each URL in turn.
+// Returns [] when nothing is a confident match — never risk a wrong phone.
+function pickBigpicCandidates(query, candidates) {
+  const qTokens = tokenize(query)
+  if (!qTokens.length) return []
+  const scored = []
+  for (const c of candidates) {
+    const cTokens = tokenize(c.context)
+    const score = scoreContext(qTokens, cTokens, new Set(cTokens))
+    if (score > 0) scored.push({ url: c.url, score })
+  }
+  if (!scored.length) return []
+  scored.sort((a, b) => b.score - a.score)
+  const top = scored[0]
+  if (top.score < 50) return []
+  // Ambiguous page (a close runner-up that is not an exact token match for the
+  // same phone) => reject rather than guess wrong.
+  const runnerUp = scored.find(c => c.url !== top.url && c.score > top.score - 40)
+  if (runnerUp && top.score < 100) return []
+  return scored.filter(c => c.score >= top.score - 40).slice(0, 3).map(c => c.url)
 }
 
 // Resolve a verified image URL for (brand, model). Returns null when none found.
@@ -173,7 +244,9 @@ async function resolveImageUrl(brand, model, existing) {
     if (await verifyImageUrl(url)) return url
   }
   const scraped = await scrapeGsmarenaUrl(`${brand} ${model}`)
-  if (scraped && (await verifyImageUrl(scraped))) return scraped
+  for (const url of scraped) {
+    if (await verifyImageUrl(url)) return url
+  }
   return null
 }
 

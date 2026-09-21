@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
   const { user, login } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as any)?.from || '/admin/dashboard'
+  const from = (location.state as any)?.from || '/admin'
 
   useEffect(() => {
     if (user?.role === 'ADMIN') navigate(from, { replace: true })

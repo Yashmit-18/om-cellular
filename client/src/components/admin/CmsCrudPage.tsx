@@ -6,7 +6,7 @@ import api from '../../services/api'
 export interface CmsField {
   name: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox' | 'date'
   options?: string[]
   placeholder?: string
   required?: boolean
@@ -26,6 +26,13 @@ function defaultForm(fields: CmsField[]): Record<string, any> {
     form[f.name] = f.type === 'checkbox' ? true : f.type === 'number' ? 0 : ''
   }
   return form
+}
+
+function toDateInputValue(value: any): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return `${String(d.getFullYear()).padStart(4, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function CmsCrudPage({ title, endpoint, singular, fields, displayName }: CmsCrudPageProps) {
@@ -48,7 +55,7 @@ export default function CmsCrudPage({ title, endpoint, singular, fields, display
   const startEdit = (item: any) => {
     const f: Record<string, any> = {}
     for (const field of fields) {
-      f[field.name] = item[field.name] ?? initial[field.name]
+      f[field.name] = field.type === 'date' ? (toDateInputValue(item[field.name]) || initial[field.name]) : (item[field.name] ?? initial[field.name])
     }
     setForm(f)
     setEditingId(item.id)
@@ -63,13 +70,18 @@ export default function CmsCrudPage({ title, endpoint, singular, fields, display
     const missing = fields.find(f => f.required && !form[f.name])
     if (missing) { toast.error(`${missing.label} is required`); return }
     setSaving(true)
+    const payload: Record<string, any> = {}
+    for (const field of fields) {
+      const v = form[field.name]
+      payload[field.name] = field.type === 'date' && !v ? null : v
+    }
     try {
       if (editingId) {
-        const res = await api.put(`${endpoint}/${editingId}`, form)
+        const res = await api.put(`${endpoint}/${editingId}`, payload)
         toast.success(`${singular} updated`)
         if (res.data.data) setItems(items.map(it => (it.id === editingId ? res.data.data : it)))
       } else {
-        const res = await api.post(endpoint, form)
+        const res = await api.post(endpoint, payload)
         toast.success(`${singular} created`)
         if (res.data.data) setItems([...items, res.data.data])
       }
@@ -119,6 +131,8 @@ export default function CmsCrudPage({ title, endpoint, singular, fields, display
                   <input type="checkbox" checked={!!form[f.name]} onChange={e => set(f.name, e.target.checked)} className="h-4 w-4 accent-brand-600" />
                   <span className="text-sm text-gray-500">Enabled</span>
                 </div>
+              ) : f.type === 'date' ? (
+                <input type="date" value={form[f.name] || ''} onChange={e => set(f.name, e.target.value)} className="input mt-1" />
               ) : (
                 <input type={f.type === 'number' ? 'number' : 'text'} value={form[f.name] ?? ''} onChange={e => set(f.name, f.type === 'number' ? Number(e.target.value) : e.target.value)} placeholder={f.placeholder} className="input mt-1" />
               )}

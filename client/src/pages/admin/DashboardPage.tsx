@@ -57,8 +57,9 @@ export default function DashboardPage() {
             card.label.includes('Service Requests') ? '/admin/service-requests' :
             card.label.includes('Product') ? '/admin/products' :
             card.label.includes('Customer') ? '/admin/customers' :
+            card.label.includes('Revenue') ? '/admin/orders' :
             card.label.includes('Low Stock') ? '/admin/inventory' :
-            '#'
+            '/admin'
           } className="card-premium p-5">
             <div className="flex items-center justify-between">
               <div>

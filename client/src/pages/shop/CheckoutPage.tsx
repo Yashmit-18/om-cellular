@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('')
   const [taxRate, setTaxRate] = useState(0.18)
   const [shippingConfig, setShippingConfig] = useState({ free: 999, standard: 99 })
+  const [businessName, setBusinessName] = useState('')
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null)
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false)
   const [checkingPaymentConfig, setCheckingPaymentConfig] = useState(true)
@@ -84,6 +85,7 @@ export default function CheckoutPage() {
       if (Array.isArray(s)) s.forEach((item: any) => { map[item.key] = item.value })
       else if (typeof s === 'object') Object.assign(map, s)
       setTaxRate(parseFloat(map.tax_rate) || 0.18)
+      setBusinessName(map.business_name || '')
       setShippingConfig({
         free: parseInt(map.free_shipping_threshold) || 999,
         standard: parseInt(map.standard_shipping_price) || 99,
@@ -177,7 +179,7 @@ export default function CheckoutPage() {
         key: data.keyId,
         amount: data.amount,
         currency: data.currency || 'INR',
-        name: 'OM Cellular',
+        name: businessName || 'OM Cellular',
         description: `Order payment (${method.toUpperCase()})`,
         order_id: data.razorpayOrderId,
         prefill: {

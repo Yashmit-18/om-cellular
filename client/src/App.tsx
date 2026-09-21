@@ -42,6 +42,7 @@ const AccountNotifications = lazy(() => import('./pages/account/NotificationsPag
 const AdminDashboard = lazy(() => import('./pages/admin/DashboardPage'))
 const AdminProducts = lazy(() => import('./pages/admin/ProductsPage'))
 const AdminProductEdit = lazy(() => import('./pages/admin/ProductEditPage'))
+const AdminCategories = lazy(() => import('./pages/admin/CategoriesPage'))
 const AdminOrders = lazy(() => import('./pages/admin/OrdersPage'))
 const AdminOrderDetail = lazy(() => import('./pages/admin/OrderDetailPage'))
 const AdminCustomers = lazy(() => import('./pages/admin/CustomersPage'))
@@ -71,6 +72,7 @@ const AdminPhoneCatalog = lazy(() => import('./pages/admin/PhoneCatalogPage'))
 const AdminBrands = lazy(() => import('./pages/admin/BrandsPage'))
 const AdminNotifications = lazy(() => import('./pages/admin/NotificationsPage'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLoginPage'))
+const NotFound = lazy(() => import('./pages/shop/NotFoundPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -91,9 +93,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/faq': 'FAQs | OM Cellular',
   '/contact': 'Contact Us | OM Cellular',
   '/track-order': 'Track Your Order | OM Cellular',
+  '/search': 'Search | OM Cellular',
   '/login': 'Login | OM Cellular',
   '/register': 'Create Account | OM Cellular',
   '/account': 'My Account | OM Cellular',
+  '/account/profile': 'My Profile | OM Cellular',
   '/account/orders': 'My Orders | OM Cellular',
   '/account/returns': 'Returns & Refunds | OM Cellular',
   '/account/repairs': 'My Repairs | OM Cellular',
@@ -134,6 +138,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/track-order" element={<TrackOrder />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
 
         <Route path="/login" element={<Login />} />
@@ -155,6 +160,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
+          <Route path="products/new" element={<AdminProductEdit />} />
           <Route path="products/:id" element={<AdminProductEdit />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="orders/:id" element={<AdminOrderDetail />} />
@@ -177,6 +183,7 @@ export default function App() {
           <Route path="information-cards" element={<AdminInformationCards />} />
           <Route path="coupons" element={<AdminCoupons />} />
           <Route path="brands" element={<AdminBrands />} />
+          <Route path="categories" element={<AdminCategories />} />
           <Route path="notifications" element={<AdminNotifications />} />
           <Route path="repair-services" element={<AdminRepairServices />} />
           <Route path="phone-catalog" element={<AdminPhoneCatalog />} />

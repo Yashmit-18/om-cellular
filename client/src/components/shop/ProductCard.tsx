@@ -105,13 +105,13 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
   )
 
   const bestSellerBadge = product.isBestSeller && (
-    <span className="absolute left-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+    <span className="absolute bottom-9 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
       <TrendingUp className="h-3 w-3" /> Best Seller
     </span>
   )
 
   const priceBlock = (
-    <div className="mt-2.5 flex items-center gap-2">
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="text-lg font-extrabold tracking-tight text-brand-600">{formatPrice(current)}</span>
       {pct > 0 && original > 0 && (
         <>
@@ -151,17 +151,21 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
 
   const stage = (
     <div className="relative w-full">
-      <div className="pointer-events-none absolute -bottom-8 left-1/2 h-24 w-3/4 -translate-x-1/2 rounded-full bg-brand-200/40 blur-2xl" />
-      <ProductImage
-        src={product.primaryImage}
-        alt={product.name}
-        contain
-        className="relative h-[200px] sm:h-[240px] md:h-[250px] lg:h-[265px]"
-        imgClassName="p-4 transition-[transform,opacity] duration-300 group-hover:scale-[1.04] motion-reduce:transition-none"
-      />
+      <Link to={detailsTo} className="relative block overflow-hidden rounded-[20px] bg-gradient-to-b from-gray-50 to-brand-50/60">
+        <div className="pointer-events-none absolute -bottom-8 left-1/2 h-24 w-3/4 -translate-x-1/2 rounded-full bg-brand-200/40 blur-2xl" />
+        <ProductImage
+          src={product.primaryImage}
+          alt={product.name}
+          contain
+          className="relative h-[200px] sm:h-[240px] md:h-[250px] lg:h-[265px]"
+          imgClassName="p-4 transition-[transform,opacity] duration-300 group-hover:scale-[1.04] motion-reduce:transition-none"
+        />
+      </Link>
       <span className={cn('absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold backdrop-blur', stockPill.cls)}>
         <span className={cn('h-1.5 w-1.5 rounded-full', stockPill.dot)} /> {stockPill.label}
       </span>
+      {bestSellerBadge}
+      {wishlistButton}
     </div>
   )
 
@@ -217,11 +221,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
 
   return (
     <div className={cn('card-premium group relative flex flex-col rounded-[20px] p-3 hover:-translate-y-1 motion-reduce:transition-none motion-reduce:transform-none sm:p-4', className)}>
-      <Link to={detailsTo} className="relative block overflow-hidden rounded-[20px] bg-gradient-to-b from-gray-50 to-brand-50/60">
-        {stage}
-      </Link>
-      {bestSellerBadge}
-      {wishlistButton}
+      {stage}
 
       <div className="mt-3.5 flex flex-1 flex-col">
         {product.brand?.name && (

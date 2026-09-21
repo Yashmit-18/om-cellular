@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Smartphone } from 'lucide-react'
 import { cn } from '../../utils'
 
@@ -21,6 +21,10 @@ export default function ProductImage({ src, alt = '', fallbackSrc, className, im
   const [failed, setFailed] = useState(false)
   const url = (!src && fallbackSrc) ? fallbackSrc : src
   const showImage = typeof url === 'string' && url.length > 0 && !failed
+
+  useEffect(() => {
+    setFailed(false)
+  }, [url])
 
   return (
     <div className={cn(

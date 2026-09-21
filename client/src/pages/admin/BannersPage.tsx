@@ -6,6 +6,8 @@ const fields = [
   { name: 'image', label: 'Image URL', type: 'text' as const, placeholder: 'https://...', required: true },
   { name: 'ctaText', label: 'CTA Text', type: 'text' as const, placeholder: 'Shop Now' },
   { name: 'ctaLink', label: 'CTA Link', type: 'text' as const, placeholder: '/buy-phones' },
+  { name: 'startDate', label: 'Start Date', type: 'date' as const },
+  { name: 'endDate', label: 'End Date', type: 'date' as const },
   { name: 'sortOrder', label: 'Sort Order', type: 'number' as const },
   { name: 'isActive', label: 'Enabled', type: 'checkbox' as const },
 ]

@@ -10,7 +10,7 @@ export default function AdminBrandsPage() {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', sortOrder: 0 })
+  const [form, setForm] = useState({ name: '', logo: '', sortOrder: 0 })
 
   const fetchBrands = useCallback(async () => {
     setLoading(true)
@@ -34,14 +34,14 @@ export default function AdminBrandsPage() {
         await brandService.createBrand(form)
         toast.success('Brand created')
       }
-      setShowForm(false); setEditingId(null); setForm({ name: '', sortOrder: 0 })
+      setShowForm(false); setEditingId(null); setForm({ name: '', logo: '', sortOrder: 0 })
       fetchBrands()
     } catch { toast.error('Failed to save') }
   }
 
   const handleEdit = (brand: Brand) => {
     setEditingId(brand.id)
-    setForm({ name: brand.name, sortOrder: brand.sortOrder })
+    setForm({ name: brand.name, logo: brand.logo || '', sortOrder: brand.sortOrder })
     setShowForm(true)
   }
 
@@ -57,7 +57,7 @@ export default function AdminBrandsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Brands</h1>
           <p className="mt-1 text-sm text-gray-500">Manage phone brands displayed on the website</p>
         </div>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', sortOrder: 0 }) }}
+        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', logo: '', sortOrder: 0 }) }}
           className="btn-primary"><Plus className="mr-1 h-4 w-4" /> Add Brand</button>
       </div>
 
@@ -77,6 +77,7 @@ export default function AdminBrandsPage() {
             </div>
             <div className="mt-4 space-y-4">
               <div><label className="block text-sm font-medium text-gray-700">Brand Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input mt-1" placeholder="e.g. Apple" /></div>
+              <div><label className="block text-sm font-medium text-gray-700">Logo URL</label><input value={form.logo} onChange={e => setForm({ ...form, logo: e.target.value })} className="input mt-1" placeholder="https://...logo.png" /></div>
               <div><label className="block text-sm font-medium text-gray-700">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} className="input mt-1" /></div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => { setShowForm(false); setEditingId(null) }} className="btn-secondary flex-1">Cancel</button>

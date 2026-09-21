@@ -69,7 +69,8 @@ export default function Header() {
   }
 
   const whatsAppNumber = settings.whatsapp_number || ''
-  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello OM Cellular, I need help with a mobile phone.')}` : ''
+  const whatsAppDefaultMessage = settings.whatsapp_default_message || 'Hello OM Cellular, I need help with a mobile phone.'
+  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(whatsAppDefaultMessage)}` : ''
 
   const navLinks = [
     { to: '/buy-phones', label: 'Buy Phones' },
@@ -78,7 +79,12 @@ export default function Header() {
     { to: '/exchange', label: 'Exchange' },
   ]
 
-  const isNavActive = (to: string) => location.pathname === to || location.pathname.startsWith(to + '/')
+  const isNavActive = (to: string) => {
+    if (to === '/buy-phones') {
+      return ['/buy-phones', '/products'].some(p => location.pathname === p || location.pathname.startsWith(p + '/'))
+    }
+    return location.pathname === to || location.pathname.startsWith(to + '/')
+  }
 
   return (
     <>
@@ -216,7 +222,9 @@ export default function Header() {
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white pb-safe md:hidden" aria-label="Main navigation">
         <div className="flex items-stretch justify-around">
           {mobileNav.map(item => {
-            const active = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+            const active = item.to === '/' ? location.pathname === '/' : item.to === '/buy-phones'
+              ? ['/buy-phones', '/products'].some(p => location.pathname === p || location.pathname.startsWith(p + '/'))
+              : location.pathname.startsWith(item.to)
             const Icon = item.icon
             return (
               <Link key={item.to} to={item.to}
