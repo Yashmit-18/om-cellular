@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
@@ -29,7 +29,10 @@ export default function ProductsPage() {
     api.get('/brands').then(r => setBrands((r.data.data || []).map((b: any) => ({ ...b, id: b.id || b._id })))).catch(() => {})
   }, [])
 
+  const requestSeq = useRef(0)
+
   const fetchProducts = useCallback(async () => {
+      const seq = ++requestSeq.current
       setLoading(true)
       setError(false)
       try {
@@ -40,13 +43,15 @@ export default function ProductsPage() {
         if (currentIsFeatured) params.isFeatured = currentIsFeatured
         const query = new URLSearchParams(params).toString()
         const res = await api.get(`/products?${query}`)
+        if (seq !== requestSeq.current) return
         setProducts(res.data.data || [])
         setPagination(res.data.pagination || null)
       } catch {
+        if (seq !== requestSeq.current) return
         setError(true)
         setProducts([])
       } finally {
-        setLoading(false)
+        if (seq === requestSeq.current) setLoading(false)
       }
     }, [currentCategory, currentBrand, currentQuery, currentIsFeatured, currentPage, currentSort])
 
@@ -137,16 +142,17 @@ export default function ProductsPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowFilters(true)} className="btn-secondary !px-3 !py-2 md:hidden">
+          <button onClick={() => setShowFilters(true)} aria-label="Open filters" className="btn-secondary !px-3 !py-2 md:hidden">
             <SlidersHorizontal className="h-4 w-4" />
           </button>
           <div className="hidden md:flex items-center gap-1 rounded-lg border border-gray-200 p-1">
-            <button onClick={() => setViewMode('grid')} className={cn('rounded p-1.5', viewMode === 'grid' && 'bg-gray-100')}><Grid className="h-4 w-4" /></button>
-            <button onClick={() => setViewMode('list')} className={cn('rounded p-1.5', viewMode === 'list' && 'bg-gray-100')}><List className="h-4 w-4" /></button>
+            <button onClick={() => setViewMode('grid')} aria-label="Grid view" aria-pressed={viewMode === 'grid'} className={cn('rounded p-1.5', viewMode === 'grid' && 'bg-gray-100')}><Grid className="h-4 w-4" /></button>
+            <button onClick={() => setViewMode('list')} aria-label="List view" aria-pressed={viewMode === 'list'} className={cn('rounded p-1.5', viewMode === 'list' && 'bg-gray-100')}><List className="h-4 w-4" /></button>
           </div>
           <select
             value={currentSort}
             onChange={(e) => updateFilter('sort', e.target.value)}
+            aria-label="Sort products"
             className="input !w-auto !py-2.5"
           >
             <option value="newest">Newest</option>
@@ -164,9 +170,10 @@ export default function ProductsPage() {
             <button
               key={f.key + f.value}
               onClick={() => updateFilter(f.key, '')}
-              className="badge-info badge flex items-center gap-1"
+              className="badge-info badge flex max-w-full items-center gap-1"
+              aria-label={`Remove filter: ${f.label}`}
             >
-              {f.label} <X className="h-3 w-3" />
+              <span className="truncate">{f.label}</span> <X className="h-3 w-3 shrink-0" />
             </button>
           ))}
         </div>
@@ -198,7 +205,7 @@ export default function ProductsPage() {
         {/* Product Grid */}
         <div className="flex-1">
           {loading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <ProductCardSkeleton key={i} />
               ))}
@@ -248,7 +255,7 @@ export default function ProductsPage() {
                   <button
                     onClick={() => updateFilter('page', String(currentPage - 1))}
                     disabled={!pagination.hasPrev}
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -263,7 +270,7 @@ export default function ProductsPage() {
                       <button
                         key={page}
                         onClick={() => updateFilter('page', String(page))}
-                        className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
+                        className={cn('h-11 w-11 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                       >
                         {page}
                       </button>
@@ -272,7 +279,7 @@ export default function ProductsPage() {
                   <button
                     onClick={() => updateFilter('page', String(currentPage + 1))}
                     disabled={!pagination.hasNext}
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next page"
                   >
                     <ChevronRight className="h-4 w-4" />

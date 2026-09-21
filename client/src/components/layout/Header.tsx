@@ -18,7 +18,7 @@ const mobileNav = [
 
 export default function Header() {
   const { user, logout } = useAuthStore()
-  const getItemCount = useCartStore(s => s.getItemCount)
+  const itemCount = useCartStore(s => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [notifications, setNotifications] = useState<any[]>([])
@@ -65,9 +65,10 @@ export default function Header() {
   }, [])
 
   const handleMarkRead = async (id: string) => {
+    const target = notifications.find(n => n._id === id || n.id === id)
     await notificationService.markAsRead(id).catch(() => {})
     setNotifications(prev => prev.map(n => (n._id === id || n.id === id ? { ...n, isRead: true } : n)))
-    setUnreadCount(prev => Math.max(0, prev - 1))
+    if (target && !target.isRead) setUnreadCount(prev => Math.max(0, prev - 1))
   }
 
   const handleMarkAllRead = async () => {
@@ -128,18 +129,18 @@ export default function Header() {
             <div className="flex items-center gap-0.5">
               <SearchPanel />
 
-              <Link to="/cart" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label="Cart">
+              <Link to="/cart" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}>
                 <ShoppingCart className="h-5 w-5" />
-                {getItemCount() > 0 && (
+                {itemCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[10px] font-bold text-gold-200">
-                    {getItemCount()}
+                    {itemCount > 9 ? '9+' : itemCount}
                   </span>
                 )}
               </Link>
 
               {user && (
                 <div className="relative" ref={notifRef}>
-                  <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label="Notifications">
+                  <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label="Notifications" aria-haspopup="true" aria-expanded={notifOpen}>
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
                       <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
@@ -156,7 +157,7 @@ export default function Header() {
                         )}
                       </div>
                       <div className="max-h-72 overflow-y-auto">
-                        {notifications.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</p>}
+                        {notifications.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-500">No notifications yet</p>}
                         {notifications.map(n => (
                           <button key={n._id || n.id} onClick={() => handleMarkRead(n._id || n.id)}
                             className={`flex w-full gap-2 border-b border-gray-50 px-4 py-3 text-left hover:bg-navy-50/60 ${!n.isRead ? 'bg-navy-50/50' : ''}`}>
@@ -164,7 +165,7 @@ export default function Header() {
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-medium text-gray-900">{n.title}</span>
                               <span className="block truncate text-xs text-gray-500">{n.message}</span>
-                              <span className="mt-0.5 block text-[10px] text-gray-400">{formatRelative(n.createdAt)}</span>
+                              <span className="mt-0.5 block text-[10px] text-gray-500">{formatRelative(n.createdAt)}</span>
                             </span>
                           </button>
                         ))}
@@ -186,7 +187,8 @@ export default function Header() {
               {user ? (
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 rounded-full px-2 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-navy-50">
+                    className="flex items-center gap-2 rounded-full px-2 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-navy-50"
+                    aria-label="Account menu" aria-haspopup="true" aria-expanded={userMenuOpen}>
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 text-xs font-semibold text-gold-200">
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
@@ -236,7 +238,7 @@ export default function Header() {
               : location.pathname.startsWith(item.to)
             const Icon = item.icon
             return (
-              <Link key={item.to} to={item.to}
+              <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined}
                 className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${active ? 'text-navy-900' : 'text-gray-500'}`}>
                 <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active ? 'bg-navy-50' : ''}`}>
                   <Icon className={`h-[22px] w-[22px] ${active ? 'text-navy-900' : 'text-gray-400'}`} />

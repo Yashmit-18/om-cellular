@@ -72,3 +72,32 @@ credentials on Render.
 | Item | Status | Action |
 |------|--------|--------|
 | Live UPI / Net Banking | ⏳ awaiting config | Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (and optional `RAZORPAY_WEBHOOK_SECRET`) on Render, then restart the server. COD works immediately with no config. |
+
+---
+
+# OM Cellular — Storefront Audit + Hardening Fix Pass
+
+Independent audit of the public storefront against the project's own conventions
+(storefront = navy/gold palette; honesty-first copy; no fake/fabricated claims),
+then surgical fixes. Deliberately **no commit/push** — all changes left in the
+working tree for the owner to review first (branch `mern-migration`).
+
+| # | Phase | Status |
+|---|-------|--------|
+| D1 | Storefront read-through audit (agent-assisted) | ✅ done |
+| D2 | Verify audit claims against source (no hallucinated findings) | ✅ done |
+| D3 | Layout/nav restructure: AccountLayout nested in ShopLayout, login redirect deep-link, dead fetchUser removed | ✅ done |
+| D4 | Header/cart: stale-cart-badge + mark-read fixes, qty cap `min(stock,10)` matching server, transient-error wipe removed, 44px targets, FAB/spacer safe-area offsets + suppressed on cart/checkout | ✅ done |
+| D5 | PDP/Checkout: zero-variant state, shipping-copy honesty, purchase-flow double-submit + paymentState reset fix, label/autoComplete wiring | ✅ done |
+| D6 | Browse/discovery: race guards, filter/sort/toggle aria, chip truncation, search abort/retry, Timeline navy dot | ✅ done |
+| D7 | Track/Repair/Order/Returns pages: real items timeline (removed dead status-history block), distinct 404 vs network errors + retry, terminal-state badge fixes | ✅ done |
+| D8 | Sell/Repair/Footer/Forms long-tail + verification + **final report, no commit/push** | ✅ done |
+| D9 | Homepage merchandising (Fresh Arrivals / Editor's Picks / Featured) with product-uniqueness helper + tests, premium motion & editorial banner palettes, honest labels (**report, no commit/push**) | ✅ done |
+| D10 | Final homepage visual QA + premium composition refinement (hero full-circle tertiary nav, unified navy service chips, Featured 3-up editorial showcase, delivery CTA breathing room, honest repair load-error state) + verified D8/D9 + **committed & pushed to origin/mern-migration** | ✅ done |
+
+**How to review / ship:** everything is uncommitted on `mern-migration`. Run
+`npm run build` + `npm run lint` in `client/`, `npm test` + `npm run build` in
+`server/`, then commit when ready (suggest message: `Storefront audit fixes (cart, checkout, a11y, discovery, track pages)`).
+
+**Verified:** client `tsc`/`eslint`/`vite build` pass; server `tsc` + 77/77 tests
+pass; `git diff --check` clean. No new branches; no commits made.

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Heart, Truck, Shield, ChevronRight, Minus, Plus, Zap, Check } from 'lucide-react'
+import { ShoppingCart, Heart, Shield, RotateCcw, ChevronRight, Minus, Plus, Zap, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
-import { useCartStore } from '../../stores/cartStore'
+import { useCartStore, MAX_QUANTITY_PER_ITEM } from '../../stores/cartStore'
 import { useWishlistStore } from '../../stores/wishlistStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
@@ -71,20 +71,26 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return
+    let isActive = true
     setLoading(true)
     setError(false)
     api.get(`/products/${id}`).then(r => {
+      if (!isActive) return
       setProduct(r.data.data)
       const variants = r.data.data?.variants?.filter((v: ProductVariant) => v.isActive) || []
       if (variants.length > 0) {
         setSelectedVariant(variants.find((v: ProductVariant) => v.stock > 0) || variants[0])
+      } else {
+        setSelectedVariant(null)
       }
       setSelectedImage(0)
       setLoading(false)
     }).catch(() => {
+      if (!isActive) return
       setError(true)
       setLoading(false)
     })
+    return () => { isActive = false }
   }, [id])
 
   useDocumentMeta({
@@ -279,13 +285,13 @@ export default function ProductDetailPage() {
                 <p className="mt-1 text-xs text-gray-500">Price range: {formatPrice(lowestAny)} - {formatPrice(highestAny)}</p>
               )}
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                {selectedVariant.stock > 0 ? (
+                {selectedVariant && selectedVariant.stock > 0 ? (
                   <>
                     <span className="badge badge-success">
                       <Check className="h-3 w-3" /> In Stock ({selectedVariant.stock} available)
                     </span>
                     <span className="text-gray-400">·</span>
-                    <span className="text-gray-500">Free shipping</span>
+                    <span className="text-gray-500">Shipping calculated at checkout</span>
                   </>
                 ) : (
                   <span className="badge badge-danger">Out of Stock</span>
@@ -295,7 +301,7 @@ export default function ProductDetailPage() {
           )}
 
           {/* Variant selection */}
-          {variants.length > 0 && (
+          {variants.length > 0 ? (
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-gray-900">Select variant</h3>
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -303,11 +309,13 @@ export default function ProductDetailPage() {
                   <button
                     key={variant.id}
                     onClick={() => { setSelectedVariant(variant); setSelectedImage(0); setQuantity(1) }}
+                    aria-pressed={selectedVariant?.id === variant.id}
                     className={cn(
                       'rounded-xl border-2 px-3.5 py-2 text-left text-sm font-medium transition-all',
                       selectedVariant?.id === variant.id
                         ? 'border-navy-900 bg-navy-50 text-navy-900 shadow-sm'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                      variant.stock <= 0 && 'opacity-60'
                     )}
                   >
                     <span className="block">{variant.storage || variant.name}</span>
@@ -317,9 +325,16 @@ export default function ProductDetailPage() {
                     <span className="mt-0.5 block text-xs font-semibold text-navy-700">
                       {formatPrice(variant.discountPrice ?? variant.price)}
                     </span>
+                    {variant.stock <= 0 && (
+                      <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-red-600">Out of stock</span>
+                    )}
                   </button>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              This product is currently unavailable — no purchasable options right now. Our team can help at the store.
             </div>
           )}
 
@@ -328,11 +343,11 @@ export default function ProductDetailPage() {
             <div className="mt-6 flex items-center gap-4">
               <h3 className="text-sm font-semibold text-gray-900">Quantity</h3>
               <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-1.5">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Decrease quantity">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Decrease quantity">
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Increase quantity">
+                <span className="w-10 text-center text-sm font-semibold" aria-live="polite">{quantity}</span>
+                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, MAX_QUANTITY_PER_ITEM, quantity + 1))} className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Increase quantity">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
@@ -356,8 +371,9 @@ export default function ProductDetailPage() {
             <button
               onClick={handleWishlist}
               disabled={!selectedVariant}
-              className={cn('rounded-lg border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600')}
-              aria-label="Toggle wishlist"
+              className={cn('rounded-lg border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-600')}
+              aria-label={selectedVariant && hasItem(selectedVariant.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-pressed={selectedVariant ? hasItem(selectedVariant.id) : undefined}
             >
               <Heart className={cn('h-5 w-5', selectedVariant && hasItem(selectedVariant.id) && 'fill-current')} />
             </button>
@@ -398,9 +414,11 @@ export default function ProductDetailPage() {
           )}
 
           {/* Trust */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><Truck className="h-4 w-4 shrink-0 text-navy-700" /> Free Shipping</div>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><Shield className="h-4 w-4 shrink-0 text-gold-600" /> {product.warranty || 'Warranty Included'}</div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><RotateCcw className="h-4 w-4 shrink-0 text-navy-700" /> Hassle-free returns</div>
+            {product.warranty && (
+              <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><Shield className="h-4 w-4 shrink-0 text-gold-600" /> {product.warranty}</div>
+            )}
           </div>
 
           {/* Description */}
@@ -450,7 +468,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Mobile sticky action bar (above bottom nav) */}
-      <div className="fixed inset-x-0 bottom-20 z-50 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 pb-safe sm:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0">
             <p className="truncate text-xs text-gray-500">{selectedVariant?.name || product.name}</p>

@@ -138,24 +138,25 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/track-order" element={<TrackOrder />} />
+
+          <Route element={<AccountLayout />}>
+            <Route path="/account" element={<AccountDashboard />} />
+            <Route path="/account/profile" element={<AccountProfile />} />
+            <Route path="/account/orders" element={<AccountOrders />} />
+            <Route path="/account/orders/:id" element={<AccountOrderDetail />} />
+            <Route path="/account/returns" element={<AccountReturns />} />
+            <Route path="/account/repairs" element={<AccountRepairs />} />
+            <Route path="/account/sell-requests" element={<AccountSellRequests />} />
+            <Route path="/account/exchange-requests" element={<AccountExchangeRequests />} />
+            <Route path="/account/notifications" element={<AccountNotifications />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Route>
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-
-        <Route element={<AccountLayout />}>
-          <Route path="/account" element={<AccountDashboard />} />
-          <Route path="/account/profile" element={<AccountProfile />} />
-          <Route path="/account/orders" element={<AccountOrders />} />
-          <Route path="/account/orders/:id" element={<AccountOrderDetail />} />
-          <Route path="/account/returns" element={<AccountReturns />} />
-          <Route path="/account/repairs" element={<AccountRepairs />} />
-          <Route path="/account/sell-requests" element={<AccountSellRequests />} />
-          <Route path="/account/exchange-requests" element={<AccountExchangeRequests />} />
-          <Route path="/account/notifications" element={<AccountNotifications />} />
-        </Route>
 
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />

@@ -34,17 +34,20 @@ return (
         <Outlet />
       </main>
       <Footer />
-      {/* Hide the FAB on product detail pages so it cannot overlap the sticky
-          mobile buy bar */}
-      {whatsAppUrl && !location.pathname.startsWith('/products/') && (
+{/* Hide the FAB on product detail / cart / checkout pages so it cannot
+          overlap the sticky mobile buy bar or the checkout summary */}
+      {whatsAppUrl &&
+        !location.pathname.startsWith('/products/') &&
+        !location.pathname.startsWith('/cart') &&
+        !location.pathname.startsWith('/checkout') && (
         <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-          className="animate-fab-in fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-elevated ring-4 ring-white/70 border border-black/10 transition-colors duration-300 hover:bg-emerald-700 md:bottom-6 md:right-6"
+          className="animate-fab-in fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-elevated ring-4 ring-white/70 border border-black/10 transition-colors duration-300 hover:bg-emerald-700 md:bottom-6 md:right-6"
           aria-label="Chat on WhatsApp">
           <MessageCircle className="h-6 w-6" />
         </a>
       )}
-      {/* Spacer matching fixed mobile bottom nav height */}
-      <div className="h-20 md:hidden" aria-hidden="true" />
+      {/* Spacer matching fixed mobile bottom nav height (+ notch safe area) */}
+      <div className="h-[calc(5rem+env(safe-area-inset-bottom))] md:hidden" aria-hidden="true" />
     </div>
   )
 }

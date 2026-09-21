@@ -1,5 +1,4 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import { User, Package, Wrench, ArrowRightLeft, Smartphone, Bell, RotateCcw } from 'lucide-react'
 
@@ -15,12 +14,8 @@ const accountLinks = [
 ]
 
 export default function AccountLayout() {
-  const { user, loading, fetchUser } = useAuthStore()
+  const { user, loading } = useAuthStore()
   const location = useLocation()
-
-  useEffect(() => {
-    fetchUser()
-  }, [fetchUser])
 
   if (loading) {
     return (
@@ -30,7 +25,10 @@ export default function AccountLayout() {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    const redirect = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?redirect=${redirect}`} replace />
+  }
 
   const isActive = (to: string) =>
     to === '/account'
@@ -38,9 +36,9 @@ export default function AccountLayout() {
       : location.pathname === to || location.pathname.startsWith(to + '/')
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 md:py-12">
-      <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
-        <aside className="card h-fit p-4 lg:sticky lg:top-24">
+    <div className="mx-auto w-full max-w-7xl px-4 pb-16 pt-4 sm:px-6 md:pt-8 lg:px-8">
+      <div className="grid gap-6 lg:grid-cols-[240px_1fr] lg:gap-8">
+        <aside className="card h-fit p-4 lg:sticky lg:top-20">
           <div className="mb-4 flex items-center gap-3 border-b border-gray-100 px-2 pb-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-navy-700 to-navy-900 text-sm font-bold text-white shadow-sm shadow-navy-900/25">
               {user.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -62,13 +60,13 @@ export default function AccountLayout() {
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {label}
               </Link>
             ))}
           </nav>
         </aside>
-        <div>
+        <div className="min-w-0">
           <Outlet />
         </div>
       </div>

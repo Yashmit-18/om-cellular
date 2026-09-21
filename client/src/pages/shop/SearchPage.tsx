@@ -12,20 +12,24 @@ export default function SearchPage() {
   const [results, setResults] = useState<ProductWithVariant[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
-    if (!query) { setResults([]); setError(false); return }
+    if (!query) { setResults([]); setError(false); setLoading(false); return }
+    const controller = new AbortController()
     setLoading(true)
     setError(false)
-    api.get(`/products?query=${encodeURIComponent(query)}&limit=20`).then(r => {
+    api.get(`/products?query=${encodeURIComponent(query)}&limit=20`, { signal: controller.signal }).then(r => {
       setResults(r.data.data || [])
       setLoading(false)
-    }).catch(() => {
+    }).catch(_err => {
+      if (controller.signal.aborted) return
       setError(true)
       setResults([])
       setLoading(false)
     })
-  }, [query])
+    return () => controller.abort()
+  }, [query, retryKey])
 
   useEffect(() => {
     setInput(query)
@@ -47,7 +51,7 @@ export default function SearchPage() {
           <form onSubmit={handleSearch} className="mt-6 flex gap-3">
             <div className="relative flex-1">
               <SearchIcon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input value={input} onChange={e => setInput(e.target.value)} placeholder="Search by name, brand or model..." className="input !py-3 !pl-10" />
+              <input value={input} onChange={e => setInput(e.target.value)} placeholder="Search by name, brand or model..." aria-label="Search products" className="input !py-3 !pl-10" />
             </div>
             <button type="submit" className="btn-primary">Search</button>
           </form>
@@ -94,6 +98,12 @@ export default function SearchPage() {
           <div className="mx-auto mt-8 max-w-md rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
             <AlertTriangle className="mx-auto h-8 w-8 text-red-500" />
             <p className="mt-2 text-sm text-gray-600">We couldn’t complete your search. Please try again.</p>
+            <button
+              onClick={() => setRetryKey(k => k + 1)}
+              className="btn-primary mx-auto mt-4"
+            >
+              Try again
+            </button>
           </div>
         )}
 

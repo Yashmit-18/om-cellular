@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingBag, ArrowRight, TrendingUp } from 'lucide-react'
+import { Heart, ShoppingBag, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn, formatPrice, getConditionLabel, getStockStatus, calculateDiscount } from '../../utils'
 import ProductImage from './ProductImage'
@@ -104,12 +104,6 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     </button>
   )
 
-  const bestSellerBadge = product.isBestSeller && (
-    <span className="absolute bottom-9 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-navy-900/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-200 shadow-sm backdrop-blur">
-      <TrendingUp className="h-3 w-3" /> Best Seller
-    </span>
-  )
-
   const priceBlock = (
     <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="text-lg font-extrabold tracking-tight text-navy-900">{formatPrice(current)}</span>
@@ -163,7 +157,6 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
       <span className={cn('absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold shadow-sm ring-1 ring-black/5 backdrop-blur', stockPill.cls)}>
         <span className={cn('h-1.5 w-1.5 rounded-full', stockPill.dot)} /> {stockPill.label}
       </span>
-      {bestSellerBadge}
       {wishlistButton}
     </div>
   )

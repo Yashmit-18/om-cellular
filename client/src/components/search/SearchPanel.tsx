@@ -32,8 +32,9 @@ export default function SearchPanel() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const searchControllerRef = useRef<AbortController | null>(null)
 
-  const loadModels = useCallback((q: string) => {
+  const loadModels = useCallback((q: string, signal?: AbortSignal) => {
     const term = q.trim().toLowerCase()
     if (!term) {
       setModels([])
@@ -43,7 +44,8 @@ export default function SearchPanel() {
     }
     setError('')
     setLoadingModels(true)
-    searchService.searchModels(term).then(raw => {
+    searchService.searchModels(term, signal).then(raw => {
+      if (signal?.aborted) return
       const list = Array.isArray(raw) ? raw : []
       setModels(list.slice(0, 7).map((m: CatalogEntry) => ({
         type: 'model' as const,
@@ -55,13 +57,14 @@ export default function SearchPanel() {
       setView('models')
       setLoadingModels(false)
     }).catch(() => {
+      if (signal?.aborted) return
       setError('Could not load search results. Please try again.')
       setModels([])
       setLoadingModels(false)
     })
   }, [])
 
-  const loadProducts = useCallback((q: string) => {
+  const loadProducts = useCallback((q: string, signal?: AbortSignal) => {
     const term = q.trim()
     if (!term) {
       setProducts([])
@@ -69,7 +72,8 @@ export default function SearchPanel() {
       return
     }
     setLoadingProducts(true)
-    searchService.searchProducts(term).then(raw => {
+    searchService.searchProducts(term, signal).then(raw => {
+      if (signal?.aborted) return
       const list = Array.isArray(raw) ? raw : []
       setProducts(list.slice(0, 5).map((p: any) => ({
         type: 'product' as const,
@@ -82,6 +86,7 @@ export default function SearchPanel() {
       })))
       setLoadingProducts(false)
     }).catch(() => {
+      if (signal?.aborted) return
       setProducts([])
       setLoadingProducts(false)
     })
@@ -90,8 +95,11 @@ export default function SearchPanel() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      loadModels(query)
-      loadProducts(query)
+      searchControllerRef.current?.abort()
+      const controller = new AbortController()
+      searchControllerRef.current = controller
+      loadModels(query, controller.signal)
+      loadProducts(query, controller.signal)
     }, DEBOUNCE_MS)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, loadModels, loadProducts])
@@ -162,6 +170,12 @@ export default function SearchPanel() {
   }
 
   const totalCount = () => models.length + products.length
+
+  useEffect(() => {
+    if (activeIndex < 0 || !resultsRef.current) return
+    const activeRow = resultsRef.current.querySelector('[data-search-active="true"]')
+    if (activeRow) activeRow.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
 
   const showIdle = view === 'idle' && !query.trim()
   const showLoading = (loadingModels || loadingProducts) && query.trim() !== ''
@@ -235,6 +249,7 @@ export default function SearchPanel() {
                     {models.map((m, i) => (
                       <button key={m.id + m.modelName} onClick={() => openModel(m)}
                         onMouseEnter={() => setActiveIndex(i)}
+                        data-search-active={activeIndex === i}
                         className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === i ? 'bg-navy-50' : 'hover:bg-gray-50'}`}>
                         {m.image
                           ? <img src={m.image} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -258,6 +273,7 @@ export default function SearchPanel() {
                       return (
                         <button key={p.id + p.name} onClick={() => openProduct(p)}
                           onMouseEnter={() => setActiveIndex(idx)}
+                          data-search-active={activeIndex === idx}
                           className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === idx ? 'bg-navy-50' : 'hover:bg-gray-50'}`}>
                           <ProductImage src={p.image || ''} alt={p.name} className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" imgClassName="h-full w-full object-contain" />
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{p.name}</p>

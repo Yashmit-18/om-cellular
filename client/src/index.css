@@ -87,16 +87,13 @@
   .input {
     @apply block w-full rounded-lg border border-ivory-300 bg-warm px-4 py-3 text-base shadow-sm transition-all duration-200 placeholder:text-gray-400 focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-600/15;
   }
-  .input:focus {
-    @apply border-navy-600 ring-2 ring-navy-600/15;
-  }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .badge-success { @apply bg-emerald-100 text-emerald-800; }
   .badge-warning { @apply bg-amber-100 text-amber-800; }
   .badge-danger { @apply bg-red-100 text-red-800; }
-  .badge-info { @apply bg-brand-100 text-brand-800; }
+  .badge-info { @apply bg-navy-50 text-navy-700; }
   .badge-neutral { @apply bg-gray-100 text-gray-700; }
 
   .eyebrow {
@@ -125,13 +122,6 @@
     display: none;
   }
   .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
@@ -166,4 +156,25 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+}
+
+/* Editorial banner palettes for the homepage merchandising rhythm.
+   Plain CSS so they survive purge and stay usable with dynamic section classes. */
+.banner-dark {
+  background-color: #0b1220;
+  background-image: linear-gradient(150deg, #0b1220 0%, #111c2d 55%, #17233a 100%);
+}
+.banner-midnight {
+  background-color: #111c2d;
+  background-image:
+    radial-gradient(120% 150% at 85% -20%, rgb(198 161 91 / 0.12) 0%, transparent 55%),
+    linear-gradient(180deg, #111c2d 0%, #0b1220 100%);
+}
+.banner-editorial {
+  background-color: #fffdf8;
+  background-image: linear-gradient(180deg, #fffdf8 0%, #f7f5ef 100%);
+}
+.banner-stone {
+  background-color: #f7f5ef;
+  background-image: radial-gradient(120% 120% at 10% 0%, #fffdf8 0%, #f7f5ef 60%);
 }

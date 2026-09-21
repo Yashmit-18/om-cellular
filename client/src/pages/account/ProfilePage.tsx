@@ -108,21 +108,21 @@ export default function ProfilePage() {
         <h2 className="font-semibold mb-4">Personal Information</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input mt-1" />
+            <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700">Full Name *</label>
+            <input id="profile-name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input mt-1" autoComplete="name" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="input mt-1" placeholder="you@example.com" />
+            <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700">Email</label>
+            <input id="profile-email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="input mt-1" placeholder="you@example.com" autoComplete="email" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <input value={user?.phone || ''} disabled className="input mt-1 bg-gray-50" />
+            <input value={user?.phone || ''} disabled className="input mt-1 bg-gray-50" autoComplete="tel" />
             <p className="mt-1 text-xs text-gray-400">Phone number cannot be changed.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Alternate Phone <span className="font-normal text-gray-400">(optional)</span></label>
-            <input value={form.alternatePhone} onChange={e => setForm({ ...form, alternatePhone: e.target.value.replace(/[^0-9+ ]/g, '').slice(0, 15) })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" />
+            <label htmlFor="profile-alt-phone" className="block text-sm font-medium text-gray-700">Alternate Phone <span className="font-normal text-gray-400">(optional)</span></label>
+            <input id="profile-alt-phone" value={form.alternatePhone} onChange={e => setForm({ ...form, alternatePhone: e.target.value.replace(/[^0-9+ ]/g, '').slice(0, 15) })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" autoComplete="tel" />
           </div>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary mt-4">

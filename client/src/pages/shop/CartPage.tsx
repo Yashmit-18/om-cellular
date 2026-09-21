@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Minus, Plus, Trash2, ShoppingBag, ChevronRight, RefreshCw } from 'lucide-react'
-import { useCartStore } from '../../stores/cartStore'
+import { useCartStore, MAX_QUANTITY_PER_ITEM } from '../../stores/cartStore'
 import { formatPrice } from '../../utils'
 import { settingsService } from '../../services/settings.service'
 import api from '../../services/api'
@@ -10,8 +10,9 @@ import ProductImage from '../../components/shop/ProductImage'
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, refreshItem, getTotal, getItemCount, clearCart } = useCartStore()
-  const [shippingConfig, setShippingConfig] = useState({ freeShippingThreshold: 999, standardShipping: 99 })
+const [shippingConfig, setShippingConfig] = useState({ freeShippingThreshold: 999, standardShipping: 99 })
   const [refreshing, setRefreshing] = useState(false)
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null)
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
@@ -30,32 +31,48 @@ export default function CartPage() {
     if (items.length === 0) return
     let cancelled = false
     setRefreshing(true)
+    setRefreshWarning(null)
     Promise.all(items.map(item =>
-      api.get(`/products/by-variant/${item.variantId}`).then(r => r.data.data).catch(() => null)
+      api.get(`/products/by-variant/${item.variantId}`)
+        .then(r => ({ item, ok: true as const, data: r.data.data }))
+        .catch(e => ({ item, ok: false as const, status: (e?.response?.status ?? null) as number | null }))
     )).then(results => {
       if (cancelled) return
       let removed = 0
-      results.forEach((data, i) => {
-        const item = items[i]
-        const v = data && data.variants && data.variants[0]
-        if (!v) {
-          removeItem(item.variantId)
+      const unverified: string[] = []
+      results.forEach(r => {
+        if (r.ok) {
+          const v = r.data && r.data.variants && r.data.variants[0]
+          if (!v) {
+            removeItem(r.item.variantId)
+            removed++
+            return
+          }
+          const stock = Math.max(0, Number(v.stock) || 0)
+          const price = Math.max(0, Number(v.price) || 0)
+          const discountPrice = v.discountPrice != null && Number(v.discountPrice) >= 0 ? Number(v.discountPrice) : null
+          refreshItem(r.item.variantId, { price, discountPrice, stock })
+          if (stock === 0) {
+            removeItem(r.item.variantId)
+            removed++
+            return
+          }
+          const capped = Math.min(r.item.quantity, stock, MAX_QUANTITY_PER_ITEM)
+          if (capped !== r.item.quantity) updateQuantity(r.item.variantId, capped)
+        } else if (r.status === 404) {
+          // Variant is gone from the catalog — keeping it would make checkout impossible.
+          removeItem(r.item.variantId)
           removed++
-          return
+        } else {
+          // Network/server hiccup — the item is almost certainly still valid; keep it
+          // and surface a warning instead of silently wiping the cart.
+          unverified.push(r.item.name)
         }
-        const stock = Math.max(0, Number(v.stock) || 0)
-        const price = Math.max(0, Number(v.price) || 0)
-        const discountPrice = v.discountPrice != null && Number(v.discountPrice) >= 0 ? Number(v.discountPrice) : null
-        refreshItem(item.variantId, { price, discountPrice, stock })
-        if (stock === 0) {
-          removeItem(item.variantId)
-          removed++
-          return
-        }
-        const capped = Math.min(item.quantity, stock)
-        if (capped !== item.quantity) updateQuantity(item.variantId, capped)
       })
       if (removed > 0) toast.error(`${removed} item${removed === 1 ? '' : 's'} removed from your cart — no longer available`)
+      if (unverified.length > 0) {
+        setRefreshWarning(`Couldn't verify ${unverified.length} item${unverified.length === 1 ? '' : 's'} (${unverified.join(', ')}) — prices may be stale.`)
+      }
     }).finally(() => { if (!cancelled) setRefreshing(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,6 +104,15 @@ export default function CartPage() {
         </div>
       )}
 
+      {refreshWarning && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <span>{refreshWarning}</span>
+          <button onClick={() => { setRefreshing(true); setRefreshWarning(null); window.location.reload() }} className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh prices
+          </button>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_360px]">
         {/* Cart Items */}
         <div className="space-y-4">
@@ -102,24 +128,24 @@ export default function CartPage() {
                   </Link>
                   <div className="mt-1 flex items-baseline gap-2">
                     <span className="text-sm font-semibold">{formatPrice(item.discountPrice ?? item.price)}</span>
-                    {item.discountPrice != null && item.discountPrice < item.price && (
-                      <span className="text-xs text-gray-400 line-through">{formatPrice(item.price)}</span>
+{item.discountPrice != null && item.discountPrice < item.price && (
+                      <span className="text-xs text-gray-500 line-through">{formatPrice(item.price)}</span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} aria-label="Decrease quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-navy-50">
+<div className="flex items-center gap-2">
+                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} aria-label="Decrease quantity" className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-navy-50">
                       <Minus className="h-4 w-4" />
                     </button>
                     <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.variantId, item.quantity + 1)} disabled={item.quantity >= item.stock} aria-label="Increase quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-gray-50 disabled:opacity-40">
+                    <button onClick={() => updateQuantity(item.variantId, item.quantity + 1)} disabled={item.quantity >= Math.min(item.stock, MAX_QUANTITY_PER_ITEM)} aria-label="Increase quantity" className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-gray-50 disabled:opacity-40">
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <span className="text-sm font-bold">{formatPrice((item.discountPrice ?? item.price) * item.quantity)}</span>
-                    <button onClick={() => removeItem(item.variantId)} aria-label={`Remove ${item.name} from cart`} className="flex h-10 w-10 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700">
+                    <button onClick={() => removeItem(item.variantId)} aria-label={`Remove ${item.name} from cart`} className="flex h-11 w-11 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -127,7 +153,12 @@ export default function CartPage() {
               </div>
             </div>
           ))}
-          <button onClick={clearCart} className="min-h-[44px] text-sm text-red-500 hover:text-red-700">
+<button
+            onClick={() => {
+              if (window.confirm(`Clear all ${getItemCount()} items from your cart?`)) clearCart()
+            }}
+            className="relative z-10 min-h-[44px] px-2 text-sm text-red-500 transition-colors hover:text-red-700"
+          >
             Clear Cart
           </button>
         </div>

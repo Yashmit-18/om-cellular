@@ -163,14 +163,15 @@ export default function CheckoutPage() {
     }
   }
 
-  const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, _amount: number) => {
+  const openGatewayCheckout = async (orderId: string, method: OnlinePaymentMethod, _amount: number): Promise<boolean> => {
     setPaymentState('initializing')
     try {
       const init = await paymentService.init(orderId, method)
       const data = init.data
       if (!init.success || !data?.razorpayOrderId) {
         toast.error(init.message || 'Unable to start online payment. Please try again or use Cash on Delivery.')
-        return
+        setPaymentState('idle')
+        return false
       }
 
       const RazorpayCtor: any = await loadRazorpayScript()
@@ -202,7 +203,7 @@ export default function CheckoutPage() {
               clearCart()
               setPlacedOrderId(orderId)
               toast.success('Payment successful! Your order is confirmed.')
-              navigate('/account/orders/' + orderId)
+              navigate('/account/orders/' + orderId, { state: { orderPlaced: true, paymentPending: false } })
             } else {
               toast.error(verify.message || 'Payment could not be verified. Please contact support.')
               navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
@@ -226,9 +227,13 @@ export default function CheckoutPage() {
         navigate('/account/orders/' + orderId, { state: { paymentPending: true } })
       })
       rzp.open()
+        // Keep paymentState = 'initializing' while the gateway window is open so
+        // the submit button stays disabled and we avoid a double-submit.
+        return true
     } catch (err: any) {
       setPaymentState('idle')
       toast.error(err?.response?.data?.message || err?.message || 'Unable to start online payment. Please try again or use Cash on Delivery.')
+      return false
     }
   }
 
@@ -250,16 +255,21 @@ export default function CheckoutPage() {
       return
     }
 
+    // Disable the submit button immediately so a slow delivery check cannot be
+    // double-submitted while the current request is still in flight.
+    setLoading(true)
+    setPaymentState('creating')
+
     // Verify delivery serviceability for the PIN code before creating the order.
     // The server enforces the same check; this just avoids a failed order.
     const delivery = await runDeliveryCheck()
     if (!delivery.ok) {
+      setPaymentState('idle')
+      setLoading(false)
       toast.error('We do not currently deliver to this PIN code. You can request a notification when delivery arrives.')
       return
     }
 
-    setLoading(true)
-    setPaymentState('creating')
     try {
       const orderData: any = {
         items: items.map(item => ({ variantId: item.variantId, quantity: item.quantity, price: item.discountPrice ?? item.price })),
@@ -286,15 +296,17 @@ export default function CheckoutPage() {
         if (paymentMethod === 'cod') {
           clearCart()
           setPlacedOrderId(orderId)
+          setPaymentState('idle')
           toast.success('Order placed successfully!')
-          navigate('/account/orders/' + orderId)
+          navigate('/account/orders/' + orderId, { state: { orderPlaced: true } })
           return
         }
 
         // Online method: open the secure gateway checkout. The order is only
         // marked PAID after server-side signature verification, not here.
         const gateMethod: OnlinePaymentMethod = paymentMethod === 'netbanking' ? 'netbanking' : paymentMethod === 'online' ? 'card' : 'upi'
-        await openGatewayCheckout(orderId, gateMethod, total)
+        const gatewayStarted = await openGatewayCheckout(orderId, gateMethod, total)
+        if (!gatewayStarted) setPaymentState('idle')
         // Do not clear the cart here — it is cleared only after payment success.
       }
     } catch (err: any) {
@@ -302,7 +314,6 @@ export default function CheckoutPage() {
       toast.error(err.response?.data?.message || 'Failed to place order')
     } finally {
       setLoading(false)
-      if (!wasProcessing) setPaymentState('idle')
     }
   }
 
@@ -388,40 +399,40 @@ export default function CheckoutPage() {
               <div className={`mt-4 ${selectedAddressId ? 'hidden' : ''}`}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-                    <input value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1" placeholder="Recipient name" />
+                    <label htmlFor="co-name" className="block text-sm font-medium text-gray-700">Full Name *</label>
+                    <input id="co-name" value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1" placeholder="Recipient name" autoComplete="name" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
-                    <input value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" />
+                    <label htmlFor="co-phone" className="block text-sm font-medium text-gray-700">Phone Number *</label>
+                    <input id="co-phone" value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="10-digit mobile number" autoComplete="tel" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Alternate Phone <span className="font-normal text-gray-400">(optional)</span></label>
-                    <input value={addressForm.alternatePhone} onChange={e => setAddressForm({ ...addressForm, alternatePhone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="Another contact number (optional)" />
+                    <label htmlFor="co-alt-phone" className="block text-sm font-medium text-gray-700">Alternate Phone <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input id="co-alt-phone" value={addressForm.alternatePhone} onChange={e => setAddressForm({ ...addressForm, alternatePhone: e.target.value })} inputMode="tel" className="input mt-1" placeholder="Another contact number (optional)" autoComplete="tel" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Address Line 1 *</label>
-                    <input value={addressForm.addressLine1} onChange={e => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input mt-1" placeholder="House number, street, area" />
+                    <label htmlFor="co-addr1" className="block text-sm font-medium text-gray-700">Address Line 1 *</label>
+                    <input id="co-addr1" value={addressForm.addressLine1} onChange={e => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input mt-1" placeholder="House number, street, area" autoComplete="address-line1" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Address Line 2</label>
-                    <input value={addressForm.addressLine2} onChange={e => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input mt-1" placeholder="Building or area (optional)" />
+                    <label htmlFor="co-addr2" className="block text-sm font-medium text-gray-700">Address Line 2</label>
+                    <input id="co-addr2" value={addressForm.addressLine2} onChange={e => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input mt-1" placeholder="Building or area (optional)" autoComplete="address-line2" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Landmark <span className="font-normal text-gray-400">(optional)</span></label>
-                    <input value={addressForm.landmark} onChange={e => setAddressForm({ ...addressForm, landmark: e.target.value })} className="input mt-1" placeholder="Nearby landmark (optional)" />
+                    <label htmlFor="co-landmark" className="block text-sm font-medium text-gray-700">Landmark <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input id="co-landmark" value={addressForm.landmark} onChange={e => setAddressForm({ ...addressForm, landmark: e.target.value })} className="input mt-1" placeholder="Nearby landmark (optional)" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">City *</label>
-                    <input value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} className="input mt-1" placeholder="City" />
+                    <label htmlFor="co-city" className="block text-sm font-medium text-gray-700">City *</label>
+                    <input id="co-city" value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} className="input mt-1" placeholder="City" autoComplete="address-level2" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">State *</label>
-                    <input value={addressForm.state} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} className="input mt-1" placeholder="State" />
+                    <label htmlFor="co-state" className="block text-sm font-medium text-gray-700">State *</label>
+                    <input id="co-state" value={addressForm.state} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} className="input mt-1" placeholder="State" autoComplete="address-level1" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">PIN Code *</label>
-                    <input value={addressForm.pincode} onChange={e => setAddressForm({ ...addressForm, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })} inputMode="numeric" className="input mt-1" placeholder="6-digit PIN code" />
+                    <label htmlFor="co-pincode" className="block text-sm font-medium text-gray-700">PIN Code *</label>
+                    <input id="co-pincode" value={addressForm.pincode} onChange={e => setAddressForm({ ...addressForm, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })} inputMode="numeric" className="input mt-1" placeholder="6-digit PIN code" autoComplete="postal-code" />
                   </div>
                 </div>
 
@@ -457,12 +468,12 @@ export default function CheckoutPage() {
                     <p className="mt-1 text-xs text-gray-600">We will contact you as soon as delivery reaches your PIN code.</p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-medium text-gray-700">Name</label>
-                        <input value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1 !py-2 text-sm" />
+                        <label htmlFor="notify-name" className="block text-xs font-medium text-gray-700">Name</label>
+                        <input id="notify-name" value={addressForm.name} onChange={e => setAddressForm({ ...addressForm, name: e.target.value })} className="input mt-1 !py-2 text-sm" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700">Phone</label>
-                        <input value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1 !py-2 text-sm" />
+                        <label htmlFor="notify-phone" className="block text-xs font-medium text-gray-700">Phone</label>
+                        <input id="notify-phone" value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} inputMode="tel" className="input mt-1 !py-2 text-sm" />
                       </div>
                     </div>
                     <button onClick={submitNotifyRequest} disabled={notifySubmitting} className="btn-primary mt-3 w-full !py-2 text-sm">
@@ -550,6 +561,7 @@ export default function CheckoutPage() {
                 placeholder="Any special instructions..."
                 className="input mt-3"
                 rows={3}
+                aria-label="Order notes (optional)"
               />
             </div>
 
@@ -589,6 +601,7 @@ export default function CheckoutPage() {
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   placeholder="Coupon code"
+                  aria-label="Coupon code"
                   className="input !py-2.5 !pl-10"
                 />
               </div>
@@ -605,7 +618,7 @@ export default function CheckoutPage() {
               <div className="border-t pt-2"><div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatPrice(total)}</span></div></div>
             </div>
 
-            <button onClick={handlePlaceOrder} disabled={loading || paymentState !== 'idle' || !onlinePaymentEnabled && paymentMethod !== 'cod'} className="btn-primary mt-4 w-full">
+            <button onClick={handlePlaceOrder} disabled={loading || paymentState !== 'idle' || (!onlinePaymentEnabled && paymentMethod !== 'cod')} aria-busy={paymentState !== 'idle' || loading} className="btn-primary mt-4 w-full">
               {paymentState === 'creating' ? 'Creating your order...' : paymentState === 'initializing' ? 'Initializing payment...' : paymentState === 'processing' ? 'Verifying payment...' : loading ? 'Please wait...' : paymentMethod !== 'cod' ? `Pay ${formatPrice(total)} & Place Order` : 'Place Order'}
             </button>
             <p className="mt-2 text-center text-xs text-gray-400">

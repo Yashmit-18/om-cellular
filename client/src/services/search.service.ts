@@ -23,14 +23,14 @@ export type SearchSuggestion = SearchModelSuggestion | SearchProductSuggestion
 export const searchService = {
   getBrands: () => api.get('/phone-catalog/brands').then(r => r.data.data ?? r.data ?? []),
 
-  searchModels: (q: string) =>
-    api.get(`/phone-catalog?search=${encodeURIComponent(q)}`).then(r => {
+  searchModels: (q: string, signal?: AbortSignal) =>
+    api.get(`/phone-catalog?search=${encodeURIComponent(q)}`, { signal }).then(r => {
       const data = r.data?.data ?? r.data ?? []
       return Array.isArray(data) ? data : []
     }),
 
-  searchProducts: (query: string) =>
-    api.get(`/products?query=${encodeURIComponent(query)}&limit=8`).then(r => {
+  searchProducts: (query: string, signal?: AbortSignal) =>
+    api.get(`/products?query=${encodeURIComponent(query)}&limit=8`, { signal }).then(r => {
       const data = r.data?.data ?? r.data ?? []
       return Array.isArray(data) ? data : []
     }),

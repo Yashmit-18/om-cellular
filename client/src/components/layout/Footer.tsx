@@ -36,26 +36,26 @@ export default function Footer() {
             </p>
             <div className="mt-5 space-y-2.5 text-sm">
               {settings.business_phone && (
-                <a href={`tel:${settings.business_phone}`} className="flex items-center gap-2 text-gray-400 transition-colors hover:text-white">
+                <a href={`tel:${settings.business_phone}`} className="flex items-center gap-2 text-gray-300 transition-colors hover:text-white">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5"><Phone className="h-4 w-4 text-gold-400" /></span> {settings.business_phone}
                 </a>
               )}
               {settings.business_email && (
-                <a href={`mailto:${settings.business_email}`} className="flex items-center gap-2 text-gray-400 transition-colors hover:text-white">
+                <a href={`mailto:${settings.business_email}`} className="flex items-center gap-2 text-gray-300 transition-colors hover:text-white">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5"><Mail className="h-4 w-4 text-gold-400" /></span> {settings.business_email}
                 </a>
               )}
               {settings.business_address && (
-                <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-2 text-gray-400 transition-colors hover:text-white">
+                <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-2 text-gray-300 transition-colors hover:text-white">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5"><MapPin className="h-4 w-4 text-gold-400" /></span>
                   <span>
                     {settings.business_address}
-                    <span className="block text-xs text-gray-500 group-hover:text-gray-300">Get directions on Google Maps <ExternalLink className="inline h-3 w-3" /></span>
+                    <span className="block text-xs text-gray-400 group-hover:text-gray-200">Get directions on Google Maps <ExternalLink className="inline h-3 w-3" /></span>
                   </span>
                 </a>
               )}
               {settings.opening_hours && (
-                <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex items-center gap-2 text-gray-300">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5"><Clock className="h-4 w-4 text-gold-400" /></span> {settings.opening_hours}
                 </div>
               )}
@@ -65,30 +65,30 @@ export default function Footer() {
           <nav aria-label="Services">
             <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Services</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link to="/buy-phones" className="text-gray-400 transition-colors hover:text-white">Buy Phones</Link></li>
-              <li><Link to="/sell-phone" className="text-gray-400 transition-colors hover:text-white">Sell Phone</Link></li>
-              <li><Link to="/repair" className="text-gray-400 transition-colors hover:text-white">Repair Services</Link></li>
-              <li><Link to="/exchange" className="text-gray-400 transition-colors hover:text-white">Exchange Phone</Link></li>
+              <li><Link to="/buy-phones" className="text-gray-300 transition-colors hover:text-white">Buy Phones</Link></li>
+              <li><Link to="/sell-phone" className="text-gray-300 transition-colors hover:text-white">Sell Phone</Link></li>
+              <li><Link to="/repair" className="text-gray-300 transition-colors hover:text-white">Repair Services</Link></li>
+              <li><Link to="/exchange" className="text-gray-300 transition-colors hover:text-white">Exchange Phone</Link></li>
             </ul>
           </nav>
 
           <nav aria-label="Support">
             <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Support</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link to="/faq" className="text-gray-400 transition-colors hover:text-white">FAQ</Link></li>
-              <li><Link to="/contact" className="text-gray-400 transition-colors hover:text-white">Contact Us</Link></li>
-              <li><Link to="/track-order" className="text-gray-400 transition-colors hover:text-white">Track Order</Link></li>
-              <li><Link to="/repair/track" className="text-gray-400 transition-colors hover:text-white">Track Repair</Link></li>
+              <li><Link to="/faq" className="text-gray-300 transition-colors hover:text-white">FAQ</Link></li>
+              <li><Link to="/contact" className="text-gray-300 transition-colors hover:text-white">Contact Us</Link></li>
+              <li><Link to="/track-order" className="text-gray-300 transition-colors hover:text-white">Track Order</Link></li>
+              <li><Link to="/repair/track" className="text-gray-300 transition-colors hover:text-white">Track Repair</Link></li>
             </ul>
           </nav>
 
           <nav aria-label="Account">
             <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Account</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link to="/account" className="text-gray-400 transition-colors hover:text-white">My Account</Link></li>
-              <li><Link to="/account/orders" className="text-gray-400 transition-colors hover:text-white">My Orders</Link></li>
-              <li><Link to="/account/repairs" className="text-gray-400 transition-colors hover:text-white">My Repairs</Link></li>
-              <li><Link to="/wishlist" className="text-gray-400 transition-colors hover:text-white">Wishlist</Link></li>
+              <li><Link to="/account" className="text-gray-300 transition-colors hover:text-white">My Account</Link></li>
+              <li><Link to="/account/orders" className="text-gray-300 transition-colors hover:text-white">My Orders</Link></li>
+              <li><Link to="/account/repairs" className="text-gray-300 transition-colors hover:text-white">My Repairs</Link></li>
+              <li><Link to="/wishlist" className="text-gray-300 transition-colors hover:text-white">Wishlist</Link></li>
             </ul>
           </nav>
         </div>
@@ -113,7 +113,7 @@ export default function Footer() {
           </div>
         )}
 
-        <div className="mt-10 border-t border-white/10 pt-8 text-center text-xs text-gray-500">
+        <div className="mt-10 border-t border-white/10 pt-8 text-center text-xs text-gray-400">
           &copy; {new Date().getFullYear()} {settings.business_name || 'OM Cellular'}. All rights reserved.
         </div>
       </div>

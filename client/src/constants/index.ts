@@ -33,7 +33,7 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   FAILED: 'badge-danger',
   RETURN_REQUESTED: 'badge-warning',
   RETURN_APPROVED: 'badge-info',
-  RETURNED: 'badge-danger',
+  RETURNED: 'badge-info',
   REFUND_PENDING: 'badge-warning',
   REFUNDED: 'badge-info',
 }

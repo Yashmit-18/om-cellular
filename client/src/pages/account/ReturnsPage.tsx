@@ -11,7 +11,7 @@ const RETURN_STATUS_COLORS: Record<string, string> = {
   RETURN_RECEIVED: 'badge-info',
   REFUND_PENDING: 'badge-warning',
   REFUNDED: 'badge-success',
-  CANCELLED: 'badge-default',
+  CANCELLED: 'badge-neutral',
 }
 
 export default function AccountReturnsPage() {
@@ -22,7 +22,7 @@ export default function AccountReturnsPage() {
     returnService.getReturns().then(r => { setReturns(r.data || []); setLoading(false) }).catch(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
+  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-navy-900 border-t-transparent"></div></div>
 
   return (
     <div>
@@ -42,7 +42,7 @@ export default function AccountReturnsPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold">{formatPrice(r.refundAmount)}</p>
-                  <span className={`badge ${RETURN_STATUS_COLORS[r.status] || 'badge-default'}`}>{r.status.replace(/_/g, ' ')}</span>
+                  <span className={`badge ${RETURN_STATUS_COLORS[r.status] || 'badge-neutral'}`}>{r.status.replace(/_/g, ' ')}</span>
                 </div>
               </div>
               {r.adminNote && <p className="mt-3 rounded bg-gray-50 p-2 text-xs text-gray-600">Admin note: {r.adminNote}</p>}
@@ -51,7 +51,7 @@ export default function AccountReturnsPage() {
         </div>
       )}
       <div className="mt-6 text-sm text-gray-500">
-        Need to start a return? Go to <Link to="/account/orders" className="text-brand-600 underline">your orders</Link> and open a delivered order.
+        Need to start a return? Go to <Link to="/account/orders" className="text-navy-700 underline">your orders</Link> and open a delivered order.
       </div>
     </div>
   )

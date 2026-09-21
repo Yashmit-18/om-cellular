@@ -1,15 +1,16 @@
-import { Fragment, useEffect, useRef, useState, useCallback } from 'react'
+import { Fragment, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Clock, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
   MapPin, Mail, ExternalLink, ChevronLeft, ShieldCheck, BadgeCheck, Truck,
-  BadgePercent, Copy, Loader2, Check, TrendingUp,
+  BadgePercent, Copy, Loader2, Check,
   MonitorSmartphone, BatteryCharging, Cable, Gem, Droplets, Camera, Cpu,
   type LucideIcon
 } from 'lucide-react'
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
+import { selectUniqueHomepageProducts, hasCrossSectionDuplicates } from '../../utils/homepageMerchandising'
 import ProductCard from '../../components/shop/ProductCard'
 import Reveal from '../../components/layout/Reveal'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection, PromoCoupon, ServiceabilityCheckResponse } from '../../types'
@@ -20,11 +21,11 @@ const REPAIR_ICONS: Record<string, LucideIcon> = {
   'Software Issues': Cpu, 'Dead Phone': BatteryCharging,
 }
 
-const SERVICE_STYLES: Record<string, { icon: LucideIcon, tile: string, ring: string }> = {
-  buy: { icon: Smartphone, tile: 'from-navy-800 to-navy-950', ring: 'hover:shadow-navy-900/15' },
-  sell: { icon: DollarSign, tile: 'from-emerald-700 to-emerald-950', ring: 'hover:shadow-emerald-900/15' },
-  repair: { icon: Wrench, tile: 'from-navy-800 to-navy-950', ring: 'hover:shadow-navy-900/15' },
-  exchange: { icon: ArrowLeftRight, tile: 'from-gold-500 to-gold-700', ring: 'hover:shadow-gold-600/25' },
+const SERVICE_STYLES: Record<string, { icon: LucideIcon, tile: string }> = {
+  buy: { icon: Smartphone, tile: 'from-navy-800 to-navy-950' },
+  sell: { icon: DollarSign, tile: 'from-navy-800 to-navy-950' },
+  repair: { icon: Wrench, tile: 'from-navy-800 to-navy-950' },
+  exchange: { icon: ArrowLeftRight, tile: 'from-navy-800 to-navy-950' },
 }
 
 function SectionHeading({ eyebrow, title, subtitle, className = '' }: { eyebrow?: string; title: string; subtitle?: string; className?: string }) {
@@ -44,15 +45,17 @@ function SectionHeading({ eyebrow, title, subtitle, className = '' }: { eyebrow?
 
 export default function HomePage() {
   const [banners, setBanners] = useState<Banner[]>([])
+  const [catalog, setCatalog] = useState<ProductWithVariant[]>([])
   const [featured, setFeatured] = useState<ProductWithVariant[]>([])
   const [newArrivals, setNewArrivals] = useState<ProductWithVariant[]>([])
-  const [bestSellers, setBestSellers] = useState<ProductWithVariant[]>([])
+  const [picks, setPicks] = useState<ProductWithVariant[]>([])
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [faqs, setFaqs] = useState<FAQ[]>([])
   const [infoCards, setInfoCards] = useState<InformationCard[]>([])
   const [brands, setBrands] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [repairServices, setRepairServices] = useState<any[]>([])
+  const [repairLoadError, setRepairLoadError] = useState(false)
   const [homepageSections, setHomepageSections] = useState<HomepageSection[]>([])
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -69,7 +72,8 @@ export default function HomePage() {
     try {
       const results = await Promise.allSettled([
         api.get('/banners'),
-        api.get('/products?isFeatured=true&limit=8'),
+        // One catalog fetch (newest-first) powers all three home collections.
+        api.get('/products?limit=100'),
         api.get('/testimonials'),
         api.get('/faqs'),
         api.get('/information-cards'),
@@ -78,12 +82,28 @@ export default function HomePage() {
         api.get('/repairs/services'),
         api.get('/homepage-sections'),
         api.get('/categories'),
-        api.get('/products?isNewArrival=true&limit=8'),
-        api.get('/products?isBestSeller=true&limit=8'),
         api.get('/coupons/promo'),
       ])
       if (results[0].status === 'fulfilled') setBanners(results[0].value.data.data || [])
-      if (results[1].status === 'fulfilled') setFeatured(results[1].value.data.data || [])
+      if (results[1].status === 'fulfilled') {
+        const products: ProductWithVariant[] = results[1].value.data.data || []
+        setCatalog(products)
+        // Honest merchandising: staff-set catalog flags seed each collection;
+        // no popularity statistics are fabricated. Products are deduplicated
+        // across sections deterministically (see utils/homepageMerchandising).
+        const picksOf = (flag: 'isNewArrival' | 'isBestSeller' | 'isFeatured') =>
+          products.filter(p => Boolean(p[flag]))
+        const selection = selectUniqueHomepageProducts(
+          { pool: products, fresh: picksOf('isNewArrival'), picks: picksOf('isBestSeller'), featured: picksOf('isFeatured') },
+          { fresh: 8, picks: 8, featured: 8 }
+        )
+        if (import.meta.env.DEV && hasCrossSectionDuplicates(selection)) {
+          console.warn('[HomePage] merchandising selection contains cross-section duplicates')
+        }
+        setNewArrivals(selection.fresh)
+        setPicks(selection.picks)
+        setFeatured(selection.featured)
+      }
       if (results[2].status === 'fulfilled') setTestimonials(results[2].value.data.data || [])
       if (results[3].status === 'fulfilled') setFaqs(results[3].value.data.data || [])
       if (results[4].status === 'fulfilled') setInfoCards(results[4].value.data.data || [])
@@ -98,12 +118,15 @@ export default function HomePage() {
           setSettings(s)
         }
       }
-      if (results[7].status === 'fulfilled') setRepairServices(results[7].value.data.data || [])
+      if (results[7].status === 'fulfilled') {
+        setRepairServices(results[7].value.data.data || [])
+        setRepairLoadError(false)
+      } else {
+        setRepairLoadError(true)
+      }
       if (results[8].status === 'fulfilled') setHomepageSections(results[8].value.data.data || [])
       if (results[9].status === 'fulfilled') setCategories(results[9].value.data.data || [])
-      if (results[10].status === 'fulfilled') setNewArrivals(results[10].value.data.data || [])
-      if (results[11].status === 'fulfilled') setBestSellers(results[11].value.data.data || [])
-      if (results[12].status === 'fulfilled') setActiveCoupons(results[12].value.data.data || [])
+      if (results[10].status === 'fulfilled') setActiveCoupons(results[10].value.data.data || [])
     } catch { /* silently fail */ } finally { setLoading(false) }
   }, [])
 
@@ -147,6 +170,12 @@ export default function HomePage() {
   const whatsAppNumber = settings.whatsapp_number || ''
   const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(settings.whatsapp_default_message || 'Hello OM Cellular, I need help with a mobile phone.')}` : ''
 
+  // Standalone "Deals & Offers" rail derived from the full catalog so it never
+  // reuses the products shown in the three merchandising collections above.
+  const discountedFeatured = useMemo(() => (catalog || [])
+    .filter(p => (p.variants || []).some(v => (v.discountPrice ?? 0) > 0 && (v.discountPrice ?? v.price) < v.price))
+    .slice(0, 8), [catalog])
+
   const advanceBanner = useCallback((dir: 1 | -1) => {
     if (banners.length <= 1) return
     setCurrentBanner(p => (p + dir + banners.length) % banners.length)
@@ -177,7 +206,8 @@ export default function HomePage() {
           {banners.map((banner, i) => (
             <div key={banner.id} className={`absolute inset-0 transition-opacity duration-700 ${i === currentBanner ? 'opacity-100' : 'opacity-0'}`}>
               <img src={banner.image} alt="" aria-hidden="true" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-950/70 to-navy-950/20" />
+              <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-900/75 to-navy-950/30" />
+              <div className="pointer-events-none absolute -top-24 right-0 h-80 w-80 rounded-full bg-gold-500/[0.07] blur-3xl" aria-hidden="true" />
             </div>
           ))}
         </div>
@@ -197,6 +227,21 @@ export default function HomePage() {
                       {banner.ctaText} <ArrowRight className="h-4 w-4" />
                     </Link>
                   )}
+                  <div className="animate-slide-up animate-fill-both mt-7 border-t border-white/10 pt-5" style={{ animationDelay: '320ms' }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-300">One place for every phone need</p>
+                    <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                      {[
+                        { to: '/buy-phones', label: 'Buy Phones', Icon: Smartphone },
+                        { to: '/sell-phone', label: 'Sell Phone', Icon: DollarSign },
+                        { to: '/exchange', label: 'Exchange', Icon: ArrowLeftRight },
+                        { to: '/repair', label: 'Repair', Icon: Wrench },
+                      ].map(c => (
+                        <Link key={c.to} to={c.to} className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-white/85 transition-colors hover:text-gold-200">
+                          <c.Icon className="h-3.5 w-3.5 text-gold-400" /> {c.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -267,58 +312,114 @@ export default function HomePage() {
     </div>
   )
 
+  // Featured Phones — the navy showcase. Cards sit as "tickets" on the dark
+  // panel with only a champagne hairline edge; no extra badge clutter.
   const renderFeatured = () => featured.length > 0 && (
-    <section className="bg-white py-14 md:py-20">
+    <section className="banner-midnight relative overflow-hidden py-16 md:py-24">
+      <div className="pointer-events-none absolute -right-24 top-0 h-96 w-96 rounded-full bg-gold-500/[0.07] blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-white/[0.04] blur-3xl" aria-hidden="true" />
+      <div className="hairline-champagne" aria-hidden="true" />
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Curated collection" title="Featured Devices" subtitle="Handpicked certified phones, ready to ship" />
-          <Link to="/products?isFeatured=true" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
-            View All <ChevronRight className="h-4 w-4" />
+          <div>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-px w-6 bg-gold-500" aria-hidden="true" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Curated showcase</span>
+            </span>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-warm md:text-4xl">Featured Phones</h2>
+            <p className="mt-3 max-w-xl text-base leading-relaxed text-white/70">A hand-picked showcase of certified devices, ready to ship to your door.</p>
+          </div>
+          <Link to="/products?isFeatured=true" className="group inline-flex items-center gap-1 text-sm font-semibold text-gold-200 hover:text-gold-100">
+            View the collection <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
           </Link>
         </div>
-        {productRail(featured)}
-        <div className="mt-6 text-center sm:hidden">
-          <Link to="/products" className="inline-flex items-center gap-1 text-sm font-medium text-navy-700">
-            View All Products <ChevronRight className="h-4 w-4" />
+        <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 no-scrollbar sm:grid sm:mx-0 sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-3">
+          {featured.map((product, i) => (
+            <div key={product.id} className="flex w-[240px] shrink-0 snap-start sm:w-auto">
+              <Reveal delay={Math.min(i * 70, 280)} className="h-full w-full">
+                <ProductCard product={product} className="h-full w-full shadow-elevated ring-1 ring-gold-400/25" />
+              </Reveal>
+            </div>
+          ))}
+        </div>
+        <div className="mt-7 text-center sm:hidden">
+          <Link to="/products?isFeatured=true" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gold-200">
+            View the collection <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
     </section>
   )
 
+  // Fresh Arrivals — warm-editorial "new catalog drop" band.
   const renderNewArrivals = (section?: HomepageSection) => newArrivals.length > 0 && (
-    <section className="bg-gradient-to-b from-white to-ivory-50 py-14 md:py-20">
+    <section className="banner-editorial py-14 md:py-20">
+      <div className="hairline-champagne" aria-hidden="true" />
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Just in" title={section?.title || 'New Arrivals'} subtitle={section?.subtitle || 'Freshly arrived certified devices, selected for everyday performance'} />
-          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
-            View All <ChevronRight className="h-4 w-4" />
+          <div>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-px w-6 bg-gold-500" aria-hidden="true" />
+              <span className="eyebrow-gold">New in</span>
+            </span>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 md:text-4xl">{section?.title || 'Fresh Arrivals'}</h2>
+            <p className="mt-3 max-w-xl text-base leading-relaxed text-gray-600">{section?.subtitle || 'Recently added devices from the latest catalog drop.'}</p>
+          </div>
+          <Link to="/products" className="group hidden items-center gap-1 text-sm font-semibold text-navy-800 hover:text-navy-950 sm:inline-flex">
+            View all phones <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
           </Link>
         </div>
         {productRail(newArrivals)}
+        <div className="mt-6 text-center sm:hidden">
+          <Link to="/products" className="inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
+            View all phones <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </section>
   )
 
-  const renderBestSellers = (section?: HomepageSection) => (
-    <section className="bg-gradient-to-b from-navy-900/[0.05] via-gray-50/40 to-white py-14 md:py-20">
+  const renderPicks = (section?: HomepageSection) => (
+    <section className="banner-stone py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Most loved" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Popular picks from our latest collection.'} />
-          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
-            View All Phones <ChevronRight className="h-4 w-4" />
+          <div>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-px w-6 bg-gold-500" aria-hidden="true" />
+              <span className="eyebrow-gold">Curated for you</span>
+            </span>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 md:text-4xl">{section?.title || 'Editor&rsquo;s Picks'}</h2>
+            <p className="mt-3 max-w-xl text-base leading-relaxed text-gray-600">{section?.subtitle || 'A hand-curated shortlist from the current catalogue &mdash; worth a closer look.'}</p>
+          </div>
+          <Link to="/products" className="group hidden items-center gap-1 text-sm font-semibold text-navy-800 hover:text-navy-950 sm:inline-flex">
+            Browse the catalogue <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
           </Link>
         </div>
-        {bestSellers.length > 0 ? (
-          productRail(bestSellers)
+        {picks.length > 0 ? (
+          // Denser editorial grid — an intentionally different composition from
+          // the Fresh Arrivals rail so the two light bands read as distinct.
+          <div className="mt-8 grid gap-5 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {picks.slice(0, 8).map((product, i) => (
+              <Reveal key={product.id} delay={Math.min(i * 60, 240)} className="h-full">
+                <div className="relative h-full pt-0.5">
+                  <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/70 to-transparent" aria-hidden="true" />
+                  <ProductCard product={product} className="h-full w-full" />
+                </div>
+              </Reveal>
+            ))}
+          </div>
         ) : (
           <div className="card mt-8 flex flex-col items-center justify-center gap-3 p-12 text-center">
-            <TrendingUp className="h-10 w-10 text-gray-300" />
-            <h3 className="text-lg font-semibold text-gray-900">No best sellers available right now</h3>
-            <p className="max-w-md text-sm text-gray-500">Popular phones are being refreshed. Browse the full catalogue while you wait.</p>
+            <h3 className="text-lg font-semibold text-gray-900">Picks are being refreshed</h3>
+            <p className="max-w-md text-sm text-gray-500">Our editors are curating the next shortlist. Browse the full catalogue in the meantime.</p>
             <Link to="/products" className="btn-primary mt-2">Browse All Phones <ArrowRight className="h-4 w-4" /></Link>
           </div>
         )}
+        <div className="mt-6 text-center sm:hidden">
+          <Link to="/products" className="inline-flex items-center gap-1 text-sm font-semibold text-navy-800">
+            Browse the catalogue <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </section>
   )
@@ -444,7 +545,7 @@ export default function HomePage() {
     banners: renderHero,
     featured_products: renderFeatured,
     new_arrivals: renderNewArrivals,
-    best_sellers: renderBestSellers,
+    best_sellers: renderPicks,
     categories: renderCategories,
     testimonials: renderTestimonials,
     promo_banner: () => null,
@@ -453,10 +554,6 @@ export default function HomePage() {
 
   const hasCmsSections = homepageSections.length > 0
   const gatedHas = (type: string) => homepageSections.some(s => s.type === type)
-
-  const discountedFeatured = featured.filter(p =>
-    (p.variants || []).some(v => (v.discountPrice ?? 0) > 0 && (v.discountPrice ?? v.price) < v.price)
-  )
 
   // Content sections that are gated/ordered by the CMS homepage-sections.
   const renderGatedContent = () => {
@@ -509,10 +606,10 @@ export default function HomePage() {
 
   const renderPromoStrip = () => {
     const cmsPromos = homepageSections.filter(s => s.type === 'promo_banner')
-    const defaults = [
-      { id: 'default-buy', title: 'Certified Used & Refurbished Phones', subtitle: 'Quality-checked devices with warranty, ready to ship across India.', ctaText: 'Shop Phones', ctaLink: '/buy-phones', image: '', accent: 'from-navy-900 to-navy-950' },
-      { id: 'default-sell', title: 'Trade In or Sell Your Old Phone', subtitle: 'Get an instant estimate, a confirmed price after inspection, and doorstep pickup.', ctaText: 'Sell or Exchange', ctaLink: '/sell-phone', image: '', accent: 'from-emerald-900 to-navy-950' },
-      { id: 'default-repair', title: 'Expert Phone Repair', subtitle: 'Genuine parts, upfront pricing and a service warranty on every job.', ctaText: 'Book a Repair', ctaLink: '/repair', image: '', accent: 'from-slate-900 via-navy-900 to-navy-950' },
+    const defaults: Array<{ id: string; title: string; subtitle: string; ctaText: string; ctaLink: string; image: string; accent: string; icon: LucideIcon }> = [
+      { id: 'default-buy', title: 'Certified Used & Refurbished Phones', subtitle: 'Quality-checked devices with warranty, ready to ship across India.', ctaText: 'Shop Phones', ctaLink: '/buy-phones', image: '', accent: 'banner-dark', icon: Smartphone },
+      { id: 'default-sell', title: 'Trade In or Sell Your Old Phone', subtitle: 'Get an instant estimate, a confirmed price after inspection, and doorstep pickup.', ctaText: 'Sell or Exchange', ctaLink: '/sell-phone', image: '', accent: 'banner-midnight', icon: DollarSign },
+      { id: 'default-repair', title: 'Expert Phone Repair', subtitle: 'Genuine parts, upfront pricing and a service warranty on every job.', ctaText: 'Book a Repair', ctaLink: '/repair', image: '', accent: 'banner-editorial', icon: Wrench },
     ]
     const tiles = (cmsPromos.length > 0 ? cmsPromos : defaults).map((t, i) => ({
       id: t.id || `promo-${i}`,
@@ -521,30 +618,34 @@ export default function HomePage() {
       ctaText: t.ctaText || 'Learn more',
       ctaLink: t.ctaLink || '/products',
       image: (t as any).image || '',
-      accent: (t as any).accent || 'from-navy-900 to-navy-950',
+      accent: ((t as any).accent as string) || (defaults[i % defaults.length]?.accent ?? 'banner-dark'),
     }))
     return (
       <section className="bg-white pb-2">
         <div className="hairline-champagne" aria-hidden="true" />
         <div className="container-custom pt-10">
           <div className="grid gap-5 md:grid-cols-2">
-            {tiles.map((tile, i) => (
-              <Link key={tile.id} to={tile.ctaLink}
-                className={`group relative block overflow-hidden rounded-2xl p-7 text-white shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-elevated ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-navy-900 to-navy-950'}`}>
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
-                {tile.image && (
-                  <img src={tile.image} alt={tile.title} className="absolute inset-0 h-full w-full object-cover opacity-25" />
-                )}
-                <div className="relative">
-                  <ShieldCheck className="h-6 w-6 text-gold-300" />
-                  <h2 className="mt-3 text-xl font-extrabold text-white md:text-2xl">{tile.title}</h2>
-                  {tile.subtitle && <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/80">{tile.subtitle}</p>}
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-200">
-                    {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {tiles.map((tile, i) => {
+              const editorial = tile.accent === 'banner-editorial'
+              const Icon = defaults[i % defaults.length]?.icon ?? ShieldCheck
+              return (
+                <Link key={tile.id} to={tile.ctaLink}
+                  className={`group relative block overflow-hidden rounded-2xl p-7 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-elevated ${i === 0 ? 'md:col-span-2' : ''} ${tile.accent.startsWith('from-') ? `text-white bg-gradient-to-br ${tile.accent}` : tile.accent} ${editorial ? 'text-navy-900 ring-1 ring-black/[0.04]' : 'text-white'}`}>
+                  <div className={`pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none ${editorial ? 'bg-gold-500/10' : 'bg-white/[0.06]'}`} />
+                  {tile.image && (
+                    <img src={tile.image} alt={tile.title} className="absolute inset-0 h-full w-full object-cover opacity-25" />
+                  )}
+                  <div className="relative">
+                    <Icon className={`h-6 w-6 ${editorial ? 'text-gold-600' : 'text-gold-300'}`} />
+                    <h2 className={`mt-3 text-xl font-extrabold md:text-2xl ${editorial ? 'text-navy-900' : 'text-white'}`}>{tile.title}</h2>
+                    {tile.subtitle && <p className={`mt-2 max-w-lg text-sm leading-relaxed ${editorial ? 'text-gray-600' : 'text-white/80'}`}>{tile.subtitle}</p>}
+                    <span className={`mt-4 inline-flex items-center gap-1.5 text-sm font-semibold ${editorial ? 'text-navy-800' : 'text-gold-200'}`}>
+                      {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -665,7 +766,7 @@ export default function HomePage() {
           const ServiceIcon = style?.icon ?? Wrench
           return (
             <Reveal key={service.key} delay={Math.min(i * 70, 210)} className="h-full">
-              <Link to={service.link} className={`card-premium group relative block h-full overflow-hidden p-6 ${style?.ring || ''}`}>
+              <Link to={service.link} className="card-premium group relative block h-full overflow-hidden p-6">
                 <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/[0.04] transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
                 <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${style?.tile || 'from-navy-800 to-navy-950'}`}>
                   <ServiceIcon className="h-5 w-5" />
@@ -687,8 +788,8 @@ export default function HomePage() {
     const freeThreshold = parseInt(settings.free_shipping_threshold || '') || 0
     const delivery = pinResult?.results?.delivery
     return (
-      <section className="container-custom py-4">
-        <div className="relative overflow-hidden rounded-3xl bg-navy-900 px-6 py-12 text-center shadow-elevated md:px-16 md:py-14">
+      <section className="container-custom py-8 md:py-10">
+        <div className="banner-midnight relative overflow-hidden rounded-3xl px-6 py-12 text-center shadow-elevated md:px-16 md:py-14">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-500/[0.07] blur-2xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/[0.04] blur-2xl" />
           <Truck className="mx-auto h-10 w-10 text-gold-300" />
@@ -818,7 +919,9 @@ export default function HomePage() {
           </div>
         ) : (
           <p className="rounded-2xl border border-dashed border-gray-300 bg-ivory-50 p-6 text-center text-sm text-gray-500">
-            No repair services are currently listed. Check back soon or <Link to="/repair" className="font-medium text-navy-700 hover:text-navy-900">contact us</Link> for assistance.
+            {repairLoadError
+              ? <>Repair services are unavailable to load right now. Please try again or <Link to="/repair" className="font-medium text-navy-700 hover:text-navy-900">contact us</Link> for assistance.</>
+              : <>No repair services are currently listed. Check back soon or <Link to="/repair" className="font-medium text-navy-700 hover:text-navy-900">contact us</Link> for assistance.</>}
           </p>
         )}
       </div>
@@ -964,8 +1067,10 @@ export default function HomePage() {
       {renderHero()}
       {revealSection(renderPromoStrip())}
       {hasCmsSections && renderGatedContent()}
-      {revealSection(renderServiceCards())}
+      {revealSection(!gatedHas('new_arrivals') && renderNewArrivals())}
+      {revealSection(!gatedHas('best_sellers') && renderPicks())}
       {revealSection(!gatedHas('featured_products') && renderFeatured())}
+      {revealSection(renderServiceCards())}
       {revealSection(renderOffers())}
       {revealSection(renderBrands())}
       {revealSection(!gatedHas('categories') && renderCategories())}

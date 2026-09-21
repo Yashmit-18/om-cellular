@@ -11,6 +11,7 @@ import type { RepairService } from '../../types'
 export default function RepairBookPage() {
   const [services, setServices] = useState<RepairService[]>([])
   const [loading, setLoading] = useState(true)
+  const [servicesError, setServicesError] = useState(false)
   const [selectedService, setSelectedService] = useState<RepairService | null>(null)
   const [view, setView] = useState<'catalog' | 'book' | 'success'>('catalog')
   const [bookingNumber, setBookingNumber] = useState('')
@@ -37,11 +38,16 @@ export default function RepairBookPage() {
   const brandRef = useRef<HTMLDivElement>(null)
   const modelRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  const loadServices = () => {
     repairService.getRepairServices().then(r => {
       const data = r.data || r.data?.data || []
       setServices(Array.isArray(data) ? data : [])
-    }).catch(() => {}).finally(() => setLoading(false))
+      setServicesError(false)
+    }).catch(() => setServicesError(true)).finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadServices()
   }, [])
 
   useEffect(() => {
@@ -248,14 +254,14 @@ export default function RepairBookPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="relative" ref={brandRef}>
                   <label className="block text-sm font-medium text-gray-700">Brand *</label>
-                  <button type="button" onClick={() => setShowBrandDropdown(!showBrandDropdown)}
+                  <button type="button" onClick={() => setShowBrandDropdown(!showBrandDropdown)} aria-haspopup="listbox" aria-expanded={showBrandDropdown} aria-label="Select brand"
                     className="input mt-1 flex items-center justify-between text-left">
                     <span className={selectedBrand ? '' : 'text-gray-400'}>{selectedBrand || 'Select brand...'}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                   </button>
                   {showBrandDropdown && (
                     <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={brandSearch} onChange={e => setBrandSearch(e.target.value)} className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
+                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={brandSearch} onChange={e => setBrandSearch(e.target.value)} aria-label="Search brands" className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
                       <div className="max-h-48 overflow-y-auto">
                         {filteredBrands.map(b => (
                           <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
@@ -269,14 +275,14 @@ export default function RepairBookPage() {
                 </div>
                 <div className="relative" ref={modelRef}>
                   <label className="block text-sm font-medium text-gray-700">Model *</label>
-                  <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={!selectedBrand}
+                  <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={!selectedBrand} aria-haspopup="listbox" aria-expanded={showModelDropdown} aria-label="Select model"
                     className="input mt-1 flex items-center justify-between text-left disabled:opacity-50">
                     <span className={selectedModel ? '' : 'text-gray-400'}>{selectedModel || 'Select model...'}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                   </button>
                   {showModelDropdown && (
                     <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={modelSearch} onChange={e => setModelSearch(e.target.value)} className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
+                      <div className="p-2"><div className="relative"><SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={modelSearch} onChange={e => setModelSearch(e.target.value)} aria-label="Search models" className="input !py-1.5 !pl-8 !text-xs" placeholder="Search..." autoFocus /></div></div>
                       <div className="max-h-48 overflow-y-auto">
                         {loadingModels && <p className="px-3 py-2 text-xs text-gray-500">Loading...</p>}
                         {filteredModels.map(m => (
@@ -390,7 +396,15 @@ export default function RepairBookPage() {
           <p className="mt-2 text-gray-500">Professional phone repair with genuine parts and warranty</p>
         </div>
 
-        {services.length > 0 ? (
+        {servicesError ? (
+          <div className="mt-10 card p-12 text-center">
+            <Wrench className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">We couldn&apos;t load repair services</h3>
+            <p className="mt-2 text-sm text-gray-500">Something went wrong while fetching services. Please try again.</p>
+            <button onClick={loadServices} className="btn-primary mt-5">Retry</button>
+            <p className="mt-3 text-sm text-gray-500">Still stuck? <Link to="/contact" className="font-medium text-navy-700 hover:text-navy-800">Contact us</Link></p>
+          </div>
+        ) : services.length > 0 ? (
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {services.map(service => (
               <div key={service.id} className="card-premium flex flex-col p-6">

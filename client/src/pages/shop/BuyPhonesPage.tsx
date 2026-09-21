@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, ArrowRight, PackageOpen } from 'lucide-react'
 import api from '../../services/api'
@@ -65,7 +65,10 @@ export default function BuyPhonesPage() {
     }
   }, [currentBrandName, currentBrand, brands, searchParams, setSearchParams])
 
+  const requestSeq = useRef(0)
+
   const fetchProducts = useCallback(async () => {
+    const seq = ++requestSeq.current
     setLoading(true)
     setError(false)
     try {
@@ -74,13 +77,15 @@ export default function BuyPhonesPage() {
       if (currentBrand) params.brandId = currentBrand
       if (currentQuery) params.query = currentQuery
       const res = await api.get(`/products?${new URLSearchParams(params).toString()}`)
+      if (seq !== requestSeq.current) return
       setProducts(res.data.data || [])
       setPagination(res.data.pagination || null)
     } catch {
+      if (seq !== requestSeq.current) return
       setError(true)
       setProducts([])
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) setLoading(false)
     }
   }, [currentCategory, currentBrand, currentQuery, currentSort, currentPage])
 
@@ -224,11 +229,12 @@ export default function BuyPhonesPage() {
             <select
               value={currentSort}
               onChange={e => updateFilter('sort', e.target.value)}
+              aria-label="Sort phones"
               className="input !w-auto !py-2.5 !px-3"
             >
               {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
-            <button onClick={() => setShowFilters(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-700 lg:hidden">
+            <button onClick={() => setShowFilters(true)} aria-label="Open filters" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-700 lg:hidden">
               <SlidersHorizontal className="h-4 w-4" /> Filters
             </button>
           </div>
@@ -238,18 +244,18 @@ export default function BuyPhonesPage() {
         {hasActiveFilters && (
           <div className="mt-4 flex flex-wrap gap-2">
             {currentCategory && (
-              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
-                {categories.find(c => c.id === currentCategory)?.name || 'Category'} <X className="h-3 w-3" />
+              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
+                <span className="truncate">{categories.find(c => c.id === currentCategory)?.name || 'Category'}</span> <X className="h-3 w-3 shrink-0" />
               </button>
             )}
             {currentBrand && (
-              <button onClick={() => updateFilter('brandId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
-                {brands.find(b => b.id === currentBrand)?.name || 'Brand'} <X className="h-3 w-3" />
+              <button onClick={() => updateFilter('brandId', '')} className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
+                <span className="truncate">{brands.find(b => b.id === currentBrand)?.name || 'Brand'}</span> <X className="h-3 w-3 shrink-0" />
               </button>
             )}
             {currentQuery && (
-              <button onClick={() => updateFilter('q', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
-                “{currentQuery}” <X className="h-3 w-3" />
+              <button onClick={() => updateFilter('q', '')} className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
+                <span className="truncate">“{currentQuery}”</span> <X className="h-3 w-3 shrink-0" />
               </button>
             )}
           </div>
@@ -324,7 +330,7 @@ export default function BuyPhonesPage() {
                     <button
                       onClick={() => updateFilter('page', String(currentPage - 1))}
                       disabled={!pagination.hasPrev}
-                      className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Previous page"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -339,7 +345,7 @@ export default function BuyPhonesPage() {
                         <button
                           key={page}
                           onClick={() => updateFilter('page', String(page))}
-                          className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
+                          className={cn('h-11 w-11 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                         >
                           {page}
                         </button>
@@ -348,7 +354,7 @@ export default function BuyPhonesPage() {
                     <button
                       onClick={() => updateFilter('page', String(currentPage + 1))}
                       disabled={!pagination.hasNext}
-                      className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Next page"
                     >
                       <ChevronRight className="h-4 w-4" />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ChevronRight, Clock, MapPin, FileText, XCircle, RotateCcw, ShieldCheck } from 'lucide-react'
+import { useParams, Link, useLocation } from 'react-router-dom'
+import { ChevronRight, Clock, MapPin, FileText, XCircle, RotateCcw, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { orderService } from '../../services/order.service'
@@ -11,8 +11,11 @@ import StatusTimeline from '../../components/StatusTimeline'
 
 export default function AccountOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
+  const orderJustPlaced = Boolean(location.state?.orderPlaced)
   const [cancelNote, setCancelNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [warranties, setWarranties] = useState<any[]>([])
@@ -26,7 +29,19 @@ export default function AccountOrderDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    api.get(`/orders/${id}`).then(r => { setOrder(r.data.data); setLoading(false) }).catch(() => setLoading(false))
+    let isActive = true
+    setLoading(true)
+    setFetchError(false)
+    api.get(`/orders/${id}`).then(r => {
+      if (!isActive) return
+      setOrder(r.data.data)
+      setLoading(false)
+    }).catch(() => {
+      if (!isActive) return
+      setFetchError(true)
+      setLoading(false)
+    })
+    return () => { isActive = false }
   }, [id])
 
   useEffect(() => {
@@ -115,13 +130,22 @@ export default function AccountOrderDetailPage() {
     }
   }
 
-  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div></div>
-  if (!order) return <div className="text-center py-12 text-gray-500">Order not found</div>
+  if (loading) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-navy-900 border-t-transparent"></div></div>
+  if (fetchError || !order) return <div className="py-12 text-center"><p className="text-gray-500">We couldn’t load this order.</p><Link to="/account/orders" className="btn-secondary mt-4 inline-flex">Back to orders</Link></div>
 
   const address = order.shippingAddress || order.address
 
   return (
     <div>
+      {orderJustPlaced && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Order placed successfully!</p>
+            <p className="mt-0.5 text-xs text-emerald-700">We’ve received your order and will keep you updated on its status.</p>
+          </div>
+        </div>
+      )}
       <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link to="/account/orders" className="hover:text-gray-900">Orders</Link>
         <ChevronRight className="h-3 w-3" />
@@ -155,22 +179,22 @@ export default function AccountOrderDetailPage() {
         </div>
       )}
       {RETURNABLE.includes(order.status) && order.paymentStatus !== 'REFUNDED' && (
-        <div className="mt-4 rounded-lg border border-brand-100 bg-brand-50/40 p-4">
+        <div className="mt-4 rounded-lg border border-navy-100 bg-navy-50/40 p-4">
           {!returning ? (
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-brand-800"><RotateCcw className="mr-1 inline h-4 w-4" /> Return this order</p>
-                <p className="mt-0.5 text-xs text-brand-700">Items delivered can be returned. Refunds are processed after we receive and inspect the return.</p>
+                <p className="text-sm font-medium text-navy-800"><RotateCcw className="mr-1 inline h-4 w-4" /> Return this order</p>
+                <p className="mt-0.5 text-xs text-navy-700">Items delivered can be returned. Refunds are processed after we receive and inspect the return.</p>
               </div>
               <button onClick={() => { setReturning(true); setReturnItems(itemIds) }} className="btn-secondary !px-4 !py-2 text-sm">Start Return</button>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-brand-900">Select items to return</p>
-              {order.items.map((item: any) => (
+              <p className="text-sm font-semibold text-navy-900">Select items to return</p>
+              {(order.items || []).map((item: any) => (
                 <label key={item.id} className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={returnItems.includes(String(item.id))} onChange={e => setReturnItems(prev => e.target.checked ? [...prev, String(item.id)] : prev.filter(p => p !== String(item.id)))} />
-                  <span>{item.variant?.name || item.variantId?.name || item.variantId} (Qty: {item.quantity})</span>
+                  <span className="min-w-0 truncate">{item.variant?.name || item.variantId?.name || item.variantId} (Qty: {item.quantity})</span>
                 </label>
               ))}
               <select value={returnReason} onChange={e => setReturnReason(e.target.value)} className="input !py-2 text-sm">
@@ -221,8 +245,8 @@ export default function AccountOrderDetailPage() {
             <p className="text-gray-500">Payment Status</p>
             <span className={`badge ${PAYMENT_STATUS_COLORS[order.paymentStatus] || 'badge-info'}`}>{order.paymentStatus}</span>
           </div>
-          {order.upiReferenceId && <div><p className="text-gray-500">UPI Reference</p><p className="font-medium">{order.upiReferenceId}</p></div>}
-          {order.trackingNumber && <div><p className="text-gray-500">Tracking</p><p className="font-medium">{order.trackingNumber}</p></div>}
+          {order.upiReferenceId && <div className="min-w-0"><p className="text-gray-500">UPI Reference</p><p className="break-all font-medium">{order.upiReferenceId}</p></div>}
+          {order.trackingNumber && <div className="min-w-0"><p className="text-gray-500">Tracking</p><p className="break-all font-medium">{order.trackingNumber}</p></div>}
           {order.paymentGateway && <div><p className="text-gray-500">Gateway</p><p className="font-medium capitalize">{order.paymentGateway}</p></div>}
         </div>
         {order.statusHistory && order.statusHistory.length > 0 && (
@@ -233,7 +257,7 @@ export default function AccountOrderDetailPage() {
         )}
         {address && (
           <div className="border-t pt-4">
-            <h3 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-brand-500" /> Delivery Address</h3>
+            <h3 className="flex items-center gap-1 font-semibold mb-2"><MapPin className="h-4 w-4 text-navy-700" /> Delivery Address</h3>
             <p className="text-sm text-gray-600">{address.name}, {address.phone}</p>
             {address.alternatePhone && <p className="text-sm text-gray-600">Alt: {address.alternatePhone}</p>}
             <p className="text-sm text-gray-600">{address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}{address.landmark ? ` (${address.landmark})` : ''}, {address.city}, {address.state} - {address.pincode}</p>
@@ -243,10 +267,10 @@ export default function AccountOrderDetailPage() {
           <div className="border-t pt-4">
             <h3 className="font-semibold mb-3">Items</h3>
             <div className="space-y-3">
-              {order.items.map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <div><p className="font-medium">{item.variant?.name || item.variantId?.name || item.variantId}</p><p className="text-gray-500">Qty: {item.quantity}</p></div>
-                  <p className="font-medium">{formatPrice(item.total)}</p>
+              {(order.items || []).map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0"><p className="truncate font-medium">{item.variant?.name || item.variantId?.name || item.variantId}</p><p className="text-gray-500">Qty: {item.quantity}</p></div>
+                  <p className="shrink-0 font-medium">{formatPrice(item.total)}</p>
                 </div>
               ))}
             </div>

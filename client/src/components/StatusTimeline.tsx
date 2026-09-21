@@ -16,7 +16,7 @@ interface StatusTimelineProps {
 
 export default function StatusTimeline({ history, labels, colors }: StatusTimelineProps) {
   if (!history || history.length === 0) {
-    return <p className="text-sm text-gray-400">No status history yet.</p>
+    return <p className="text-sm text-gray-500">No status history yet.</p>
   }
 
   const sorted = [...history].sort((a, b) => new Date(b.changedAt || b.createdAt || 0).getTime() - new Date(a.changedAt || a.createdAt || 0).getTime())
@@ -27,13 +27,13 @@ export default function StatusTimeline({ history, labels, colors }: StatusTimeli
         const label = labels?.[entry.status] || entry.status
         return (
           <li key={idx} className="relative">
-            <span className={`absolute -left-[25px] flex h-5 w-5 items-center justify-center rounded-full ${idx === 0 ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+            <span className={`absolute -left-[25px] flex h-5 w-5 items-center justify-center rounded-full ${idx === 0 ? 'bg-navy-900 text-gold-200' : 'bg-gray-100 text-gray-500'}`}>
               {idx === 0 ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-2.5 w-2.5" />}
             </span>
             <div className="text-sm">
               <span className={`badge ${colors?.[entry.status] || 'badge-info'}`}>{label}</span>
-              {entry.changedBy && <span className="ml-2 text-xs text-gray-400">by {entry.changedBy}</span>}
-              <p className="mt-1 text-xs text-gray-400">
+              {entry.changedBy && <span className="ml-2 text-xs text-gray-500">by {entry.changedBy}</span>}
+              <p className="mt-1 text-xs text-gray-500">
                 {(() => {
                   const d = new Date(entry.changedAt || entry.createdAt || '')
                   return isNaN(d.getTime())

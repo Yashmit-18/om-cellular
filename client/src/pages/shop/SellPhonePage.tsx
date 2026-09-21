@@ -538,7 +538,7 @@ export default function SellPhonePage() {
 
                 <div className="flex items-center justify-between border-t border-gray-100 pt-5">
                   <button onClick={() => setStep(2)} className="btn-secondary"><ChevronLeft className="mr-1 h-4 w-4" /> Back</button>
-                  <button onClick={() => setStep(4)} disabled={!selectedStorage} className="btn-primary disabled:opacity-40">Continue <ArrowRight className="ml-1 h-4 w-4" /></button>
+                  <button onClick={() => setStep(4)} disabled={!selectedModel || (!selectedStorage && brandOptions.length > 0)} className="btn-primary disabled:opacity-40">Continue <ArrowRight className="ml-1 h-4 w-4" /></button>
                 </div>
               </div>
             )}
@@ -644,7 +644,7 @@ export default function SellPhonePage() {
 
                 <div className="flex items-center justify-between border-t border-gray-100 pt-5">
                   <button onClick={() => setStep(3)} className="btn-secondary"><ChevronLeft className="mr-1 h-4 w-4" /> Back</button>
-                  <button onClick={handleSubmit} disabled={submitting} className="btn-primary disabled:opacity-40">
+                  <button onClick={handleSubmit} disabled={submitting || valuationState === 'loading'} className="btn-primary disabled:opacity-40">
                     {submitting ? 'Submitting...' : 'Submit Sell Request'}
                   </button>
                 </div>

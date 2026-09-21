@@ -43,32 +43,37 @@ export default function LoginPage() {
           </div>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Phone or Email</label>
+              <label htmlFor="login-identifier" className="block text-sm font-medium text-gray-700">Phone or Email</label>
               <div className="relative mt-1">
                 <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
+                  id="login-identifier"
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="input !pl-10"
                   placeholder="+91 98765 43210 or you@example.com"
+                  autoComplete="username"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">Password</label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input !pl-10 !pr-10"
                   placeholder="Enter password"
+                  autoComplete="current-password"
                   required
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-gray-600">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export const MAX_QUANTITY_PER_ITEM = 10
+
 export interface CartItem {
   id: string
   variantId: string
@@ -41,12 +43,12 @@ export const useCartStore = create<CartState>()(
           set({
             items: items.map(i =>
               i.variantId === item.variantId
-                ? { ...i, quantity: Math.min(i.quantity + (item.quantity || 1), i.stock) }
+                ? { ...i, quantity: Math.min(i.quantity + (item.quantity || 1), i.stock, MAX_QUANTITY_PER_ITEM) }
                 : i
             ),
           })
         } else {
-          set({ items: [...items, { ...item, quantity: item.quantity || 1 }] })
+          set({ items: [...items, { ...item, quantity: Math.max(1, Math.min(item.quantity || 1, MAX_QUANTITY_PER_ITEM)) }] })
         }
       },
 
@@ -61,7 +63,9 @@ export const useCartStore = create<CartState>()(
         }
         set({
           items: get().items.map(i =>
-            i.variantId === variantId ? { ...i, quantity: Math.min(quantity, i.stock) } : i
+            i.variantId === variantId
+              ? { ...i, quantity: Math.max(1, Math.min(quantity, i.stock, MAX_QUANTITY_PER_ITEM)) }
+              : i
           ),
         })
       },

@@ -12,17 +12,21 @@ export default function RepairTrackPage() {
   const [bookingNumber, setBookingNumber] = useState(searchParams.get('booking') || '')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const handleTrack = async () => {
-    if (!bookingNumber.trim()) return
+  const handleTrack = async (override?: string) => {
+    const number = (override ?? bookingNumber).trim()
+    if (!number) return
     setLoading(true)
-    setError(false)
+    setErrorMsg(null)
     try {
-      const res = await repairService.trackRepair(bookingNumber)
+      const res = await repairService.trackRepair(number)
       setResult(res.data || res.data?.data || res)
-    } catch {
-      setError(true)
+    } catch (err: any) {
+      const status = err?.response?.status
+      setErrorMsg(status === 404
+        ? 'We couldn’t find a repair with that booking number. Double-check it and try again, or contact us for assistance.'
+        : 'Something went wrong while tracking your repair. Please try again in a moment.')
       setResult(null)
     } finally {
       setLoading(false)
@@ -33,7 +37,7 @@ export default function RepairTrackPage() {
     const booking = searchParams.get('booking')
     if (booking) {
       setBookingNumber(booking)
-      handleTrack()
+      handleTrack(booking)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
@@ -53,7 +57,7 @@ export default function RepairTrackPage() {
           <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
             <input
               value={bookingNumber}
-              onChange={e => setBookingNumber(e.target.value)}
+              onChange={e => { setBookingNumber(e.target.value); setResult(null); setErrorMsg(null) }}
               placeholder="Booking number"
               className="input flex-1"
               aria-label="Booking number"
@@ -63,16 +67,17 @@ export default function RepairTrackPage() {
             </button>
           </form>
 
-          {error && (
+          {errorMsg && (
             <div className="mt-6 rounded-xl border border-red-100 bg-red-50 p-4 text-center">
               <AlertCircle className="mx-auto h-7 w-7 text-red-500" />
               <p className="mt-2 text-sm font-medium text-gray-900">Repair not found</p>
-              <p className="mt-0.5 text-xs text-gray-500">Check your booking number and try again, or contact us for assistance.</p>
+              <p className="mt-0.5 text-xs text-gray-500">{errorMsg}</p>
+              <button onClick={() => handleTrack()} className="btn-secondary mt-3 !py-2 text-sm">Try again</button>
             </div>
           )}
 
           {result && (
-            <div className="animate-fade-in mt-6 space-y-4">
+            <div className="animate-fade-in mt-6 space-y-4" aria-live="polite">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-gray-500">Booking #</p>
@@ -90,7 +95,6 @@ export default function RepairTrackPage() {
               {result.serviceMode === 'STORE_DROP' && (
                 <p className="rounded-lg bg-navy-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-navy-800">Get directions</a></p>
               )}
-              {result.pickupAddress && <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Pickup address: {result.pickupAddress}</p>}
               {result.statusHistory && result.statusHistory.length > 0 && (
                 <div>
                   <h3 className="mt-4 text-sm font-semibold">Status History</h3>

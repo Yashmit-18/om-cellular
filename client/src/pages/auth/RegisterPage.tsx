@@ -64,41 +64,41 @@ export default function RegisterPage() {
           </div>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name *</label>
+              <label htmlFor="reg-name" className="block text-sm font-medium text-gray-700">Full Name *</label>
               <div className="relative mt-1">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="input !pl-10" placeholder="John Doe" required />
+                <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)} className="input !pl-10" placeholder="John Doe" autoComplete="name" required />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
+              <label htmlFor="reg-phone" className="block text-sm font-medium text-gray-700">Phone Number *</label>
               <div className="relative mt-1">
                 <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input !pl-10" placeholder="+91 98765 43210" required />
+                <input id="reg-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input !pl-10" placeholder="+91 98765 43210" autoComplete="tel" required />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email <span className="text-gray-400">(optional)</span></label>
+              <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700">Email <span className="text-gray-400">(optional)</span></label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input !pl-10" placeholder="you@example.com" />
+                <input id="reg-email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="input !pl-10" placeholder="you@example.com" autoComplete="email" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Password *</label>
+              <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700">Password *</label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="input !pl-10 !pr-10" placeholder="Min 6 characters" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <input id="reg-password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="input !pl-10 !pr-10" placeholder="Min 6 characters" autoComplete="new-password" required />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-gray-600">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Confirm Password *</label>
+              <label htmlFor="reg-confirm-password" className="block text-sm font-medium text-gray-700">Confirm Password *</label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="input !pl-10" placeholder="Confirm password" required />
+                <input id="reg-confirm-password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="input !pl-10" placeholder="Confirm password" autoComplete="new-password" required />
               </div>
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full">
