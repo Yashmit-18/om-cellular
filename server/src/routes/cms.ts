@@ -5,7 +5,14 @@ import { requireAdmin } from '../middleware/auth'
 import { AuthRequest, AuthUser } from '../types'
 import { env } from '../config/env'
 
-function createCmsRouter(model: any, displayName: string, publicFilter?: Record<string, any>) {
+type CmsPublicFilter = Record<string, any> | ((now: Date) => Record<string, any>)
+
+export function resolveCmsListFilter(includeAll: boolean, publicFilter: CmsPublicFilter | undefined, now: Date): Record<string, any> {
+  if (includeAll) return {}
+  return typeof publicFilter === 'function' ? publicFilter(now) : (publicFilter || { isActive: true })
+}
+
+function createCmsRouter(model: any, displayName: string, publicFilter?: CmsPublicFilter) {
   const router = Router()
 
   router.get('/', async (req: AuthRequest, res: Response) => {
@@ -22,7 +29,7 @@ function createCmsRouter(model: any, displayName: string, publicFilter?: Record<
         }
         if (decoded.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Forbidden' })
       }
-      const items = await model.find(includeAll ? {} : (publicFilter || { isActive: true })).sort({ sortOrder: 1 })
+      const items = await model.find(resolveCmsListFilter(includeAll, publicFilter, new Date())).sort({ sortOrder: 1 })
       return res.json({ success: true, data: items })
     } catch (error) {
       return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -70,15 +77,17 @@ function createCmsRouter(model: any, displayName: string, publicFilter?: Record<
   return router
 }
 
-const now = new Date()
-const bannerPublicFilter = {
-  isActive: true,
-  $and: [
-    { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: now } }] },
-    { $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gte: now } }] },
-  ],
+export function buildBannerPublicFilter(now: Date): Record<string, any> {
+  return {
+    isActive: true,
+    $and: [
+      { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: now } }] },
+      { $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gte: now } }] },
+    ],
+  }
 }
-const bannerRouter = createCmsRouter(Banner, 'Banner', bannerPublicFilter)
+
+const bannerRouter = createCmsRouter(Banner, 'Banner', buildBannerPublicFilter)
 const homepageSectionRouter = createCmsRouter(HomepageSection, 'Homepage Section')
 const informationCardRouter = createCmsRouter(InformationCard, 'Information Card')
 const testimonialRouter = createCmsRouter(Testimonial, 'Testimonial')
