@@ -235,10 +235,14 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Product not found' })
     }
 
-    const variants = await ProductVariant.find({ productId: product._id, isActive: true })
+    const variants = await ProductVariant.find({ productId: product._id, isActive: true }).lean()
     return res.json({
       success: true,
-      data: { ...product.toObject(), variants: variants.map(publicVariantProject), ...computeProductSummary(product, variants) },
+      data: {
+        ...product.toObject(),
+        variants: variants.map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
+        ...computeProductSummary(product, variants),
+      },
     })
   } catch (error) {
     console.error('GET /products/:id error:', error)
@@ -337,8 +341,8 @@ router.get('/:id/variants', optionalAuth, async (req: AuthRequest, res: Response
     const includeAll = variantListMatchesRole(req.user?.role, req.query.includeAll)
     const query: any = { productId: req.params.id }
     if (!includeAll) query.isActive = true
-    const variants = await ProductVariant.find(query)
-    const data = includeAll ? variants : variants.map(publicVariantProject)
+    const variants = await ProductVariant.find(query).lean()
+    const data = variants.map((v: any) => ({ ...(includeAll ? v : publicVariantProject(v)), id: String(v._id) }))
     return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })

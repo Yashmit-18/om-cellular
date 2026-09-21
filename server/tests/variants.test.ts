@@ -119,6 +119,8 @@ test('public variant projection strips internal ledger fields only', () => {
   assert.equal('reservedStock' in projected, false)
   assert.equal('soldCount' in projected, false)
   assert.equal('__v' in projected, false)
+  assert.equal(projected._id, 'abc')
+  assert.equal(projected.id, 'abc')
   assert.equal(projected.sku, 'SKU-1')
   assert.equal(projected.price, 100)
   assert.equal(projected.discountPrice, 90)
