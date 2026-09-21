@@ -113,7 +113,7 @@ export default function HomePage() {
   }, [banners.length])
 
   const whatsAppNumber = settings.whatsapp_number || ''
-  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello OM Cellular, I need help with a mobile phone.')}` : ''
+  const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(settings.whatsapp_default_message || 'Hello OM Cellular, I need help with a mobile phone.')}` : ''
 
   const advanceBanner = useCallback((dir: 1 | -1) => {
     if (banners.length <= 1) return
