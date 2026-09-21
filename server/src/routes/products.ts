@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import { Router, Response } from 'express'
 import mongoose from 'mongoose'
 import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
@@ -6,6 +6,7 @@ import { recordInventoryMovement } from '../models/inventoryLedger.model'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { slugify, paginate } from '../utils/helpers'
+import { validateVariantPayload, isDuplicateKeyError, variantListMatchesRole, publicVariantProject } from '../services/productVariant.service'
 
 const router = Router()
 
@@ -171,7 +172,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const data = raw.map((p: any) => ({
       ...p,
       id: String(p._id),
-      variants: (p.variants || []).map((v: any) => ({ ...v, id: String(v._id) })),
+      variants: (p.variants || []).map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
       primaryImage:
         (Array.isArray(p.images) && p.images.find(Boolean)) ||
         (p.variants || []).map(extractVariantImage).find(Boolean) ||
@@ -207,7 +208,7 @@ router.get('/by-variant/:variantId', optionalAuth, async (req: AuthRequest, res:
       success: true,
       data: {
         ...product.toObject(),
-        variants: [variantWithId],
+        variants: [publicVariantProject(variantWithId)],
         ...computeProductSummary(product, [variantWithId]),
       },
     })
@@ -235,7 +236,10 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const variants = await ProductVariant.find({ productId: product._id, isActive: true })
-    return res.json({ success: true, data: { ...product.toObject(), variants, ...computeProductSummary(product, variants) } })
+    return res.json({
+      success: true,
+      data: { ...product.toObject(), variants: variants.map(publicVariantProject), ...computeProductSummary(product, variants) },
+    })
   } catch (error) {
     console.error('GET /products/:id error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -328,10 +332,14 @@ router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   }
 })
 
-router.get('/:id/variants', async (req: Request, res: Response) => {
+router.get('/:id/variants', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const variants = await ProductVariant.find({ productId: req.params.id, isActive: true })
-    return res.json({ success: true, data: variants })
+    const includeAll = variantListMatchesRole(req.user?.role, req.query.includeAll)
+    const query: any = { productId: req.params.id }
+    if (!includeAll) query.isActive = true
+    const variants = await ProductVariant.find(query)
+    const data = includeAll ? variants : variants.map(publicVariantProject)
+    return res.json({ success: true, data })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -343,17 +351,23 @@ router.post('/:id/variants', requireAdmin, async (req: AuthRequest, res: Respons
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
 
     const { name, sku, price, discountPrice, stock, ram, storage, color, condition, images, specifications, whatsIncluded } = req.body
-    if (!name || price === undefined) return res.status(400).json({ success: false, message: 'Name and price are required' })
-    if (price < 0) return res.status(400).json({ success: false, message: 'Price must be >= 0' })
+    const validationError = validateVariantPayload(req.body, { create: true })
+    if (validationError) return res.status(400).json({ success: false, message: validationError })
 
     const variantSku = sku || `SKU-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const variant = await ProductVariant.create({
-      productId: product._id, name, sku: variantSku, price, discountPrice, stock: stock || 0,
-      ram, storage, color, condition, images: images || [], specifications: specifications || [],
-      whatsIncluded: whatsIncluded || [],
-    })
-
-    return res.status(201).json({ success: true, message: 'Variant created', data: variant })
+    try {
+      const variant = await ProductVariant.create({
+        productId: product._id, name, sku: variantSku, price, discountPrice: discountPrice ?? null, stock: stock ?? 0,
+        ram, storage, color, condition, images: images || [], specifications: specifications || [],
+        whatsIncluded: whatsIncluded || [],
+      })
+      return res.status(201).json({ success: true, message: 'Variant created', data: variant })
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        return res.status(409).json({ success: false, message: 'SKU is already in use' })
+      }
+      throw error
+    }
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
@@ -365,17 +379,24 @@ router.put('/:id/variants/:variantId', requireAdmin, async (req: AuthRequest, re
     if (!variant) return res.status(404).json({ success: false, message: 'Variant not found' })
     if (variant.productId.toString() !== req.params.id) return res.status(400).json({ success: false, message: 'Variant does not belong to this product' })
 
+    const validationError = validateVariantPayload(req.body, { create: false })
+    if (validationError) return res.status(400).json({ success: false, message: validationError })
+
     let stockDelta = 0
     if (req.body.stock !== undefined) {
-      const parsedStock = Number(req.body.stock)
-      if (!Number.isFinite(parsedStock) || parsedStock < 0) {
-        return res.status(400).json({ success: false, message: 'stock must be a non-negative number' })
-      }
-      req.body.stock = parsedStock
-      stockDelta = parsedStock - Number(variant.stock || 0)
+      req.body.stock = Number(req.body.stock)
+      stockDelta = req.body.stock - Number(variant.stock || 0)
     }
 
-    const updated = await ProductVariant.findByIdAndUpdate(req.params.variantId, req.body, { new: true })
+    let updated
+    try {
+      updated = await ProductVariant.findByIdAndUpdate(req.params.variantId, req.body, { new: true })
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        return res.status(409).json({ success: false, message: 'SKU is already in use' })
+      }
+      throw error
+    }
     if (stockDelta !== 0) {
       // Keep the inventory ledger complete when stock is edited through the
       // product variant form (same MANUAL_ADJUSTMENT reason as the inventory page).
@@ -397,6 +418,10 @@ router.put('/:id/variants/:variantId', requireAdmin, async (req: AuthRequest, re
 
 router.delete('/:id/variants/:variantId', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
+    const variant = await ProductVariant.findById(req.params.variantId)
+    if (!variant) return res.status(404).json({ success: false, message: 'Variant not found' })
+    if (variant.productId.toString() !== req.params.id) return res.status(400).json({ success: false, message: 'Variant does not belong to this product' })
+
     await ProductVariant.findByIdAndUpdate(req.params.variantId, { isActive: false })
     return res.json({ success: true, message: 'Variant deactivated' })
   } catch (error) {
