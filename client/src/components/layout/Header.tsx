@@ -24,9 +24,17 @@ export default function Header() {
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
@@ -88,9 +96,9 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-[60] border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+      <header className={`sticky top-0 z-[60] border-b backdrop-blur transition-[background-color,box-shadow,border-color] duration-300 ${scrolled ? 'border-ivory-200 bg-white/95 shadow-card' : 'border-gray-200 bg-white/85'}`}>
         <div className="container-custom">
-          <div className="flex h-16 items-center justify-between gap-2">
+          <div className={`flex items-center justify-between gap-2 transition-[height] duration-300 ${scrolled ? 'h-14' : 'h-16'}`}>
             <Link to="/" className="group flex shrink-0 items-center gap-2" aria-label="OM Cellular home">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy-900 text-base font-black tracking-tight text-gold-300 shadow-sm transition-transform group-hover:scale-105">OM</span>
               <span className="hidden text-lg font-bold tracking-tight text-navy-900 sm:inline">OM Cellular</span>

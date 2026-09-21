@@ -157,7 +157,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
           alt={product.name}
           contain
           className="relative h-[200px] sm:h-[240px] md:h-[250px] lg:h-[265px]"
-          imgClassName="p-4 transition-[transform,opacity] duration-300 group-hover:scale-[1.04] motion-reduce:transition-none"
+          imgClassName="p-4 transition-[transform,opacity] duration-300 group-hover:scale-[1.025] motion-reduce:transition-none"
         />
       </Link>
       <span className={cn('absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold shadow-sm ring-1 ring-black/5 backdrop-blur', stockPill.cls)}>
@@ -177,7 +177,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
             alt={product.name}
             contain
             className="h-28 w-28 sm:h-32 sm:w-32 rounded-xl"
-            imgClassName="p-2 transition-transform duration-300 group-hover:scale-[1.05] motion-reduce:transition-none"
+            imgClassName="p-2 transition-transform duration-300 group-hover:scale-[1.025] motion-reduce:transition-none"
           />
         </Link>
         <div className="min-w-0 flex-1">

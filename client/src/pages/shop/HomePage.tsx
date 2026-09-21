@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useCallback } from 'react'
+import { Fragment, useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
@@ -11,6 +11,7 @@ import {
 import api from '../../services/api'
 import { formatPrice } from '../../utils'
 import ProductCard from '../../components/shop/ProductCard'
+import Reveal from '../../components/layout/Reveal'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection, PromoCoupon, ServiceabilityCheckResponse } from '../../types'
 
 const REPAIR_ICONS: Record<string, LucideIcon> = {
@@ -114,6 +115,35 @@ export default function HomePage() {
     return () => clearInterval(timer)
   }, [banners.length])
 
+  // Hero art layer: very subtle scale (1 -> 1.04) as the hero scrolls past.
+  // Single rAF-throttled passive scroll listener; disabled for reduced motion.
+  const heroArtRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (loading) return
+    const art = heroArtRef.current
+    if (!art) return
+    const reduceQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (reduceQuery.matches) return
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const r = art.getBoundingClientRect()
+      if (r.top >= 0) { art.style.transform = 'scale(1)'; return }
+      const total = art.offsetHeight || 1
+      const t = Math.min(Math.abs(r.top) / total, 1)
+      art.style.transform = `scale(${1 + 0.04 * t})`
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    update()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [loading])
+
   const whatsAppNumber = settings.whatsapp_number || ''
   const whatsAppUrl = whatsAppNumber ? `https://wa.me/${whatsAppNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(settings.whatsapp_default_message || 'Hello OM Cellular, I need help with a mobile phone.')}` : ''
 
@@ -142,26 +172,31 @@ export default function HomePage() {
   const renderHero = () => (
     banners.length > 0 ? (
       <section className="relative overflow-hidden bg-navy-950">
-        <div className="relative h-[440px] md:h-[560px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* Layered art: imagery + tonal gradient, gently scales as it scrolls past */}
+        <div ref={heroArtRef} className="absolute inset-0 will-change-transform">
           {banners.map((banner, i) => (
             <div key={banner.id} className={`absolute inset-0 transition-opacity duration-700 ${i === currentBanner ? 'opacity-100' : 'opacity-0'}`}>
-              <img src={banner.image} alt={banner.title} className="h-full w-full object-cover" />
+              <img src={banner.image} alt="" aria-hidden="true" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-r from-navy-950/95 via-navy-950/70 to-navy-950/20" />
-              <div className="absolute inset-0 flex items-center">
-                <div className="container-custom">
-                  <div className="max-w-xl">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-px w-8 bg-gold-500" aria-hidden="true" />
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Pre-Owned · Refurbished · Verified</span>
-                    </span>
-                    <h1 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">{banner.title}</h1>
-                    {banner.subtitle && <p className="mt-4 text-base leading-relaxed text-gray-300 md:text-lg">{banner.subtitle}</p>}
-                    {banner.ctaText && banner.ctaLink && (
-                      <Link to={banner.ctaLink} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-navy-900 shadow-lg transition-all hover:bg-ivory-100">
-                        {banner.ctaText} <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    )}
-                  </div>
+            </div>
+          ))}
+        </div>
+        <div className="relative h-[440px] md:h-[560px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {banners.map((banner, i) => (
+            <div key={banner.id} className={`absolute inset-0 flex items-center transition-opacity duration-700 ${i === currentBanner ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="container-custom">
+                <div className="max-w-xl">
+                  <span className="animate-slide-up animate-fill-both inline-flex items-center gap-2">
+                    <span className="h-px w-8 bg-gold-500" aria-hidden="true" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Pre-Owned · Refurbished · Verified</span>
+                  </span>
+                  <h1 className="animate-slide-up animate-fill-both mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl" style={{ animationDelay: '80ms' }}>{banner.title}</h1>
+                  {banner.subtitle && <p className="animate-slide-up animate-fill-both mt-4 text-base leading-relaxed text-gray-300 md:text-lg" style={{ animationDelay: '160ms' }}>{banner.subtitle}</p>}
+                  {banner.ctaText && banner.ctaLink && (
+                    <Link to={banner.ctaLink} className="animate-slide-up animate-fill-both mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-navy-900 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-ivory-100" style={{ animationDelay: '240ms' }}>
+                      {banner.ctaText} <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -188,24 +223,27 @@ export default function HomePage() {
       </section>
     ) : (
       <section className="relative overflow-hidden bg-navy-950">
-        <div className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-navy-400/10 blur-3xl" />
+        {/* Layered art: radial highlights, gently scales as it scrolls past */}
+        <div ref={heroArtRef} className="absolute inset-0 will-change-transform">
+          <div className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-navy-400/10 blur-3xl" />
+        </div>
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2">
+            <span className="animate-slide-up animate-fill-both inline-flex items-center gap-2">
               <span className="h-px w-8 bg-gold-500" aria-hidden="true" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Pre-Owned · Refurbished · Verified</span>
             </span>
-            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-white md:text-5xl">Premium Phones. Better Value.</h1>
-            <p className="mt-4 text-lg leading-relaxed text-gray-300">Certified used &amp; refurbished phones, honest valuations, and expert repairs — all in one place.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <h1 className="animate-slide-up animate-fill-both mt-5 text-4xl font-extrabold leading-tight text-white md:text-5xl" style={{ animationDelay: '80ms' }}>Premium Phones. Better Value.</h1>
+            <p className="animate-slide-up animate-fill-both mt-4 text-lg leading-relaxed text-gray-300" style={{ animationDelay: '160ms' }}>Certified used &amp; refurbished phones, honest valuations, and expert repairs — all in one place.</p>
+            <div className="animate-slide-up animate-fill-both mt-8 flex flex-wrap gap-3" style={{ animationDelay: '240ms' }}>
               {heroCta('/buy-phones', 'Buy Phones', Smartphone, true)}
               {heroCta('/sell-phone', 'Sell Phone', DollarSign, false)}
               {heroCta('/repair', 'Repair', Wrench, false)}
               {heroCta('/exchange', 'Exchange', ArrowLeftRight, false)}
             </div>
             {repairServices.length > 0 && (
-              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-gray-400">
+              <div className="animate-slide-up animate-fill-both mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-gray-400" style={{ animationDelay: '400ms' }}>
                 <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-400" /> {repairServices.length} repair services</span>
                 {brands.length > 0 && <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-400" /> {brands.length}+ brands supported</span>}
                 {featured.length > 0 && <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-400" /> Certified &amp; quality-checked</span>}
@@ -219,9 +257,11 @@ export default function HomePage() {
 
   const productRail = (products: ProductWithVariant[]) => (
     <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 no-scrollbar sm:grid sm:mx-0 sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-4">
-      {products.slice(0, 8).map(product => (
+      {products.slice(0, 8).map((product, i) => (
         <div key={product.id} className="flex w-[240px] shrink-0 snap-start sm:w-auto">
-          <ProductCard product={product} className="h-full w-full" />
+          <Reveal delay={Math.min(i * 60, 240)} className="h-full w-full">
+            <ProductCard product={product} className="h-full w-full" />
+          </Reveal>
         </div>
       ))}
     </div>
@@ -231,7 +271,7 @@ export default function HomePage() {
     <section className="bg-white py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Handpicked for you" title="Featured Products" subtitle="Quality-checked phones, ready to ship" />
+          <SectionHeading eyebrow="Curated collection" title="Featured Devices" subtitle="Handpicked certified phones, ready to ship" />
           <Link to="/products?isFeatured=true" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All <ChevronRight className="h-4 w-4" />
           </Link>
@@ -250,7 +290,7 @@ export default function HomePage() {
     <section className="bg-gradient-to-b from-white to-ivory-50 py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Just in" title={section?.title || 'New Arrivals'} subtitle={section?.subtitle || 'Freshly stocked certified devices'} />
+          <SectionHeading eyebrow="Just in" title={section?.title || 'New Arrivals'} subtitle={section?.subtitle || 'Freshly arrived certified devices, selected for everyday performance'} />
           <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All <ChevronRight className="h-4 w-4" />
           </Link>
@@ -264,7 +304,7 @@ export default function HomePage() {
     <section className="bg-gradient-to-b from-navy-900/[0.05] via-gray-50/40 to-white py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <SectionHeading eyebrow="Trending now" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Popular picks from our latest collection.'} />
+          <SectionHeading eyebrow="Most loved" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Popular picks from our latest collection.'} />
           <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All Phones <ChevronRight className="h-4 w-4" />
           </Link>
@@ -289,18 +329,20 @@ export default function HomePage() {
         <SectionHeading eyebrow="Brand discovery" title="Popular Brands" subtitle="Certified devices from the brands you trust" />
       </div>
       <div className="mt-9 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible md:grid-cols-6 lg:grid-cols-8">
-        {brands.slice(0, 16).map((brand: any) => (
-          <Link key={brand.id || brand._id} to={`/products?brandId=${brand.id || brand._id}`}
-            className="card-premium group flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-auto sm:p-4">
-            {brand.logo ? (
-              <img src={brand.logo} alt={brand.name} className="h-10 w-10 object-contain transition-transform group-hover:scale-110" />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy-900 text-sm font-bold text-gold-200">
-                {brand.name.charAt(0)}
-              </div>
-            )}
-            <span className="text-xs font-medium text-gray-700">{brand.name}</span>
-          </Link>
+        {brands.slice(0, 16).map((brand: any, i: number) => (
+          <Reveal key={brand.id || brand._id} delay={Math.min(i * 50, 250)} className="snap-start sm:snap-none">
+            <Link to={`/products?brandId=${brand.id || brand._id}`}
+              className="card-premium group flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-auto sm:p-4">
+              {brand.logo ? (
+                <img src={brand.logo} alt={brand.name} className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none" />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy-900 text-sm font-bold text-gold-200">
+                  {brand.name.charAt(0)}
+                </div>
+              )}
+              <span className="text-xs font-medium text-gray-700">{brand.name}</span>
+            </Link>
+          </Reveal>
         ))}
       </div>
     </section>
@@ -315,22 +357,24 @@ export default function HomePage() {
             <SectionHeading eyebrow="Explore" title={section?.title || 'Shop by Category'} subtitle={section?.subtitle || 'Smartphones, tablets, smartwatches and accessories for every need'} />
           </div>
           <div className="mt-9 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {categories.slice(0, 8).map((cat: any) => (
-              <Link key={cat.id || cat._id} to={`/products?categoryId=${cat.id || cat._id}`}
-                className="card-premium group relative overflow-hidden p-6 text-center">
-                <div className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-32 rounded-full bg-navy-900/5 transition-transform group-hover:scale-150" />
-                {cat.image ? (
-                  <img src={cat.image} alt={cat.name} className="mx-auto h-16 w-16 rounded-2xl object-cover transition-transform group-hover:scale-110" />
-                ) : (
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-navy-900 text-2xl font-bold text-gold-200 shadow-sm">
-                    {cat.name.charAt(0)}
-                  </div>
-                )}
-                <h3 className="mt-4 font-semibold text-gray-900">{cat.name}</h3>
-                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-navy-700">
-                  View collection <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                </p>
-              </Link>
+            {categories.slice(0, 8).map((cat: any, i: number) => (
+              <Reveal key={cat.id || cat._id} delay={Math.min(i * 60, 240)}>
+                <Link to={`/products?categoryId=${cat.id || cat._id}`}
+                  className="card-premium group relative block overflow-hidden p-6 text-center">
+                  <div className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-32 rounded-full bg-navy-900/5 transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
+                  {cat.image ? (
+                    <img src={cat.image} alt={cat.name} className="mx-auto h-16 w-16 rounded-2xl object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none" />
+                  ) : (
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-navy-900 text-2xl font-bold text-gold-200 shadow-sm">
+                      {cat.name.charAt(0)}
+                    </div>
+                  )}
+                  <h3 className="mt-4 font-semibold text-gray-900">{cat.name}</h3>
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-navy-700">
+                    View collection <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
+                  </p>
+                </Link>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -344,25 +388,27 @@ export default function HomePage() {
         <SectionHeading eyebrow="Word of mouth" title="What Our Customers Say" subtitle="Real reviews from the OM Cellular community" />
       </div>
       <div className="mt-10 grid gap-6 md:grid-cols-3">
-        {testimonials.slice(0, 6).map(t => (
-          <div key={t.id} className="card-premium p-6">
-            <div className="flex items-center gap-0.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className={`h-4 w-4 ${i < (t.rating || 0) ? 'fill-gold-400 text-gold-400' : 'text-gray-200'}`} />
-              ))}
+        {testimonials.slice(0, 6).map((t, i) => (
+          <Reveal key={t.id} delay={Math.min(i * 60, 240)} className="h-full">
+            <div className="card-premium h-full p-6">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <Star key={j} className={`h-4 w-4 ${j < (t.rating || 0) ? 'fill-gold-400 text-gold-400' : 'text-gray-200'}`} />
+                ))}
+              </div>
+              <p className="mt-4 text-sm text-gray-600 leading-relaxed">&ldquo;{t.comment}&rdquo;</p>
+              <div className="mt-4 flex items-center gap-3 border-t border-ivory-200 pt-4">
+                {t.customerImage ? (
+                  <img src={t.customerImage} alt={t.customerName} className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-gold-200">
+                    {t.customerName.charAt(0)}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-900">{t.customerName}</span>
+              </div>
             </div>
-            <p className="mt-4 text-sm text-gray-600 leading-relaxed">&ldquo;{t.comment}&rdquo;</p>
-            <div className="mt-4 flex items-center gap-3 border-t border-gray-100 pt-4">
-              {t.customerImage ? (
-                <img src={t.customerImage} alt={t.customerName} className="h-9 w-9 rounded-full object-cover" />
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-gold-200">
-                  {t.customerName.charAt(0)}
-                </div>
-              )}
-              <span className="text-sm font-medium text-gray-900">{t.customerName}</span>
-            </div>
-          </div>
+          </Reveal>
         ))}
       </div>
     </section>
@@ -421,7 +467,9 @@ export default function HomePage() {
           if (import.meta.env.DEV) console.warn(`[HomePage] unknown homepage-section type: "${section.type}"`)
           return null
         }
-        return <Fragment key={section.id}>{renderer(section)}</Fragment>
+        // The hero handles its own motion; everything else reveals on scroll.
+        if (section.type === 'banners') return <Fragment key={section.id}>{renderer(section)}</Fragment>
+        return <Reveal key={section.id}>{renderer(section)}</Reveal>
       })
     }
     return null
@@ -443,14 +491,16 @@ export default function HomePage() {
             { icon: Clock, title: 'Upfront Repair Pricing', desc: 'Clear repair charges before we start work, with genuine parts and a service warranty.' },
             { icon: MessageCircle, title: 'One-to-One Support', desc: 'Call, WhatsApp or email us — a real person helps you before and after your order.' },
             { icon: Smartphone, title: 'Flexible Payment Options', desc: 'Pay by cash on delivery or online at checkout, whichever works for you.' },
-          ].map((item) => (
-            <div key={item.title} className="card-premium group p-6">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-navy-900 text-gold-300 transition-transform group-hover:scale-105">
-                <item.icon className="h-5 w-5" />
+          ].map((item, i) => (
+            <Reveal key={item.title} delay={Math.min(i * 60, 240)} className="h-full">
+              <div className="card-premium group h-full p-6">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-navy-900 text-gold-300 transition-transform group-hover:scale-105">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-5 font-bold text-gray-900">{item.title}</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">{item.desc}</p>
               </div>
-              <h3 className="mt-5 font-bold text-gray-900">{item.title}</h3>
-              <p className="mt-2 text-sm text-gray-500 leading-relaxed">{item.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -474,13 +524,14 @@ export default function HomePage() {
       accent: (t as any).accent || 'from-navy-900 to-navy-950',
     }))
     return (
-      <section className="bg-white pb-2 pt-10">
-        <div className="container-custom">
+      <section className="bg-white pb-2">
+        <div className="hairline-champagne" aria-hidden="true" />
+        <div className="container-custom pt-10">
           <div className="grid gap-5 md:grid-cols-2">
             {tiles.map((tile, i) => (
               <Link key={tile.id} to={tile.ctaLink}
-                className={`group relative overflow-hidden rounded-2xl p-7 text-white shadow-card transition-all hover:shadow-elevated ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-navy-900 to-navy-950'}`}>
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] transition-transform group-hover:scale-125" />
+                className={`group relative block overflow-hidden rounded-2xl p-7 text-white shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-elevated ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-navy-900 to-navy-950'}`}>
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
                 {tile.image && (
                   <img src={tile.image} alt={tile.title} className="absolute inset-0 h-full w-full object-cover opacity-25" />
                 )}
@@ -489,7 +540,7 @@ export default function HomePage() {
                   <h2 className="mt-3 text-xl font-extrabold text-white md:text-2xl">{tile.title}</h2>
                   {tile.subtitle && <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/80">{tile.subtitle}</p>}
                   <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-200">
-                    {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" />
                   </span>
                 </div>
               </Link>
@@ -507,8 +558,9 @@ export default function HomePage() {
           <SectionHeading eyebrow="Grab a deal" title="Current Offers" subtitle="Apply the code at checkout — the best discount is applied automatically" />
         </div>
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {coupons.slice(0, 6).map(coupon => (
-            <div key={coupon.id} className="card-premium relative overflow-hidden p-6">
+          {coupons.slice(0, 6).map((coupon, i) => (
+            <Reveal key={coupon.id} delay={Math.min(i * 60, 240)} className="h-full">
+              <div className="card-premium relative h-full overflow-hidden p-6">
               <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/5" />
               <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-3 py-1 text-xs font-bold text-gold-200 shadow-sm">
@@ -540,6 +592,7 @@ export default function HomePage() {
                 Shop now <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -599,29 +652,31 @@ export default function HomePage() {
   const renderServiceCards = () => (
     <section className="container-custom py-14 md:py-20">
       <div className="text-center">
-        <SectionHeading eyebrow="Everything in one place" title="Our Services" subtitle="Buy, sell, repair or exchange — the complete care for your mobile" />
+        <SectionHeading eyebrow="The full care circle" title="Our Services" subtitle="Buy, sell, repair or exchange — end-to-end care for your mobile" />
       </div>
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { key: 'buy', title: 'Buy Phone', desc: 'Certified used & refurbished phones that are quality-checked and delivery-ready.', link: '/buy-phones' },
-          { key: 'sell', title: 'Sell Phone', desc: 'Get the best value for your used phone with quick evaluation and instant pricing.', link: '/sell-phone' },
-          { key: 'repair', title: 'Phone Repair', desc: 'Expert repairs with genuine parts, upfront pricing, and a service warranty.', link: '/repair' },
-          { key: 'exchange', title: 'Exchange Phone', desc: 'Trade in your old phone and walk away with a great deal on your next one.', link: '/exchange' },
-        ].map((service) => {
+          { key: 'buy', title: 'Buy Phone', desc: 'Certified used & refurbished phones — quality-checked, warranty-backed and delivery-ready.', link: '/buy-phones' },
+          { key: 'sell', title: 'Sell Phone', desc: 'Turn your old device into value with an instant quote and doorstep pickup.', link: '/sell-phone' },
+          { key: 'repair', title: 'Phone Repair', desc: 'Professional device service with genuine parts and upfront pricing.', link: '/repair' },
+          { key: 'exchange', title: 'Exchange Phone', desc: 'Upgrade with less upfront cost by trading in your current device.', link: '/exchange' },
+        ].map((service, i) => {
           const style = SERVICE_STYLES[service.key]
           const ServiceIcon = style?.icon ?? Wrench
           return (
-            <Link key={service.key} to={service.link} className={`card-premium group relative overflow-hidden p-6 ${style?.ring || ''}`}>
-              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/[0.04] transition-transform group-hover:scale-125" />
-              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${style?.tile || 'from-navy-800 to-navy-950'}`}>
-                <ServiceIcon className="h-5 w-5" />
-              </div>
-              <h3 className="mt-5 text-lg font-bold text-gray-900">{service.title}</h3>
-              <p className="mt-2 text-sm text-gray-500 leading-relaxed">{service.desc}</p>
-              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700 transition-all group-hover:gap-2.5 group-hover:text-navy-900">
-                Explore <ArrowRight className="h-4 w-4" />
-              </div>
-            </Link>
+            <Reveal key={service.key} delay={Math.min(i * 70, 210)} className="h-full">
+              <Link to={service.link} className={`card-premium group relative block h-full overflow-hidden p-6 ${style?.ring || ''}`}>
+                <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/[0.04] transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none" />
+                <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${style?.tile || 'from-navy-800 to-navy-950'}`}>
+                  <ServiceIcon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-gray-900">{service.title}</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">{service.desc}</p>
+                <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700 transition-all group-hover:gap-2.5 group-hover:text-navy-900">
+                  Explore <ArrowRight className="h-4 w-4" />
+                </div>
+              </Link>
+            </Reveal>
           )
         })}
       </div>
@@ -699,20 +754,22 @@ export default function HomePage() {
       <div className="container-custom">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
-            <SectionHeading eyebrow="Turn old into gold" title="Sell Your Phone in 3 Simple Steps" subtitle="Get the best price for your used phone. Our transparent evaluation process ensures you get a fair deal." />
+            <SectionHeading eyebrow="Turn old into value" title="Sell Your Phone" subtitle="Instant quote, doorstep pickup, and a confirmed price after inspection — a transparent way to part with your device." />
             <div className="mt-8 space-y-6">
               {[
                 { step: '1', title: 'Select Your Device', desc: 'Choose your phone brand, model, and storage variant from our database.' },
                 { step: '2', title: 'Tell Us Its Condition', desc: 'Answer a few questions about your phone condition for an accurate valuation.' },
                 { step: '3', title: 'Get Your Price', desc: 'Receive an instant estimated value. Final price confirmed after physical inspection.' },
-              ].map((item) => (
-                <div key={item.step} className="group flex gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-900 text-sm font-bold text-gold-200 shadow-sm transition-transform group-hover:scale-105">{item.step}</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                    <p className="mt-1 text-sm text-gray-500">{item.desc}</p>
+              ].map((item, i) => (
+                <Reveal key={item.step} delay={i * 80}>
+                  <div className="group flex gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-900 text-sm font-bold text-gold-200 shadow-sm transition-transform group-hover:scale-105 motion-reduce:transition-none">{item.step}</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
+                      <p className="mt-1 text-sm text-gray-500">{item.desc}</p>
+                    </div>
                   </div>
-                </div>
+                </Reveal>
               ))}
             </div>
             <Link to="/sell-phone" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-navy-950">
@@ -738,13 +795,14 @@ export default function HomePage() {
   const renderRepairSection = () => (
     <section className="container-custom py-14 md:py-20">
       <div className="text-center">
-        <SectionHeading eyebrow="Expert care" title="Repair Services" subtitle="Professional repair with genuine parts and warranty" />
+        <SectionHeading eyebrow="Expert care" title="Repair Services" subtitle="Professional device service — genuine parts, upfront pricing and a service warranty" />
       </div>
       <div className="mt-10">
         {repairServices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {repairServices.slice(0, 8).map((service: any, i: number) => (
-              <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 p-4">
+              <Reveal key={service.id || service.name || i} delay={Math.min(i * 60, 240)} className="h-full">
+                <div className="card-premium flex h-full items-center gap-3 p-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-50 text-gold-700">
                   {(() => { const Icon = REPAIR_ICONS[service.name] || Wrench; return <Icon className="h-5 w-5" /> })()}
                 </div>
@@ -755,6 +813,7 @@ export default function HomePage() {
                   )}
                 </div>
               </div>
+              </Reveal>
             ))}
           </div>
         ) : (
@@ -775,19 +834,21 @@ export default function HomePage() {
     <section className="bg-white py-14 md:py-20">
       <div className="container-custom">
         <div className="grid gap-6 md:grid-cols-3">
-          {infoCards.slice(0, 3).map(card => (
-            <div key={card.id} className="card-premium overflow-hidden">
-              {card.image && <img src={card.image} alt={card.title} className="h-44 w-full object-cover transition-transform duration-500 hover:scale-105" />}
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-gray-900">{card.title}</h3>
-                {card.description && <p className="mt-2 text-sm text-gray-600 leading-relaxed">{card.description}</p>}
-                {card.ctaText && card.ctaLink && (
-                  <Link to={card.ctaLink} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-navy-700 hover:text-navy-900">
-                    {card.ctaText} <ArrowRight className="h-4 w-4" />
-                  </Link>
-                )}
+          {infoCards.slice(0, 3).map((card, i) => (
+            <Reveal key={card.id} delay={Math.min(i * 80, 240)} className="h-full">
+              <div className="card-premium group h-full overflow-hidden">
+                {card.image && <img src={card.image} alt={card.title} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none" />}
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-gray-900">{card.title}</h3>
+                  {card.description && <p className="mt-2 text-sm text-gray-600 leading-relaxed">{card.description}</p>}
+                  {card.ctaText && card.ctaLink && (
+                    <Link to={card.ctaLink} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-navy-700 hover:text-navy-900">
+                      {card.ctaText} <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -896,24 +957,26 @@ export default function HomePage() {
     )
   }
 
+  const revealSection = (node: React.ReactNode) => (node ? <Reveal>{node}</Reveal> : null)
+
   return (
     <div>
       {renderHero()}
-      {renderPromoStrip()}
+      {revealSection(renderPromoStrip())}
       {hasCmsSections && renderGatedContent()}
-      {renderServiceCards()}
-      {!gatedHas('featured_products') && renderFeatured()}
-      {renderOffers()}
-      {renderBrands()}
-      {!gatedHas('categories') && renderCategories()}
-      {renderWhyUs()}
-      {!hasCmsSections && renderSellSection()}
-      {!hasCmsSections && renderRepairSection()}
-      {renderDeliveryCta()}
-      {renderInfoCards()}
-      {!gatedHas('testimonials') && renderTestimonials()}
-      {renderFaq()}
-      {renderContact()}
+      {revealSection(renderServiceCards())}
+      {revealSection(!gatedHas('featured_products') && renderFeatured())}
+      {revealSection(renderOffers())}
+      {revealSection(renderBrands())}
+      {revealSection(!gatedHas('categories') && renderCategories())}
+      {revealSection(renderWhyUs())}
+      {revealSection(!hasCmsSections && renderSellSection())}
+      {revealSection(!hasCmsSections && renderRepairSection())}
+      {revealSection(renderDeliveryCta())}
+      {revealSection(renderInfoCards())}
+      {revealSection(!gatedHas('testimonials') && renderTestimonials())}
+      {revealSection(renderFaq())}
+      {revealSection(renderContact())}
     </div>
   )
 }

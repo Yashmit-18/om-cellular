@@ -63,7 +63,7 @@ export default function Footer() {
           </div>
 
           <nav aria-label="Services">
-            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">Services</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Services</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li><Link to="/buy-phones" className="text-gray-400 transition-colors hover:text-white">Buy Phones</Link></li>
               <li><Link to="/sell-phone" className="text-gray-400 transition-colors hover:text-white">Sell Phone</Link></li>
@@ -73,7 +73,7 @@ export default function Footer() {
           </nav>
 
           <nav aria-label="Support">
-            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">Support</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Support</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li><Link to="/faq" className="text-gray-400 transition-colors hover:text-white">FAQ</Link></li>
               <li><Link to="/contact" className="text-gray-400 transition-colors hover:text-white">Contact Us</Link></li>
@@ -83,7 +83,7 @@ export default function Footer() {
           </nav>
 
           <nav aria-label="Account">
-            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">Account</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory-100/70">Account</h4>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li><Link to="/account" className="text-gray-400 transition-colors hover:text-white">My Account</Link></li>
               <li><Link to="/account/orders" className="text-gray-400 transition-colors hover:text-white">My Orders</Link></li>

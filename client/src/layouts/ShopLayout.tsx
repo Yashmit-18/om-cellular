@@ -4,6 +4,7 @@ import { MessageCircle } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
+import ScrollProgress from '../components/layout/ScrollProgress'
 import { settingsService } from '../services/settings.service'
 
 export default function ShopLayout() {
@@ -25,8 +26,9 @@ export default function ShopLayout() {
     }).catch(() => {})
   }, [])
 
-  return (
+return (
     <div className="flex min-h-screen flex-col">
+      <ScrollProgress />
       <Header />
       <main className="flex-1">
         <Outlet />
@@ -36,7 +38,7 @@ export default function ShopLayout() {
           mobile buy bar */}
       {whatsAppUrl && !location.pathname.startsWith('/products/') && (
         <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-elevated ring-4 ring-white/60 transition-all duration-300 hover:bg-emerald-700 md:bottom-6 md:right-6"
+          className="animate-fab-in fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-elevated ring-4 ring-white/70 border border-black/10 transition-colors duration-300 hover:bg-emerald-700 md:bottom-6 md:right-6"
           aria-label="Chat on WhatsApp">
           <MessageCircle className="h-6 w-6" />
         </a>
