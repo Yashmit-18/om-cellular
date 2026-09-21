@@ -39,10 +39,10 @@ export default function RepairTrackPage() {
   }, [searchParams])
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm">
             <Wrench className="h-3.5 w-3.5" /> Repair status
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Track Your Repair</h1>
@@ -88,7 +88,7 @@ export default function RepairTrackPage() {
                 <div><p className="text-gray-500">Service Mode</p><p className="mt-0.5 font-medium capitalize">{result.serviceMode === 'DOORSTEP_PICKUP' ? 'Doorstep Pickup' : 'Store Drop-off'}</p></div>
               </div>
               {result.serviceMode === 'STORE_DROP' && (
-                <p className="rounded-lg bg-brand-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700">Get directions</a></p>
+                <p className="rounded-lg bg-navy-50 p-3 text-xs text-gray-600">Drop-off location: {storeAddressText()}. <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="font-medium text-navy-800">Get directions</a></p>
               )}
               {result.pickupAddress && <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">Pickup address: {result.pickupAddress}</p>}
               {result.statusHistory && result.statusHistory.length > 0 && (

@@ -25,7 +25,7 @@ export default function AccountLayout() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-navy-900 border-t-transparent"></div>
       </div>
     )
   }
@@ -42,7 +42,7 @@ export default function AccountLayout() {
       <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
         <aside className="card h-fit p-4 lg:sticky lg:top-24">
           <div className="mb-4 flex items-center gap-3 border-b border-gray-100 px-2 pb-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-sm shadow-brand-600/25">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-navy-700 to-navy-900 text-sm font-bold text-white shadow-sm shadow-navy-900/25">
               {user.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0">
@@ -58,7 +58,7 @@ export default function AccountLayout() {
                 aria-current={isActive(to) ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive(to)
-                    ? 'bg-brand-50 text-brand-600'
+                    ? 'bg-navy-50 text-navy-700'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >

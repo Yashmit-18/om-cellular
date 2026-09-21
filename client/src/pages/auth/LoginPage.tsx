@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="card p-8">
           <div className="text-center">
-            <Link to="/" className="text-2xl font-bold text-brand-600">OM Cellular</Link>
+            <Link to="/" className="text-2xl font-bold text-navy-700">OM Cellular</Link>
             <h1 className="mt-4 text-xl font-bold text-gray-900">Welcome back</h1>
             <p className="mt-1 text-sm text-gray-500">Sign in with your phone number or email</p>
           </div>
@@ -79,7 +79,7 @@ export default function LoginPage() {
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">Create one</Link>
+            <Link to="/register" className="font-medium text-navy-700 hover:text-navy-800">Create one</Link>
           </p>
         </div>
       </div>

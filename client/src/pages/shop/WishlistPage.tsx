@@ -52,11 +52,11 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm">
               <Heart className="h-3.5 w-3.5" /> Saved for later
             </span>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">My Wishlist ({items.length})</h1>

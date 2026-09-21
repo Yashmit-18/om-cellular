@@ -213,11 +213,11 @@ export default function SellPhonePage() {
   const brandOptions = selectedModel?.storageVariants || []
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/40 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/70 via-white to-white">
       <div className="container-custom py-8 md:py-14">
         {/* Page header */}
         <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/20">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-navy-900 text-white shadow-lg shadow-navy-900/25">
             <DollarSign className="h-8 w-8" />
           </div>
           <h1 className="mt-5 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Sell Your Phone</h1>
@@ -237,20 +237,20 @@ export default function SellPhonePage() {
                     <button
                       onClick={() => n < step && setStep(n)}
                       disabled={n > step}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${n > step ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50'} ${active ? 'bg-brand-50' : ''}`}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${n > step ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50'} ${active ? 'bg-navy-50' : ''}`}
                     >
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors ${done ? 'bg-emerald-500 text-white' : active ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors ${done ? 'bg-emerald-500 text-white' : active ? 'bg-navy-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
                         {done ? <Check className="h-4 w-4" /> : n}
                       </span>
-                      <span className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-600'}`}>{label}</span>
+                      <span className={`text-sm font-medium ${active ? 'text-navy-800' : 'text-gray-600'}`}>{label}</span>
                     </button>
                   </li>
                 )
               })}
             </ol>
 
-            <div className="mt-4 hidden gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 lg:flex">
-              <ShieldCheck className="h-6 w-6 shrink-0 text-brand-600" />
+            <div className="mt-4 hidden gap-3 rounded-2xl border border-navy-100 bg-navy-50/60 p-4 lg:flex">
+              <ShieldCheck className="h-6 w-6 shrink-0 text-navy-700" />
               <p className="text-xs text-gray-600">Your valuation is calculated server-side by our trusted pricing engine.</p>
             </div>
           </aside>
@@ -291,7 +291,7 @@ export default function SellPhonePage() {
                 <div className="mt-5">
                   {brandState === 'loading' && (
                     <div className="flex items-center justify-center gap-3 py-16 text-gray-500">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-navy-900 border-t-transparent" />
                       <span className="text-sm">Loading brands...</span>
                     </div>
                   )}
@@ -325,14 +325,14 @@ export default function SellPhonePage() {
                               key={brand}
                               onClick={() => handleBrandSelect(brand)}
                               disabled={selectingBrand}
-                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm disabled:cursor-wait disabled:opacity-60"
+                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-navy-300 hover:bg-navy-50/50 hover:shadow-sm disabled:cursor-wait disabled:opacity-60"
                             >
                               <span className="flex items-center gap-3">
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">{BRAND_INITIALS[brand] || brand.charAt(0)}</span>
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy-900 text-sm font-bold text-white">{BRAND_INITIALS[brand] || brand.charAt(0)}</span>
                                 <span className="font-medium text-gray-900">{brand}</span>
                               </span>
                               {selectingBrand && selectedBrand === brand ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy-900 border-t-transparent" />
                               ) : (
                                 <ChevronRight className="h-4 w-4 text-gray-300" />
                               )}
@@ -366,7 +366,7 @@ export default function SellPhonePage() {
                 <div className="mt-5">
                   {modelState === 'loading' && (
                     <div className="flex items-center justify-center gap-3 py-16 text-gray-500">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-navy-900 border-t-transparent" />
                       <span className="text-sm">Loading models...</span>
                     </div>
                   )}
@@ -398,12 +398,12 @@ export default function SellPhonePage() {
                             <button
                               key={(model as any).id || (model as any)._id || model.slug}
                               onClick={() => handleModelSelect(model)}
-                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm"
+                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-all hover:border-navy-300 hover:bg-navy-50/50 hover:shadow-sm"
                             >
                               <span className="flex items-center gap-3">
                                 {model.image
                                   ? <img src={model.image} alt={`${model.modelName}`} className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 object-contain" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                                  : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-brand-600"><Smartphone className="h-5 w-5" /></span>}
+                                  : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-navy-700"><Smartphone className="h-5 w-5" /></span>}
                                 <span className="font-medium text-gray-900">{model.modelName}</span>
                               </span>
                               <ChevronRight className="h-4 w-4 text-gray-300" />
@@ -429,14 +429,14 @@ export default function SellPhonePage() {
               <div className="pt-6 space-y-7">
                 {/* Storage variants */}
                 <section>
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900"><Layers className="h-4 w-4 text-brand-600" /> Select storage & RAM variant</h3>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900"><Layers className="h-4 w-4 text-navy-700" /> Select storage & RAM variant</h3>
                   {brandOptions.length > 0 ? (
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {brandOptions.map((v, i) => (
                         <button
                           key={i}
                           onClick={() => handleStorageSelect(v)}
-                          className={`rounded-xl border-2 p-3 text-center transition-all ${selectedStorage?.storage === v.storage && selectedStorage?.ram === v.ram ? 'border-brand-600 bg-brand-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                          className={`rounded-xl border-2 p-3 text-center transition-all ${selectedStorage?.storage === v.storage && selectedStorage?.ram === v.ram ? 'border-navy-900 bg-navy-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
                         >
                           <p className="font-semibold text-gray-900">{v.storage}</p>
                           {v.ram && <p className="mt-0.5 text-xs text-gray-500">{v.ram}</p>}
@@ -450,7 +450,7 @@ export default function SellPhonePage() {
 
                 {/* Condition */}
                 <section>
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900"><CircleCheck className="h-4 w-4 text-brand-600" /> Overall condition</h3>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900"><CircleCheck className="h-4 w-4 text-navy-700" /> Overall condition</h3>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                       { value: 'EXCELLENT', label: 'Excellent', desc: 'Minimal signs of use' },
@@ -461,7 +461,7 @@ export default function SellPhonePage() {
                       <button
                         key={opt.value}
                         onClick={() => setForm({ ...form, condition: opt.value })}
-                        className={`rounded-xl border-2 p-3 text-center transition-all ${form.condition === opt.value ? 'border-brand-600 bg-brand-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`rounded-xl border-2 p-3 text-center transition-all ${form.condition === opt.value ? 'border-navy-900 bg-navy-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
                       >
                         <p className="font-semibold text-gray-900">{opt.label}</p>
                         <p className="mt-0.5 text-[11px] leading-tight text-gray-500">{opt.desc}</p>
@@ -488,7 +488,7 @@ export default function SellPhonePage() {
                     <div className="mt-1 flex gap-4">
                       {[['accessoriesAvailable', 'Accessories'], ['originalBill', 'Original Bill'], ['originalBox', 'Original Box']].map(([key, label]) => (
                         <label key={key} className="flex items-center gap-1.5 text-sm text-gray-700">
-                          <input type="checkbox" checked={Boolean((form as any)[key])} onChange={e => setForm({ ...form, [key]: e.target.checked })} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                          <input type="checkbox" checked={Boolean((form as any)[key])} onChange={e => setForm({ ...form, [key]: e.target.checked })} className="h-4 w-4 rounded border-gray-300 text-navy-700 focus:ring-navy-600" />
                           {label}
                         </label>
                       ))}
@@ -560,15 +560,15 @@ export default function SellPhonePage() {
                 {/* Valuation */}
                 {valuationState === 'loading' && (
                   <div className="flex items-center justify-center gap-3 py-10 text-gray-500">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-navy-900 border-t-transparent" />
                     <span className="text-sm">Calculating estimated value...</span>
                   </div>
                 )}
 
                 {valuationState === 'ready' && estimatedValue !== null && (
-                  <div className="rounded-2xl border-2 border-brand-200 bg-gradient-to-br from-brand-50 to-white p-6 text-center shadow-sm">
+                  <div className="rounded-2xl border-2 border-navy-200 bg-gradient-to-br from-ivory-100 to-white p-6 text-center shadow-sm">
                     <p className="text-sm font-medium text-gray-500">Estimated resale value</p>
-                    <p className="mt-2 text-4xl font-bold tracking-tight text-brand-700">{formatPrice(estimatedValue)}</p>
+                    <p className="mt-2 text-4xl font-bold tracking-tight text-navy-800">{formatPrice(estimatedValue)}</p>
                     <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
                       <Info className="h-3.5 w-3.5" /> Final value may vary after physical inspection
                     </div>
@@ -661,7 +661,7 @@ export default function SellPhonePage() {
                 <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">We’ve received your {selectedBrand} {selectedModel?.modelName} sell request. Our team will evaluate your device and contact you soon.</p>
                 <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-gray-100 bg-gray-50/70 p-5 text-left text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">Request number</span><span className="font-semibold text-gray-900">{requestNumber || 'Assigned on confirmation'}</span></div>
-                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Estimated value</span><span className="font-semibold text-brand-700">{estimatedValue !== null ? formatPrice(estimatedValue) : 'After inspection'}</span></div>
+                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Estimated value</span><span className="font-semibold text-navy-800">{estimatedValue !== null ? formatPrice(estimatedValue) : 'After inspection'}</span></div>
                   <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-semibold text-gray-900">{form.phone}</span></div>
                   {form.alternatePhone && <div className="mt-2 flex justify-between"><span className="text-gray-500">Alternate phone</span><span className="font-semibold text-gray-900">{form.alternatePhone}</span></div>}
                 </div>

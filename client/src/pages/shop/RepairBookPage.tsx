@@ -137,7 +137,7 @@ export default function RepairBookPage() {
   if (loading) {
     return (
       <div className="container-custom py-12">
-        <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-50" />
+        <div className="mx-auto h-14 w-14 rounded-2xl bg-navy-50" />
         <div className="mx-auto mt-4 h-6 w-44 rounded bg-gray-100" />
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4, 5].map(i => (
@@ -173,7 +173,7 @@ export default function RepairBookPage() {
             <div className="mt-3 flex justify-between"><span className="text-gray-500">Service</span><span className="font-medium text-gray-900">{selectedService?.name || 'General Repair'}</span></div>
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Device</span><span className="font-medium text-gray-900">{form.brand} {form.model}</span></div>
             {selectedService?.startingPrice ? (
-              <div className="mt-2 flex justify-between"><span className="text-gray-500">Starting from</span><span className="font-medium text-brand-700">{formatPrice(selectedService.startingPrice)}</span></div>
+              <div className="mt-2 flex justify-between"><span className="text-gray-500">Starting from</span><span className="font-medium text-navy-800">{formatPrice(selectedService.startingPrice)}</span></div>
             ) : null}
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Contact phone</span><span className="font-medium text-gray-900">{form.phone}</span></div>
             {form.alternatePhone && (
@@ -183,7 +183,7 @@ export default function RepairBookPage() {
               <>
                 <div className="mt-2 flex justify-between"><span className="text-gray-500">Service mode</span><span className="font-medium text-gray-900">Home Pickup &amp; Drop</span></div>
                 {pickupFee > 0 && (
-                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Pickup fee</span><span className="font-medium text-brand-700">{formatPrice(pickupFee)}</span></div>
+                  <div className="mt-2 flex justify-between"><span className="text-gray-500">Pickup fee</span><span className="font-medium text-navy-800">{formatPrice(pickupFee)}</span></div>
                 )}
                 {(pickup.addressLine1 || pickup.addressLine2 || pickup.city) && (
                   <div className="mt-2 border-t border-gray-100 pt-2"><span className="text-gray-500">Pickup address</span>
@@ -200,12 +200,12 @@ export default function RepairBookPage() {
           </div>
 
           {serviceMode === 'STORE_DROP' && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl bg-brand-50 p-4 text-left">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-navy-50 p-4 text-left">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
               <div>
                 <p className="text-xs font-medium text-gray-800">Drop your device at our store</p>
                 <p className="mt-0.5 text-xs text-gray-600">{storeAddressText()}</p>
-                <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-navy-800 hover:underline">
                   Get directions <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
@@ -231,7 +231,7 @@ export default function RepairBookPage() {
     return (
       <div className="container-custom py-12 pb-24">
         <div className="mx-auto max-w-3xl">
-          <button onClick={resetBooking} className="mb-4 text-sm font-medium text-brand-600 hover:text-brand-700">&larr; Back to Services</button>
+          <button onClick={resetBooking} className="mb-4 text-sm font-medium text-navy-700 hover:text-navy-800">&larr; Back to Services</button>
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
             <div className="mb-7 flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50"><Wrench className="h-6 w-6 text-amber-600" /></div>
@@ -321,17 +321,17 @@ export default function RepairBookPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">How would you like to service your phone?</label>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'STORE_DROP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'STORE_DROP' ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="serviceMode" checked={serviceMode === 'STORE_DROP'} onChange={() => { setServiceMode('STORE_DROP'); setForm(f => ({ ...f, pickupRequired: false })) }} className="mt-1" />
                     <div>
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="h-4 w-4 text-brand-600" /> Drop at Store</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Store className="h-4 w-4 text-navy-700" /> Drop at Store</p>
                       <p className="mt-0.5 text-xs text-gray-500">Bring your device to our store — no extra fee</p>
                     </div>
                   </label>
-                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'DOORSTEP_PICKUP' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-colors ${serviceMode === 'DOORSTEP_PICKUP' ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="serviceMode" checked={serviceMode === 'DOORSTEP_PICKUP'} onChange={() => { setServiceMode('DOORSTEP_PICKUP'); setForm(f => ({ ...f, pickupRequired: true })) }} className="mt-1" />
                     <div>
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Truck className="h-4 w-4 text-brand-600" /> Pickup &amp; Drop at Home</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><Truck className="h-4 w-4 text-navy-700" /> Pickup &amp; Drop at Home</p>
                       <p className="mt-0.5 text-xs text-gray-500">{pickupFee > 0 ? `We pick up & drop off your device for ${formatPrice(pickupFee)}` : 'We pick up & drop off your device'}</p>
                     </div>
                   </label>
@@ -357,11 +357,11 @@ export default function RepairBookPage() {
                 </div>
               )}
               {serviceMode === 'STORE_DROP' && (
-                <div className="flex items-start gap-2 rounded-lg bg-brand-50 p-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+                <div className="flex items-start gap-2 rounded-lg bg-navy-50 p-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
                   <div>
                     <p className="text-xs font-medium text-gray-800">Drop-off location: {storeAddressText()}</p>
-                    <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                    <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-navy-800 hover:underline">
                       Get directions on Google Maps <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
@@ -380,11 +380,11 @@ export default function RepairBookPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/40 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/70 via-white to-white">
       <div className="container-custom py-12 pb-24">
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
-            <Wrench className="h-7 w-7 text-brand-600" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-50">
+            <Wrench className="h-7 w-7 text-navy-700" />
           </div>
           <h1 className="mt-4 text-3xl font-bold text-gray-900 md:text-4xl">Repair Services</h1>
           <p className="mt-2 text-gray-500">Professional phone repair with genuine parts and warranty</p>
@@ -395,7 +395,7 @@ export default function RepairBookPage() {
             {services.map(service => (
               <div key={service.id} className="card-premium flex flex-col p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50"><Wrench className="h-5 w-5 text-brand-600" /></div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy-50"><Wrench className="h-5 w-5 text-navy-700" /></div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{service.name}</h3>
                     <p className="mt-1 text-sm text-gray-500">{service.description || 'Professional repair service'}</p>
@@ -409,7 +409,7 @@ export default function RepairBookPage() {
                   <div className="flex items-baseline justify-between">
                     <div>
                       <p className="text-xs text-gray-500">{service.startingPrice ? 'Starting from' : 'Diagnosis'}</p>
-                      <p className="text-lg font-bold text-brand-600">{service.startingPrice ? formatPrice(service.startingPrice) : 'Free'}</p>
+                      <p className="text-lg font-bold text-navy-700">{service.startingPrice ? formatPrice(service.startingPrice) : 'Free'}</p>
                     </div>
                     <button onClick={() => handleBookService(service)} className="btn-primary !px-4 !py-2 text-sm">
                       Book Repair <ArrowRight className="ml-1 h-4 w-4" />
@@ -428,7 +428,7 @@ export default function RepairBookPage() {
         )}
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">Can&apos;t find what you&apos;re looking for? <button onClick={goGeneral} className="font-medium text-brand-600 hover:text-brand-700">Book a general repair</button></p>
+          <p className="text-sm text-gray-500">Can&apos;t find what you&apos;re looking for? <button onClick={goGeneral} className="font-medium text-navy-700 hover:text-navy-800">Book a general repair</button></p>
         </div>
       </div>
     </div>

@@ -44,15 +44,15 @@ export default function ContactPage() {
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {settings.business_phone && (
-          <a href={`tel:${settings.business_phone}`} className="card-premium p-6 text-center transition-all hover:border-brand-200">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50"><Phone className="h-6 w-6 text-brand-600" /></div>
+          <a href={`tel:${settings.business_phone}`} className="card-premium p-6 text-center transition-all hover:border-navy-200">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-navy-50"><Phone className="h-6 w-6 text-navy-700" /></div>
             <h3 className="mt-3 font-semibold text-gray-900">Call Us</h3>
             <p className="mt-1 text-sm text-gray-500">{settings.business_phone}</p>
           </a>
         )}
         {settings.business_email && (
-          <a href={`mailto:${settings.business_email}`} className="card-premium p-6 text-center transition-all hover:border-brand-200">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50"><Mail className="h-6 w-6 text-brand-600" /></div>
+          <a href={`mailto:${settings.business_email}`} className="card-premium p-6 text-center transition-all hover:border-navy-200">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-navy-50"><Mail className="h-6 w-6 text-navy-700" /></div>
             <h3 className="mt-3 font-semibold text-gray-900">Email Us</h3>
             <p className="mt-1 text-sm text-gray-500">{settings.business_email}</p>
           </a>
@@ -66,10 +66,10 @@ export default function ContactPage() {
         )}
         {settings.business_address && (
           <div className="card-premium p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50"><MapPin className="h-6 w-6 text-brand-600" /></div>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-navy-50"><MapPin className="h-6 w-6 text-navy-700" /></div>
             <h3 className="mt-3 font-semibold text-gray-900">Visit Us</h3>
             <p className="mt-1 text-sm text-gray-500">{settings.business_address}</p>
-            <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+            <a href={settings.google_maps_link || googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-800">
               Get directions <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -80,7 +80,7 @@ export default function ContactPage() {
       {settings.opening_hours && (
         <div className="mt-8 card p-6 max-w-2xl mx-auto">
           <div className="flex items-center gap-2 text-gray-900">
-            <Clock className="h-5 w-5 text-brand-600" />
+            <Clock className="h-5 w-5 text-navy-700" />
             <h3 className="font-semibold">Business Hours</h3>
           </div>
           <p className="mt-2 text-sm text-gray-600">{settings.opening_hours}</p>

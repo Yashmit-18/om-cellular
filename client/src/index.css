@@ -8,53 +8,63 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    scroll-behavior: smooth;
   }
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-ivory-50 text-gray-900 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply text-gray-900;
+    @apply text-gray-900 tracking-tight;
   }
   /* Touch targets: minimum 44px tap area on interactive controls */
   button, a, [role="button"], select, input[type="checkbox"], input[type="radio"] {
     touch-action: manipulation;
   }
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white;
+    @apply outline-none ring-2 ring-navy-600 ring-offset-2 ring-offset-white;
+  }
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-navy-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-navy-950 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-navy-700 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98];
   }
   .btn-secondary {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-navy-800 shadow-sm transition-all duration-200 hover:border-gray-400 hover:bg-ivory-100 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-navy-600 focus:ring-offset-2 active:scale-[0.98];
   }
   .btn-accent {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-emerald-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 active:scale-[0.98];
   }
   .btn-danger {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg bg-red-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 active:scale-[0.98];
   }
   .btn-ghost {
-    @apply inline-flex min-h-[40px] items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-100;
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-navy-800 transition-all duration-200 hover:bg-navy-50;
   }
   .btn-sm {
     @apply !px-3 !py-1.5 !text-xs !min-h-0;
   }
   .card {
-    @apply rounded-xl border border-gray-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-gray-200 bg-white shadow-card;
   }
   .card-premium {
-    @apply rounded-xl border border-gray-100 bg-white shadow-md transition-all duration-300 hover:shadow-lg hover:border-gray-200;
+    @apply rounded-2xl border border-gray-200/70 bg-white shadow-card transition-all duration-300 hover:border-gray-300 hover:shadow-card-hover;
   }
   .input {
-    @apply block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base shadow-sm transition-all duration-200 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base shadow-sm transition-all duration-200 placeholder:text-gray-400 focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-600/15;
   }
   .input:focus {
-    @apply border-brand-500 ring-2 ring-brand-500/20;
+    @apply border-navy-600 ring-2 ring-navy-600/15;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -62,14 +72,23 @@
   .badge-success { @apply bg-emerald-100 text-emerald-800; }
   .badge-warning { @apply bg-amber-100 text-amber-800; }
   .badge-danger { @apply bg-red-100 text-red-800; }
-  .badge-info { @apply bg-blue-100 text-blue-800; }
+  .badge-info { @apply bg-brand-100 text-brand-800; }
   .badge-neutral { @apply bg-gray-100 text-gray-700; }
-  
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-500;
+  }
+  .eyebrow-gold {
+    @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-600;
+  }
   .section-heading {
-    @apply text-2xl font-bold text-gray-900 md:text-3xl;
+    @apply text-2xl font-bold tracking-tight text-gray-900 md:text-3xl;
+  }
+  .section-heading-lux {
+    @apply text-[1.75rem] font-bold leading-tight tracking-tight text-gray-900 md:text-4xl;
   }
   .section-subheading {
-    @apply mt-2 text-base text-gray-500;
+    @apply mt-3 text-base leading-relaxed text-gray-500;
   }
   .container-custom {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;

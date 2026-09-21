@@ -244,7 +244,7 @@ export default function ProductDetailPage() {
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={cn('shrink-0 overflow-hidden rounded-xl border-2 transition-colors', i === selectedImage ? 'border-brand-600' : 'border-transparent opacity-80 hover:opacity-100')}
+                  className={cn('shrink-0 overflow-hidden rounded-xl border-2 transition-colors', i === selectedImage ? 'border-navy-900' : 'border-transparent opacity-80 hover:opacity-100')}
                   aria-label={`View image ${i + 1}`}
                 >
                   <ProductImage src={img} alt="" className="h-20 w-20 rounded-xl" />
@@ -265,7 +265,7 @@ export default function ProductDetailPage() {
           {selectedVariant && (
             <>
               <div className="mt-4 flex flex-wrap items-baseline gap-3">
-                <span className="text-3xl font-bold text-brand-600">{formatPrice(displayPrice)}</span>
+                <span className="text-3xl font-extrabold tracking-tight text-navy-900 md:text-4xl">{formatPrice(displayPrice)}</span>
                 {selectedVariant.discountPrice && selectedVariant.discountPrice < selectedVariant.price && (
                   <>
                     <span className="text-lg text-gray-400 line-through">{formatPrice(selectedVariant.price)}</span>
@@ -306,7 +306,7 @@ export default function ProductDetailPage() {
                     className={cn(
                       'rounded-xl border-2 px-3.5 py-2 text-left text-sm font-medium transition-all',
                       selectedVariant?.id === variant.id
-                        ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm'
+                        ? 'border-navy-900 bg-navy-50 text-navy-900 shadow-sm'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     )}
                   >
@@ -314,7 +314,7 @@ export default function ProductDetailPage() {
                     <span className="block text-xs font-normal text-gray-500">
                       {[variant.ram, variant.color].filter(Boolean).join(' · ') || variant.name}
                     </span>
-                    <span className="mt-0.5 block text-xs font-semibold text-brand-600">
+                    <span className="mt-0.5 block text-xs font-semibold text-navy-700">
                       {formatPrice(variant.discountPrice ?? variant.price)}
                     </span>
                   </button>
@@ -328,11 +328,11 @@ export default function ProductDetailPage() {
             <div className="mt-6 flex items-center gap-4">
               <h3 className="text-sm font-semibold text-gray-900">Quantity</h3>
               <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-1.5">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50" aria-label="Decrease quantity">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Decrease quantity">
                   <Minus className="h-4 w-4" />
                 </button>
                 <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
-                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50" aria-label="Increase quantity">
+                <button onClick={() => setQuantity(Math.min(selectedVariant.stock, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-navy-50" aria-label="Increase quantity">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
@@ -350,7 +350,7 @@ export default function ProductDetailPage() {
             </button>
             {selectedVariant && selectedVariant.stock > 0 && (
               <button onClick={handleBuyNow} className="btn-secondary flex-1">
-                <Zap className="mr-2 h-4 w-4 text-amber-500" /> Buy Now
+                <Zap className="mr-2 h-4 w-4 text-gold-500" /> Buy Now
               </button>
             )}
             <button
@@ -365,7 +365,7 @@ export default function ProductDetailPage() {
 
           {/* Product details (SKU / condition) */}
           {(selectedVariant?.sku || selectedVariant?.condition || product.condition) && (
-            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm">
+            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-2 rounded-2xl border border-gray-100 bg-ivory-100/70 p-4 text-sm">
               {selectedVariant?.sku && (
                 <div className="flex justify-between gap-3">
                   <dt className="text-gray-500">SKU</dt>
@@ -399,8 +399,8 @@ export default function ProductDetailPage() {
 
           {/* Trust */}
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 text-sm"><Truck className="h-4 w-4 shrink-0 text-brand-500" /> Free Shipping</div>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 text-sm"><Shield className="h-4 w-4 shrink-0 text-brand-500" /> {product.warranty || 'Warranty Included'}</div>
+            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><Truck className="h-4 w-4 shrink-0 text-navy-700" /> Free Shipping</div>
+            <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-ivory-100/70 p-3.5 text-sm"><Shield className="h-4 w-4 shrink-0 text-gold-600" /> {product.warranty || 'Warranty Included'}</div>
           </div>
 
           {/* Description */}
@@ -442,7 +442,7 @@ export default function ProductDetailPage() {
 
           {/* Return Policy */}
           {product.returnPolicy && (
-            <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+            <div className="mt-6 rounded-xl bg-ivory-100 p-4 text-sm text-gray-600">
               <strong>Return Policy:</strong> {product.returnPolicy}
             </div>
           )}
@@ -454,7 +454,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-3">
           <div className="min-w-0">
             <p className="truncate text-xs text-gray-500">{selectedVariant?.name || product.name}</p>
-            <p className="text-lg font-bold text-brand-600">{formatPrice(displayPrice)}</p>
+            <p className="text-lg font-bold text-navy-900">{formatPrice(displayPrice)}</p>
           </div>
           <button
             onClick={handleAddToCart}
@@ -468,7 +468,7 @@ export default function ProductDetailPage() {
             disabled={!selectedVariant || selectedVariant.stock <= 0}
             className="btn-primary min-w-[96px] flex-1 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Zap className="mr-1.5 h-4 w-4 text-amber-300" /> Buy Now
+            <Zap className="mr-1.5 h-4 w-4 text-gold-300" /> Buy Now
           </button>
         </div>
       </div>

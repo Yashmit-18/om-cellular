@@ -37,11 +37,13 @@ export default function ProductImage({ src, alt = '', fallbackSrc, className, im
           src={url}
           alt={alt}
           loading="lazy"
+          decoding="async"
+          draggable={false}
           onError={() => setFailed(true)}
           className={cn('h-full w-full', contain ? 'object-contain' : 'object-cover', imgClassName)}
         />
       ) : (
-        <Smartphone className="h-1/3 w-1/3 text-gray-300" />
+        <Smartphone className="h-1/3 w-1/3 text-gray-400" />
       )}
     </div>
   )

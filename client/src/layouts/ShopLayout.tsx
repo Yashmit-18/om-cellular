@@ -36,7 +36,7 @@ export default function ShopLayout() {
           mobile buy bar */}
       {whatsAppUrl && !location.pathname.startsWith('/products/') && (
         <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all duration-300 hover:bg-emerald-600 hover:shadow-xl hover:scale-110 md:bottom-6 md:right-6"
+          className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-elevated ring-4 ring-white/60 transition-all duration-300 hover:bg-emerald-700 md:bottom-6 md:right-6"
           aria-label="Chat on WhatsApp">
           <MessageCircle className="h-6 w-6" />
         </a>

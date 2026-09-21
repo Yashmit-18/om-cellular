@@ -40,10 +40,10 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm">
             <HelpCircle className="h-3.5 w-3.5" /> Need clarity?
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Frequently Asked Questions</h1>
@@ -81,14 +81,14 @@ export default function FAQPage() {
             {filtered.map(faq => {
               const isOpen = openId === faq.id
               return (
-                <div key={faq.id} className={`card overflow-hidden transition-all ${isOpen ? 'border-brand-200 shadow-md' : ''}`}>
+                <div key={faq.id} className={`card overflow-hidden transition-all ${isOpen ? 'border-navy-200 shadow-md' : ''}`}>
                   <button
                     onClick={() => setOpenId(isOpen ? null : faq.id)}
                     aria-expanded={isOpen}
                     className="flex w-full items-center justify-between p-5 text-left"
                   >
                     <span className="pr-4 text-sm font-semibold text-gray-900">{faq.question}</span>
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${isOpen ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${isOpen ? 'bg-navy-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
                       {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </span>
                   </button>

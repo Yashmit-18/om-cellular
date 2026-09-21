@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import {
   ChevronRight, Star, ArrowRight, Smartphone, DollarSign, Wrench, ArrowLeftRight,
   Phone, Clock, CheckCircle, ChevronDown, ChevronUp, MessageCircle,
-  MapPin, Mail, ExternalLink, ChevronLeft, ShieldCheck, BadgeCheck, Truck, Sparkles,
+  MapPin, Mail, ExternalLink, ChevronLeft, ShieldCheck, BadgeCheck, Truck,
   BadgePercent, Copy, Loader2, Check, TrendingUp,
+  MonitorSmartphone, BatteryCharging, Cable, Gem, Droplets, Camera, Cpu,
   type LucideIcon
 } from 'lucide-react'
 import api from '../../services/api'
@@ -12,25 +13,26 @@ import { formatPrice } from '../../utils'
 import ProductCard from '../../components/shop/ProductCard'
 import type { Banner, ProductWithVariant, Testimonial, FAQ, InformationCard, HomepageSection, PromoCoupon, ServiceabilityCheckResponse } from '../../types'
 
-const REPAIR_ICONS: Record<string, string> = {
-  'Screen Repair': '📱', 'Battery Replacement': '🔋', 'Charging Port': '🔌',
-  'Back Glass': '💎', 'Water Damage': '💧', 'Camera Repair': '📸',
-  'Software Issues': '💻', 'Dead Phone': '🔧',
+const REPAIR_ICONS: Record<string, LucideIcon> = {
+  'Screen Repair': MonitorSmartphone, 'Battery Replacement': BatteryCharging, 'Charging Port': Cable,
+  'Back Glass': Gem, 'Water Damage': Droplets, 'Camera Repair': Camera,
+  'Software Issues': Cpu, 'Dead Phone': BatteryCharging,
 }
 
 const SERVICE_STYLES: Record<string, { icon: LucideIcon, tile: string, ring: string }> = {
-  buy: { icon: Smartphone, tile: 'from-blue-500 to-blue-600', ring: 'hover:shadow-blue-500/20' },
-  sell: { icon: DollarSign, tile: 'from-emerald-500 to-emerald-600', ring: 'hover:shadow-emerald-500/20' },
-  repair: { icon: Wrench, tile: 'from-amber-500 to-orange-600', ring: 'hover:shadow-amber-500/20' },
-  exchange: { icon: ArrowLeftRight, tile: 'from-violet-500 to-purple-600', ring: 'hover:shadow-violet-500/20' },
+  buy: { icon: Smartphone, tile: 'from-navy-800 to-navy-950', ring: 'hover:shadow-navy-900/15' },
+  sell: { icon: DollarSign, tile: 'from-emerald-700 to-emerald-950', ring: 'hover:shadow-emerald-900/15' },
+  repair: { icon: Wrench, tile: 'from-navy-800 to-navy-950', ring: 'hover:shadow-navy-900/15' },
+  exchange: { icon: ArrowLeftRight, tile: 'from-gold-500 to-gold-700', ring: 'hover:shadow-gold-600/25' },
 }
 
 function SectionHeading({ eyebrow, title, subtitle, className = '' }: { eyebrow?: string; title: string; subtitle?: string; className?: string }) {
   return (
     <div className={className}>
       {eyebrow && (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
-          <Sparkles className="h-3.5 w-3.5" /> {eyebrow}
+        <span className="inline-flex items-center gap-2">
+          <span className="h-px w-6 bg-gold-500" aria-hidden="true" />
+          <span className="eyebrow">{eyebrow}</span>
         </span>
       )}
       <h2 className="section-heading mt-3">{title}</h2>
@@ -131,8 +133,8 @@ export default function HomePage() {
 
   const heroCta = (to: string, label: string, Icon: LucideIcon, solid: boolean) => (
     <Link to={to} className={solid
-      ? 'inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-500 hover:shadow-brand-500/30 hover:-translate-y-0.5'
-      : 'inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/20 hover:-translate-y-0.5'}>
+      ? 'inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-navy-900 shadow-lg transition-all hover:bg-ivory-100'
+      : 'inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:border-white/30 hover:bg-white/10'}>
       <Icon className="h-4 w-4" /> {label}
     </Link>
   )
@@ -148,13 +150,14 @@ export default function HomePage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="container-custom">
                   <div className="max-w-xl">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur">
-                      <ShieldCheck className="h-3.5 w-3.5 text-brand-400" /> Certified used &amp; refurbished phones
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-px w-8 bg-gold-500" aria-hidden="true" />
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Pre-Owned · Refurbished · Verified</span>
                     </span>
-                    <h1 className="mt-5 text-3xl font-extrabold text-white md:text-5xl leading-tight">{banner.title}</h1>
-                    {banner.subtitle && <p className="mt-4 text-base text-gray-300 leading-relaxed md:text-lg">{banner.subtitle}</p>}
+                    <h1 className="mt-5 text-3xl font-extrabold leading-tight text-white md:text-5xl">{banner.title}</h1>
+                    {banner.subtitle && <p className="mt-4 text-base leading-relaxed text-gray-300 md:text-lg">{banner.subtitle}</p>}
                     {banner.ctaText && banner.ctaLink && (
-                      <Link to={banner.ctaLink} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition-all hover:bg-brand-500 hover:-translate-y-0.5">
+                      <Link to={banner.ctaLink} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-navy-900 shadow-lg transition-all hover:bg-ivory-100">
                         {banner.ctaText} <ArrowRight className="h-4 w-4" />
                       </Link>
                     )}
@@ -169,7 +172,7 @@ export default function HomePage() {
             <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">
               {banners.map((_, i) => (
                 <button key={i} onClick={() => setCurrentBanner(i)} aria-label={`Go to slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${i === currentBanner ? 'w-8 bg-brand-500' : 'w-1.5 bg-white/40 hover:bg-white/60'}`} />
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === currentBanner ? 'w-8 bg-gold-400' : 'w-1.5 bg-white/40 hover:bg-white/60'}`} />
               ))}
             </div>
             <button onClick={() => advanceBanner(-1)} aria-label="Previous banner"
@@ -185,15 +188,16 @@ export default function HomePage() {
       </section>
     ) : (
       <section className="relative overflow-hidden bg-navy-950">
-        <div className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-brand-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-violet-600/15 blur-3xl" />
+        <div className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-gold-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-navy-400/10 blur-3xl" />
         <div className="container-custom relative py-20 md:py-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur">
-              <ShieldCheck className="h-3.5 w-3.5 text-brand-400" /> Buy · Sell · Repair · Exchange
+            <span className="inline-flex items-center gap-2">
+              <span className="h-px w-8 bg-gold-500" aria-hidden="true" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Pre-Owned · Refurbished · Verified</span>
             </span>
-            <h1 className="mt-5 text-4xl font-extrabold text-white md:text-5xl leading-tight">Your Trusted Mobile Partner</h1>
-            <p className="mt-4 text-lg text-gray-300">Certified used &amp; refurbished phones, honest valuations, and expert repairs — all in one place.</p>
+            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-white md:text-5xl">Premium Phones. Better Value.</h1>
+            <p className="mt-4 text-lg leading-relaxed text-gray-300">Certified used &amp; refurbished phones, honest valuations, and expert repairs — all in one place.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               {heroCta('/buy-phones', 'Buy Phones', Smartphone, true)}
               {heroCta('/sell-phone', 'Sell Phone', DollarSign, false)}
@@ -228,13 +232,13 @@ export default function HomePage() {
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <SectionHeading eyebrow="Handpicked for you" title="Featured Products" subtitle="Quality-checked phones, ready to ship" />
-          <Link to="/products?isFeatured=true" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+          <Link to="/products?isFeatured=true" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
         {productRail(featured)}
         <div className="mt-6 text-center sm:hidden">
-          <Link to="/products" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600">
+          <Link to="/products" className="inline-flex items-center gap-1 text-sm font-medium text-navy-700">
             View All Products <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
@@ -243,11 +247,11 @@ export default function HomePage() {
   )
 
   const renderNewArrivals = (section?: HomepageSection) => newArrivals.length > 0 && (
-    <section className="bg-gradient-to-b from-white to-gray-50/60 py-14 md:py-20">
+    <section className="bg-gradient-to-b from-white to-ivory-50 py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <SectionHeading eyebrow="Just in" title={section?.title || 'New Arrivals'} subtitle={section?.subtitle || 'Freshly stocked certified devices'} />
-          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
@@ -257,11 +261,11 @@ export default function HomePage() {
   )
 
   const renderBestSellers = (section?: HomepageSection) => (
-    <section className="bg-gradient-to-b from-brand-50/60 via-gray-50/40 to-white py-14 md:py-20">
+    <section className="bg-gradient-to-b from-navy-900/[0.05] via-gray-50/40 to-white py-14 md:py-20">
       <div className="container-custom">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <SectionHeading eyebrow="Trending now" title={section?.title || 'Best Sellers'} subtitle={section?.subtitle || 'Popular picks from our latest collection.'} />
-          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+          <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
             View All Phones <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
@@ -287,11 +291,11 @@ export default function HomePage() {
       <div className="mt-9 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible md:grid-cols-6 lg:grid-cols-8">
         {brands.slice(0, 16).map((brand: any) => (
           <Link key={brand.id || brand._id} to={`/products?brandId=${brand.id || brand._id}`}
-            className="card-premium group flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-lg sm:w-auto sm:p-4">
+            className="card-premium group flex w-20 shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-auto sm:p-4">
             {brand.logo ? (
               <img src={brand.logo} alt={brand.name} className="h-10 w-10 object-contain transition-transform group-hover:scale-110" />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 text-sm font-bold text-brand-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy-900 text-sm font-bold text-gold-200">
                 {brand.name.charAt(0)}
               </div>
             )}
@@ -305,7 +309,7 @@ export default function HomePage() {
   const renderCategories = (section?: HomepageSection) => {
     if (categories.length === 0) return null
     return (
-      <section className="bg-gradient-to-b from-white to-gray-50/60 py-14 md:py-20">
+      <section className="bg-gradient-to-b from-white to-ivory-50 py-14 md:py-20">
         <div className="container-custom">
           <div className="text-center">
             <SectionHeading eyebrow="Explore" title={section?.title || 'Shop by Category'} subtitle={section?.subtitle || 'Smartphones, tablets, smartwatches and accessories for every need'} />
@@ -313,17 +317,17 @@ export default function HomePage() {
           <div className="mt-9 grid grid-cols-2 gap-4 md:grid-cols-4">
             {categories.slice(0, 8).map((cat: any) => (
               <Link key={cat.id || cat._id} to={`/products?categoryId=${cat.id || cat._id}`}
-                className="card-premium group relative overflow-hidden p-6 text-center transition-all hover:-translate-y-1 hover:shadow-xl">
-                <div className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-32 rounded-full bg-gradient-to-br from-brand-500/10 to-transparent transition-transform group-hover:scale-150" />
+                className="card-premium group relative overflow-hidden p-6 text-center">
+                <div className="pointer-events-none absolute inset-x-0 -top-16 mx-auto h-32 w-32 rounded-full bg-navy-900/5 transition-transform group-hover:scale-150" />
                 {cat.image ? (
                   <img src={cat.image} alt={cat.name} className="mx-auto h-16 w-16 rounded-2xl object-cover transition-transform group-hover:scale-110" />
                 ) : (
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-2xl font-bold text-white shadow-lg shadow-brand-500/25">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-navy-900 text-2xl font-bold text-gold-200 shadow-sm">
                     {cat.name.charAt(0)}
                   </div>
                 )}
                 <h3 className="mt-4 font-semibold text-gray-900">{cat.name}</h3>
-                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-600">
+                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-navy-700">
                   View collection <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                 </p>
               </Link>
@@ -341,10 +345,10 @@ export default function HomePage() {
       </div>
       <div className="mt-10 grid gap-6 md:grid-cols-3">
         {testimonials.slice(0, 6).map(t => (
-          <div key={t.id} className="card-premium p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div key={t.id} className="card-premium p-6">
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className={`h-4 w-4 ${i < (t.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
+                <Star key={i} className={`h-4 w-4 ${i < (t.rating || 0) ? 'fill-gold-400 text-gold-400' : 'text-gray-200'}`} />
               ))}
             </div>
             <p className="mt-4 text-sm text-gray-600 leading-relaxed">&ldquo;{t.comment}&rdquo;</p>
@@ -352,7 +356,7 @@ export default function HomePage() {
               {t.customerImage ? (
                 <img src={t.customerImage} alt={t.customerName} className="h-9 w-9 rounded-full object-cover" />
               ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-semibold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-gold-200">
                   {t.customerName.charAt(0)}
                 </div>
               )}
@@ -373,7 +377,7 @@ export default function HomePage() {
               <h2 className="section-heading">{section.title}</h2>
               {section.subtitle && <p className="mt-4 text-gray-500 leading-relaxed">{section.subtitle}</p>}
               {section.ctaText && section.ctaLink && (
-                <Link to={section.ctaLink} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-500 hover:-translate-y-0.5">
+                <Link to={section.ctaLink} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-navy-950">
                   {section.ctaText} <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
@@ -440,9 +444,9 @@ export default function HomePage() {
             { icon: MessageCircle, title: 'One-to-One Support', desc: 'Call, WhatsApp or email us — a real person helps you before and after your order.' },
             { icon: Smartphone, title: 'Flexible Payment Options', desc: 'Pay by cash on delivery or online at checkout, whichever works for you.' },
           ].map((item) => (
-            <div key={item.title} className="card-premium group p-6 transition-all hover:-translate-y-1 hover:shadow-lg">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/25 transition-transform group-hover:scale-110">
-                <item.icon className="h-6 w-6" />
+            <div key={item.title} className="card-premium group p-6">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-navy-900 text-gold-300 transition-transform group-hover:scale-105">
+                <item.icon className="h-5 w-5" />
               </div>
               <h3 className="mt-5 font-bold text-gray-900">{item.title}</h3>
               <p className="mt-2 text-sm text-gray-500 leading-relaxed">{item.desc}</p>
@@ -456,9 +460,9 @@ export default function HomePage() {
   const renderPromoStrip = () => {
     const cmsPromos = homepageSections.filter(s => s.type === 'promo_banner')
     const defaults = [
-      { id: 'default-buy', title: 'Certified Used & Refurbished Phones', subtitle: 'Quality-checked devices with warranty, ready to ship across India.', ctaText: 'Shop Phones', ctaLink: '/buy-phones', image: '', accent: 'from-brand-600 via-brand-700 to-brand-800' },
-      { id: 'default-sell', title: 'Trade In or Sell Your Old Phone', subtitle: 'Get an instant estimate, a confirmed price after inspection, and doorstep pickup.', ctaText: 'Sell or Exchange', ctaLink: '/sell-phone', image: '', accent: 'from-violet-600 via-violet-700 to-indigo-800' },
-      { id: 'default-repair', title: 'Expert Phone Repair', subtitle: 'Genuine parts, upfront pricing and a service warranty on every job.', ctaText: 'Book a Repair', ctaLink: '/repair', image: '', accent: 'from-slate-800 via-navy-900 to-navy-950' },
+      { id: 'default-buy', title: 'Certified Used & Refurbished Phones', subtitle: 'Quality-checked devices with warranty, ready to ship across India.', ctaText: 'Shop Phones', ctaLink: '/buy-phones', image: '', accent: 'from-navy-900 to-navy-950' },
+      { id: 'default-sell', title: 'Trade In or Sell Your Old Phone', subtitle: 'Get an instant estimate, a confirmed price after inspection, and doorstep pickup.', ctaText: 'Sell or Exchange', ctaLink: '/sell-phone', image: '', accent: 'from-emerald-900 to-navy-950' },
+      { id: 'default-repair', title: 'Expert Phone Repair', subtitle: 'Genuine parts, upfront pricing and a service warranty on every job.', ctaText: 'Book a Repair', ctaLink: '/repair', image: '', accent: 'from-slate-900 via-navy-900 to-navy-950' },
     ]
     const tiles = (cmsPromos.length > 0 ? cmsPromos : defaults).map((t, i) => ({
       id: t.id || `promo-${i}`,
@@ -467,7 +471,7 @@ export default function HomePage() {
       ctaText: t.ctaText || 'Learn more',
       ctaLink: t.ctaLink || '/products',
       image: (t as any).image || '',
-      accent: (t as any).accent || 'from-brand-600 to-brand-800',
+      accent: (t as any).accent || 'from-navy-900 to-navy-950',
     }))
     return (
       <section className="bg-white pb-2 pt-10">
@@ -475,16 +479,16 @@ export default function HomePage() {
           <div className="grid gap-5 md:grid-cols-2">
             {tiles.map((tile, i) => (
               <Link key={tile.id} to={tile.ctaLink}
-                className={`group relative overflow-hidden rounded-2xl p-7 text-white shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-brand-600 to-brand-800'}`}>
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl transition-transform group-hover:scale-125" />
+                className={`group relative overflow-hidden rounded-2xl p-7 text-white shadow-card transition-all hover:shadow-elevated ${i === 0 ? 'md:col-span-2' : ''} bg-gradient-to-br ${tile.accent || 'from-navy-900 to-navy-950'}`}>
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] transition-transform group-hover:scale-125" />
                 {tile.image && (
                   <img src={tile.image} alt={tile.title} className="absolute inset-0 h-full w-full object-cover opacity-25" />
                 )}
                 <div className="relative">
-                  <BadgePercent className="h-6 w-6 text-white/90" />
-                  <h2 className="mt-3 text-xl font-extrabold md:text-2xl">{tile.title}</h2>
-                  {tile.subtitle && <p className="mt-2 max-w-lg text-sm text-white/85 leading-relaxed">{tile.subtitle}</p>}
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold">
+                  <ShieldCheck className="h-6 w-6 text-gold-300" />
+                  <h2 className="mt-3 text-xl font-extrabold text-white md:text-2xl">{tile.title}</h2>
+                  {tile.subtitle && <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/80">{tile.subtitle}</p>}
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-200">
                     {tile.ctaText} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </div>
@@ -504,10 +508,10 @@ export default function HomePage() {
         </div>
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {coupons.slice(0, 6).map(coupon => (
-            <div key={coupon.id} className="card-premium relative overflow-hidden p-6 transition-all hover:-translate-y-1 hover:shadow-xl">
-              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-brand-500/15 to-transparent" />
+            <div key={coupon.id} className="card-premium relative overflow-hidden p-6">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/5" />
               <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-600 to-violet-600 px-3 py-1 text-xs font-bold text-white shadow-md">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-3 py-1 text-xs font-bold text-gold-200 shadow-sm">
                   <BadgePercent className="h-3.5 w-3.5" /> {coupon.value}{coupon.type === 'PERCENTAGE' ? '% OFF' : ' OFF'}
                 </span>
                 {coupon.expiresAt && (
@@ -516,13 +520,13 @@ export default function HomePage() {
               </div>
               <h3 className="mt-4 text-lg font-bold text-gray-900">{coupon.description || 'Save on your next order'}</h3>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <code className="rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-bold tracking-wider text-brand-700">{coupon.code}</code>
+                <code className="rounded-lg border border-dashed border-navy-300 bg-navy-50 px-3 py-1.5 text-sm font-bold tracking-wider text-navy-800">{coupon.code}</code>
                 <button
                   type="button"
                   onClick={() => {
                     navigator.clipboard?.writeText(coupon.code).then(() => setCopiedCoupon(coupon.id)).catch(() => {})
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-brand-300 hover:text-brand-600"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-navy-300 hover:text-navy-700"
                   aria-label={`Copy code ${coupon.code}`}
                 >
                   {copiedCoupon === coupon.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -532,7 +536,7 @@ export default function HomePage() {
               {(coupon.minOrderAmount ?? 0) > 0 && (
                 <p className="mt-3 text-xs text-gray-400">Min. order {formatPrice(coupon.minOrderAmount!)}{(coupon.maxDiscount ?? 0) > 0 ? ` · up to ${formatPrice(coupon.maxDiscount!)} off` : ''}</p>
               )}
-              <Link to="/products" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-colors hover:text-brand-700">
+              <Link to="/products" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700 transition-colors hover:text-navy-900">
                 Shop now <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -546,11 +550,11 @@ export default function HomePage() {
     if (activeCoupons.length > 0) return renderCouponOffers(activeCoupons)
     if (discountedFeatured.length >= 4) {
       return (
-        <section className="bg-gradient-to-b from-gray-50/60 to-white py-14 md:py-20">
+        <section className="bg-gradient-to-b from-ivory-50 to-white py-14 md:py-20">
           <div className="container-custom">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <SectionHeading eyebrow="Limited-time deals" title="Deals & Offers" subtitle="Certified devices at reduced prices, while stock lasts" />
-              <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+              <Link to="/products" className="hidden items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-900 sm:inline-flex">
                 View All <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
@@ -607,14 +611,14 @@ export default function HomePage() {
           const style = SERVICE_STYLES[service.key]
           const ServiceIcon = style?.icon ?? Wrench
           return (
-            <Link key={service.key} to={service.link} className={`card-premium group relative overflow-hidden p-6 transition-all hover:-translate-y-1 hover:shadow-xl ${style?.ring || ''}`}>
-              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-brand-500/10 to-transparent transition-transform group-hover:scale-125" />
-              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${style?.tile || 'from-brand-500 to-brand-600'}`}>
-                <ServiceIcon className="h-6 w-6" />
+            <Link key={service.key} to={service.link} className={`card-premium group relative overflow-hidden p-6 ${style?.ring || ''}`}>
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-navy-900/[0.04] transition-transform group-hover:scale-125" />
+              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${style?.tile || 'from-navy-800 to-navy-950'}`}>
+                <ServiceIcon className="h-5 w-5" />
               </div>
               <h3 className="mt-5 text-lg font-bold text-gray-900">{service.title}</h3>
               <p className="mt-2 text-sm text-gray-500 leading-relaxed">{service.desc}</p>
-              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-all group-hover:gap-2.5 group-hover:text-brand-700">
+              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700 transition-all group-hover:gap-2.5 group-hover:text-navy-900">
                 Explore <ArrowRight className="h-4 w-4" />
               </div>
             </Link>
@@ -629,20 +633,20 @@ export default function HomePage() {
     const delivery = pinResult?.results?.delivery
     return (
       <section className="container-custom py-4">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 via-brand-700 to-violet-700 px-6 py-12 text-center shadow-xl shadow-brand-600/20 md:px-16 md:py-14">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-violet-400/20 blur-2xl" />
-          <Truck className="mx-auto h-10 w-10 text-white/90" />
+        <div className="relative overflow-hidden rounded-3xl bg-navy-900 px-6 py-12 text-center shadow-elevated md:px-16 md:py-14">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gold-500/[0.07] blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-white/[0.04] blur-2xl" />
+          <Truck className="mx-auto h-10 w-10 text-gold-300" />
           <h2 className="mt-4 text-2xl font-extrabold text-white md:text-3xl">Delivery Right to Your Door</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/85 leading-relaxed md:text-base">
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/80 leading-relaxed md:text-base">
             {freeThreshold > 0
               ? `Every phone is quality-checked, packed securely, and covered by warranty. Enjoy free delivery on orders above ${formatPrice(freeThreshold)}.`
               : 'Every phone is quality-checked, packed securely, and covered by warranty. Order online and track your device every step of the way.'}
           </p>
           <div className="mx-auto mt-7 max-w-md">
             <label htmlFor="pincode-check" className="sr-only">Check delivery PIN code</label>
-            <div className="flex items-center gap-2 rounded-xl bg-white/10 p-2 backdrop-blur ring-1 ring-white/20">
-              <MapPin className="ml-2 h-5 w-5 shrink-0 text-white/80" />
+            <div className="flex items-center gap-2 rounded-2xl bg-white/[0.06] p-2 ring-1 ring-white/15">
+              <MapPin className="ml-2 h-5 w-5 shrink-0 text-gold-300" />
               <input
                 id="pincode-check"
                 type="text"
@@ -659,15 +663,15 @@ export default function HomePage() {
                 type="button"
                 onClick={() => checkPincode(pincode)}
                 disabled={pinStatus === 'loading' || pincode.length !== 6}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-sm font-bold text-brand-700 shadow transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-navy-900 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {pinStatus === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 Check
               </button>
             </div>
             <p role="status" aria-live="polite" className={`mt-3 min-h-5 text-sm font-medium ${
-              pinStatus === 'success' ? 'text-emerald-200'
-              : pinStatus === 'unavailable' || pinStatus === 'error' ? 'text-amber-200'
+              pinStatus === 'success' ? 'text-emerald-300'
+              : pinStatus === 'unavailable' || pinStatus === 'error' ? 'text-amber-300'
               : 'text-white/85'
             }`}>
               {pinStatus === 'loading' && pinHelp.load}
@@ -678,10 +682,10 @@ export default function HomePage() {
             </p>
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/buy-phones" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-brand-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">
+            <Link to="/buy-phones" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-navy-900 shadow-sm transition-all hover:bg-ivory-100">
               <Smartphone className="h-4 w-4" /> Shop Phones
             </Link>
-            <Link to="/contact" className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/20">
+            <Link to="/contact" className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-all hover:bg-white/10">
               <MessageCircle className="h-4 w-4" /> Talk to Us
             </Link>
           </div>
@@ -703,7 +707,7 @@ export default function HomePage() {
                 { step: '3', title: 'Get Your Price', desc: 'Receive an instant estimated value. Final price confirmed after physical inspection.' },
               ].map((item) => (
                 <div key={item.step} className="group flex gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-md shadow-brand-500/20 transition-transform group-hover:scale-110">{item.step}</div>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-900 text-sm font-bold text-gold-200 shadow-sm transition-transform group-hover:scale-105">{item.step}</div>
                   <div>
                     <h4 className="font-semibold text-gray-900">{item.title}</h4>
                     <p className="mt-1 text-sm text-gray-500">{item.desc}</p>
@@ -711,17 +715,17 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <Link to="/sell-phone" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-500 hover:-translate-y-0.5">
+            <Link to="/sell-phone" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-navy-950">
               <DollarSign className="h-4 w-4" /> Sell Your Phone
             </Link>
           </div>
           <div className="hidden lg:block">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500 via-brand-600 to-brand-800 p-12 text-center shadow-xl shadow-brand-600/20">
-              <div className="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-              <DollarSign className="mx-auto h-16 w-16 text-white" />
+            <div className="relative overflow-hidden rounded-3xl bg-navy-900 p-12 text-center shadow-elevated">
+              <div className="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-48 w-48 rounded-full bg-gold-500/[0.1] blur-2xl" />
+              <DollarSign className="mx-auto h-16 w-16 text-gold-300" />
               <h3 className="mt-4 text-xl font-bold text-white">Get Instant Valuation</h3>
-              <p className="mt-2 text-sm text-white/85">Enter your phone details and get an estimated price immediately.</p>
-              <Link to="/sell-phone" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-brand-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">
+              <p className="mt-2 text-sm text-white/80">Enter your phone details and get an estimated price immediately.</p>
+              <Link to="/sell-phone" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-navy-900 shadow-sm transition-all hover:bg-ivory-100">
                 Start Now <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -740,27 +744,27 @@ export default function HomePage() {
         {repairServices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {repairServices.slice(0, 8).map((service: any, i: number) => (
-              <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-orange-100 text-lg shadow-sm">
-                  {REPAIR_ICONS[service.name] || '🔧'}
+              <div key={service.id || service.name || i} className="card-premium flex items-center gap-3 p-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-50 text-gold-700">
+                  {(() => { const Icon = REPAIR_ICONS[service.name] || Wrench; return <Icon className="h-5 w-5" /> })()}
                 </div>
                 <div>
                   <span className="text-sm font-semibold text-gray-900">{service.name}</span>
                   {service.startingPrice != null && (
-                    <p className="text-xs text-gray-500">From <span className="font-semibold text-amber-600">{formatPrice(service.startingPrice)}</span></p>
+                    <p className="text-xs text-gray-500">From <span className="font-semibold text-gold-700">{formatPrice(service.startingPrice)}</span></p>
                   )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
-            No repair services are currently listed. Check back soon or <Link to="/repair" className="font-medium text-brand-600 hover:text-brand-700">contact us</Link> for assistance.
+          <p className="rounded-2xl border border-dashed border-gray-300 bg-ivory-50 p-6 text-center text-sm text-gray-500">
+            No repair services are currently listed. Check back soon or <Link to="/repair" className="font-medium text-navy-700 hover:text-navy-900">contact us</Link> for assistance.
           </p>
         )}
       </div>
       <div className="mt-8 text-center">
-        <Link to="/repair" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:border-brand-300 hover:text-brand-700 hover:shadow-md">
+        <Link to="/repair" className="btn-secondary">
           View All Repair Services <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -772,13 +776,13 @@ export default function HomePage() {
       <div className="container-custom">
         <div className="grid gap-6 md:grid-cols-3">
           {infoCards.slice(0, 3).map(card => (
-            <div key={card.id} className="card-premium overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl">
+            <div key={card.id} className="card-premium overflow-hidden">
               {card.image && <img src={card.image} alt={card.title} className="h-44 w-full object-cover transition-transform duration-500 hover:scale-105" />}
               <div className="p-6">
                 <h3 className="text-lg font-bold text-gray-900">{card.title}</h3>
                 {card.description && <p className="mt-2 text-sm text-gray-600 leading-relaxed">{card.description}</p>}
                 {card.ctaText && card.ctaLink && (
-                  <Link to={card.ctaLink} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700">
+                  <Link to={card.ctaLink} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-navy-700 hover:text-navy-900">
                     {card.ctaText} <ArrowRight className="h-4 w-4" />
                   </Link>
                 )}
@@ -798,10 +802,10 @@ export default function HomePage() {
         </div>
         <div className="mt-10 space-y-3">
           {faqs.slice(0, 6).map((faq, i) => (
-            <div key={faq.id} className={`card overflow-hidden transition-all ${openFaq === i ? 'border-brand-200 shadow-md' : ''}`}>
+            <div key={faq.id} className={`card overflow-hidden transition-all ${openFaq === i ? 'border-navy-200 shadow-card-hover' : ''}`}>
               <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="flex w-full items-center justify-between p-5 text-left" aria-expanded={openFaq === i}>
                 <span className="pr-4 text-sm font-semibold text-gray-900">{faq.question}</span>
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${openFaq === i ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${openFaq === i ? 'bg-navy-900 text-gold-200' : 'bg-gray-100 text-gray-500'}`}>
                   {openFaq === i ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </span>
               </button>
@@ -814,7 +818,7 @@ export default function HomePage() {
           ))}
         </div>
         <div className="mt-6 text-center">
-          <Link to="/faq" className="text-sm font-semibold text-brand-600 hover:text-brand-700">View All FAQs <ArrowRight className="inline h-4 w-4" /></Link>
+          <Link to="/faq" className="text-sm font-semibold text-navy-700 hover:text-navy-900">View All FAQs <ArrowRight className="inline h-4 w-4" /></Link>
         </div>
       </div>
     </section>
@@ -825,31 +829,32 @@ export default function HomePage() {
       <div className="container-custom">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur">
-              <MessageCircle className="h-3.5 w-3.5 text-brand-400" /> We&apos;re here to help
+            <span className="inline-flex items-center gap-2">
+              <span className="h-px w-6 bg-gold-500" aria-hidden="true" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">We&apos;re here to help</span>
             </span>
             <h2 className="mt-4 text-2xl font-extrabold text-white md:text-3xl">Need Help With Your Phone?</h2>
             <p className="mt-4 text-gray-400 leading-relaxed">Whether you want to sell, repair, or buy a phone, our team is here to help. Get in touch with us today.</p>
             <div className="mt-8 space-y-4">
               {settings.business_phone && (
                 <a href={`tel:${settings.business_phone}`} className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10"><Phone className="h-4 w-4 text-brand-400" /></span> {settings.business_phone}
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10"><Phone className="h-4 w-4 text-gold-300" /></span> {settings.business_phone}
                 </a>
               )}
               {settings.business_email && (
                 <a href={`mailto:${settings.business_email}`} className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10"><Mail className="h-4 w-4 text-brand-400" /></span> {settings.business_email}
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10"><Mail className="h-4 w-4 text-gold-300" /></span> {settings.business_email}
                 </a>
               )}
               {settings.business_address && (
                 <div className="flex items-start gap-3 text-gray-300">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10"><MapPin className="mt-0 h-4 w-4 text-brand-400" /></span> {settings.business_address}
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10"><MapPin className="mt-0 h-4 w-4 text-gold-300" /></span> {settings.business_address}
                 </div>
               )}
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
               {settings.business_phone && (
-                <a href={`tel:${settings.business_phone}`} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-500">
+                <a href={`tel:${settings.business_phone}`} className="inline-flex items-center gap-2 rounded-xl bg-gold-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-gold-700">
                   <Phone className="h-4 w-4" /> Call Now
                 </a>
               )}
@@ -872,7 +877,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="rounded-3xl bg-white/5 p-12 text-center backdrop-blur ring-1 ring-white/10">
-                <MapPin className="mx-auto h-12 w-12 text-brand-400" />
+                <MapPin className="mx-auto h-12 w-12 text-gold-300" />
                 <h3 className="mt-4 text-lg font-bold text-white">Visit Our Store</h3>
                 <p className="mt-2 text-sm text-gray-400">Come visit us for in-person service and consultation.</p>
               </div>
@@ -886,7 +891,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-navy-700 border-t-transparent" />
       </div>
     )
   }

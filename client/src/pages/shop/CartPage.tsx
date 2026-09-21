@@ -82,7 +82,7 @@ export default function CartPage() {
       <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Shopping Cart ({getItemCount()} items)</h1>
 
       {refreshing && (
-        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
+        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1.5 text-xs font-medium text-navy-800">
           <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Checking latest prices & stock…
         </div>
       )}
@@ -97,7 +97,7 @@ export default function CartPage() {
               </Link>
               <div className="flex flex-1 flex-col justify-between">
                 <div>
-                  <Link to={`/products/${item.productId}`} className="text-sm font-medium text-gray-900 hover:text-brand-600">
+                  <Link to={`/products/${item.productId}`} className="text-sm font-medium text-gray-900 hover:text-navy-700">
                     {item.name}
                   </Link>
                   <div className="mt-1 flex items-baseline gap-2">
@@ -109,7 +109,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} aria-label="Decrease quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-gray-50">
+                    <button onClick={() => updateQuantity(item.variantId, item.quantity - 1)} aria-label="Decrease quantity" className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-navy-50">
                       <Minus className="h-4 w-4" />
                     </button>
                     <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>

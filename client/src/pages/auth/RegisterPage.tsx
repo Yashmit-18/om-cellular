@@ -58,7 +58,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="card p-8">
           <div className="text-center">
-            <Link to="/" className="text-2xl font-bold text-brand-600">OM Cellular</Link>
+            <Link to="/" className="text-2xl font-bold text-navy-700">OM Cellular</Link>
             <h1 className="mt-4 text-xl font-bold text-gray-900">Create account</h1>
             <p className="mt-1 text-sm text-gray-500">Join us today</p>
           </div>
@@ -107,7 +107,7 @@ export default function RegisterPage() {
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">Sign in</Link>
+            <Link to="/login" className="font-medium text-navy-700 hover:text-navy-800">Sign in</Link>
           </p>
         </div>
       </div>

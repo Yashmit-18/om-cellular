@@ -37,10 +37,10 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm">
             <SearchIcon className="h-3.5 w-3.5" /> Find your phone
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Search Products</h1>
@@ -55,7 +55,7 @@ export default function SearchPage() {
 
         {query && !loading && !error && (
           <div className="mt-8 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
               <History className="h-3 w-3" /> {results.length} result{results.length === 1 ? '' : 's'} for “{query}”
             </span>
             <button

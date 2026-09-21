@@ -79,7 +79,7 @@ export default function ProductsPage() {
         <div className="mt-3 space-y-1">
           <button
             onClick={() => updateFilter('categoryId', '')}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
           >
             <span>All Categories</span>
           </button>
@@ -87,11 +87,11 @@ export default function ProductsPage() {
             <button
               key={cat.id}
               onClick={() => updateFilter('categoryId', cat.id)}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
             >
               <span>{cat.name}</span>
               {typeof cat._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{cat._count.products}</span>
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>{cat._count.products}</span>
               )}
             </button>
           ))}
@@ -102,7 +102,7 @@ export default function ProductsPage() {
         <div className="mt-3 space-y-1">
           <button
             onClick={() => updateFilter('brandId', '')}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
           >
             <span>All Brands</span>
           </button>
@@ -110,11 +110,11 @@ export default function ProductsPage() {
             <button
               key={brand.id}
               onClick={() => updateFilter('brandId', brand.id)}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
             >
               <span>{brand.name}</span>
               {typeof brand._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>{brand._count.products}</span>
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>{brand._count.products}</span>
               )}
             </button>
           ))}
@@ -124,11 +124,11 @@ export default function ProductsPage() {
   )
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 md:py-12">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600"><Grid className="h-3.5 w-3.5" /> Catalog</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm"><Grid className="h-3.5 w-3.5" /> Catalog</span>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">All Products</h1>
           {pagination ? (
             <p className="mt-1.5 text-sm text-gray-500">{pagination.total} certified product{pagination.total === 1 ? '' : 's'} found</p>
@@ -263,7 +263,7 @@ export default function ProductsPage() {
                       <button
                         key={page}
                         onClick={() => updateFilter('page', String(page))}
-                        className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-brand-600 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
+                        className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                       >
                         {page}
                       </button>

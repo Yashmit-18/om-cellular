@@ -128,7 +128,7 @@ export default function BuyPhonesPage() {
             type="button"
             onClick={() => updateFilter('categoryId', '')}
             aria-pressed={!currentCategory}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentCategory ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
           >
             <span>All Categories</span>
           </button>
@@ -138,11 +138,11 @@ export default function BuyPhonesPage() {
               type="button"
               onClick={() => updateFilter('categoryId', cat.id)}
               aria-pressed={currentCategory === cat.id}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentCategory === cat.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
             >
               <span>{cat.name}</span>
               {typeof cat._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentCategory === cat.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>
                   {cat._count.products}
                 </span>
               )}
@@ -157,7 +157,7 @@ export default function BuyPhonesPage() {
             type="button"
             onClick={() => updateFilter('brandId', '')}
             aria-pressed={!currentBrand}
-            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+            className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', !currentBrand ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
           >
             <span>All Brands</span>
           </button>
@@ -167,11 +167,11 @@ export default function BuyPhonesPage() {
               type="button"
               onClick={() => updateFilter('brandId', brand.id)}
               aria-pressed={currentBrand === brand.id}
-              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-brand-50 font-medium text-brand-700' : 'text-gray-600 hover:bg-gray-50')}
+              className={cn('flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors', currentBrand === brand.id ? 'bg-navy-50 font-medium text-navy-800' : 'text-gray-600 hover:bg-gray-50')}
             >
               <span>{brand.name}</span>
               {typeof brand._count?.products === 'number' && (
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500')}>
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium', currentBrand === brand.id ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-500')}>
                   {brand._count.products}
                 </span>
               )}
@@ -183,7 +183,7 @@ export default function BuyPhonesPage() {
   )
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-8 md:py-12 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -192,7 +192,7 @@ export default function BuyPhonesPage() {
               {pagination ? `${pagination.total} certified phone${pagination.total === 1 ? '' : 's'} available` : 'Certified used & refurbished phones from the brands you trust'}
             </p>
           </div>
-          <Link to="/sell-phone" className="hidden items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 sm:inline-flex">
+          <Link to="/sell-phone" className="hidden items-center gap-1.5 text-sm font-medium text-navy-700 hover:text-navy-800 sm:inline-flex">
             Want to sell your phone? <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -238,17 +238,17 @@ export default function BuyPhonesPage() {
         {hasActiveFilters && (
           <div className="mt-4 flex flex-wrap gap-2">
             {currentCategory && (
-              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('categoryId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
                 {categories.find(c => c.id === currentCategory)?.name || 'Category'} <X className="h-3 w-3" />
               </button>
             )}
             {currentBrand && (
-              <button onClick={() => updateFilter('brandId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('brandId', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
                 {brands.find(b => b.id === currentBrand)?.name || 'Brand'} <X className="h-3 w-3" />
               </button>
             )}
             {currentQuery && (
-              <button onClick={() => updateFilter('q', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+              <button onClick={() => updateFilter('q', '')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-800">
                 “{currentQuery}” <X className="h-3 w-3" />
               </button>
             )}
@@ -339,7 +339,7 @@ export default function BuyPhonesPage() {
                         <button
                           key={page}
                           onClick={() => updateFilter('page', String(page))}
-                          className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-brand-600 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
+                          className={cn('h-10 w-10 cursor-pointer rounded-xl text-sm font-medium transition-colors', isCurrent ? 'bg-navy-900 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50')}
                         >
                           {page}
                         </button>

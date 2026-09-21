@@ -90,7 +90,7 @@ export default function ExchangePage() {
 
   if (success) {
     return (
-      <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+      <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
         <div className="container-custom py-16">
         <div className="mx-auto max-w-xl text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-sm shadow-emerald-600/20">
@@ -98,9 +98,9 @@ export default function ExchangePage() {
           </div>
           <h1 className="mt-5 text-2xl font-bold text-gray-900">Exchange request submitted!</h1>
           <p className="mt-2 text-gray-500">Our team will evaluate your {selectedBrand} {selectedModel?.modelName} and get back to you with the best trade-in value.</p>
-          <div className="mt-6 rounded-2xl border border-brand-100 bg-brand-50/40 p-6 text-left text-sm">
+          <div className="mt-6 rounded-2xl border border-navy-100 bg-navy-50/40 p-6 text-left text-sm">
             {requestNumber && (
-              <div className="flex justify-between border-b border-brand-100/60 pb-3"><span className="text-gray-500">Reference number</span><span className="font-bold text-brand-700">{requestNumber}</span></div>
+              <div className="flex justify-between border-b border-navy-100/60 pb-3"><span className="text-gray-500">Reference number</span><span className="font-bold text-navy-800">{requestNumber}</span></div>
             )}
             <div className="mt-3 flex justify-between"><span className="text-gray-500">Trade-in device</span><span className="font-medium text-gray-900">{selectedBrand} {selectedModel?.modelName}</span></div>
             <div className="mt-2 flex justify-between"><span className="text-gray-500">Condition</span><span className="font-medium text-gray-900 capitalize">{form.oldCondition.toLowerCase()}</span></div>
@@ -118,11 +118,11 @@ export default function ExchangePage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-brand-50/30 via-white to-white">
+    <div className="bg-gradient-to-b from-ivory-100/60 via-white to-white">
       <div className="container-custom py-12 pb-28">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-navy-800 shadow-sm">
             <ArrowRightLeft className="h-3.5 w-3.5" /> Trade-in
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Exchange Your Phone</h1>
@@ -149,7 +149,7 @@ export default function ExchangePage() {
                     <div className="max-h-48 overflow-y-auto">
                       {filteredBrands.length > 0 ? filteredBrands.map(b => (
                         <button key={b} type="button" onClick={() => handleBrandSelect(b)} className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-600">{b.charAt(0)}</div>{b}
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-50 text-xs font-bold text-navy-700">{b.charAt(0)}</div>{b}
                         </button>
                       )) : (
                         <p className="px-3 py-3 text-xs text-gray-500">No brands found</p>

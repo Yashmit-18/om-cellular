@@ -92,37 +92,38 @@ export default function Header() {
         <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-2">
             <Link to="/" className="group flex shrink-0 items-center gap-2" aria-label="OM Cellular home">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-base font-black text-white shadow-sm shadow-brand-600/30 transition-transform group-hover:scale-105">OM</span>
-              <span className="hidden text-lg font-bold tracking-tight text-brand-700 sm:inline">OM Cellular</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy-900 text-base font-black tracking-tight text-gold-300 shadow-sm transition-transform group-hover:scale-105">OM</span>
+              <span className="hidden text-lg font-bold tracking-tight text-navy-900 sm:inline">OM Cellular</span>
             </Link>
 
-            <nav className="hidden items-center gap-0.5 md:flex">
+            <nav className="hidden items-center gap-1 md:flex">
               {navLinks.map(link => (
                 <Link
                   key={link.to}
                   to={link.to}
                   aria-current={isNavActive(link.to) ? 'page' : undefined}
-                  className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`relative px-3 py-2 text-sm font-medium transition-colors ${
                     isNavActive(link.to)
-                      ? 'text-brand-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'text-navy-900'
+                      : 'text-gray-600 hover:text-navy-900'
                   }`}
                 >
                   {link.label}
-                  {isNavActive(link.to) && (
-                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-brand-600" aria-hidden="true" />
-                  )}
+                  <span
+                    className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gold-500 transition-opacity ${isNavActive(link.to) ? 'opacity-100' : 'opacity-0 hover:opacity-60'}`}
+                    aria-hidden="true"
+                  />
                 </Link>
               ))}
             </nav>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <SearchPanel />
 
-              <Link to="/cart" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="Cart">
+              <Link to="/cart" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label="Cart">
                 <ShoppingCart className="h-5 w-5" />
                 {getItemCount() > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                  <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[10px] font-bold text-gold-200">
                     {getItemCount()}
                   </span>
                 )}
@@ -130,7 +131,7 @@ export default function Header() {
 
               {user && (
                 <div className="relative" ref={notifRef}>
-                  <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-gray-100" aria-label="Notifications">
+                  <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label="Notifications">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
                       <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
@@ -139,19 +140,19 @@ export default function Header() {
                     )}
                   </button>
                   {notifOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-xl border border-gray-200 bg-white shadow-lg">
+                    <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-2xl border border-gray-200 bg-white shadow-elevated">
                       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
                         <p className="text-sm font-semibold text-gray-900">Notifications</p>
                         {unreadCount > 0 && (
-                          <button onClick={handleMarkAllRead} className="text-xs font-medium text-brand-600 hover:underline">Mark all read</button>
+                          <button onClick={handleMarkAllRead} className="text-xs font-medium text-navy-700 hover:text-navy-900">Mark all read</button>
                         )}
                       </div>
                       <div className="max-h-72 overflow-y-auto">
                         {notifications.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</p>}
                         {notifications.map(n => (
                           <button key={n._id || n.id} onClick={() => handleMarkRead(n._id || n.id)}
-                            className={`flex w-full gap-2 border-b border-gray-50 px-4 py-3 text-left hover:bg-gray-50 ${!n.isRead ? 'bg-brand-50/50' : ''}`}>
-                            <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!n.isRead ? 'bg-brand-600' : 'bg-gray-200'}`} />
+                            className={`flex w-full gap-2 border-b border-gray-50 px-4 py-3 text-left hover:bg-navy-50/60 ${!n.isRead ? 'bg-navy-50/50' : ''}`}>
+                            <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!n.isRead ? 'bg-gold-500' : 'bg-gray-200'}`} />
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-medium text-gray-900">{n.title}</span>
                               <span className="block truncate text-xs text-gray-500">{n.message}</span>
@@ -160,7 +161,7 @@ export default function Header() {
                           </button>
                         ))}
                       </div>
-                      <Link to="/account/notifications" onClick={() => setNotifOpen(false)} className="block border-t border-gray-100 py-2.5 text-center text-sm font-medium text-brand-600 hover:bg-gray-50">
+                      <Link to="/account/notifications" onClick={() => setNotifOpen(false)} className="block border-t border-gray-100 py-2.5 text-center text-sm font-medium text-navy-700 hover:bg-navy-50/60">
                         View all notifications
                       </Link>
                     </div>
@@ -177,8 +178,8 @@ export default function Header() {
               {user ? (
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 rounded-full px-2 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-xs font-semibold text-white">
+                    className="flex items-center gap-2 rounded-full px-2 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-navy-50">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 text-xs font-semibold text-gold-200">
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <ChevronDown className="hidden h-4 w-4 sm:inline" />
@@ -186,24 +187,24 @@ export default function Header() {
                   {userMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                      <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                      <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-2xl border border-gray-200 bg-white py-1 shadow-elevated">
                         <div className="border-b border-gray-100 px-4 py-3">
                           <p className="truncate text-sm font-medium text-gray-900">{user.name}</p>
                           <p className="truncate text-xs text-gray-500">{user.email}</p>
                         </div>
-                        <Link to="/account" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setUserMenuOpen(false)}>My Account</Link>
-                        <Link to="/account/orders" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setUserMenuOpen(false)}>My Orders</Link>
-                        <Link to="/account/sell-requests" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setUserMenuOpen(false)}>Sell Requests</Link>
-                        <Link to="/account/repairs" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setUserMenuOpen(false)}>My Repairs</Link>
+                        <Link to="/account" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-navy-50/60" onClick={() => setUserMenuOpen(false)}>My Account</Link>
+                        <Link to="/account/orders" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-navy-50/60" onClick={() => setUserMenuOpen(false)}>My Orders</Link>
+                        <Link to="/account/sell-requests" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-navy-50/60" onClick={() => setUserMenuOpen(false)}>Sell Requests</Link>
+                        <Link to="/account/repairs" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-navy-50/60" onClick={() => setUserMenuOpen(false)}>My Repairs</Link>
                         {user.role === 'ADMIN' && (
                           <>
                             <div className="my-1 border-t border-gray-100" />
-                            <Link to="/admin" className="block px-4 py-2.5 text-sm font-medium text-brand-600 hover:bg-gray-50" onClick={() => setUserMenuOpen(false)}>Admin Panel</Link>
+                            <Link to="/admin" className="block px-4 py-2.5 text-sm font-medium text-navy-700 hover:bg-navy-50/60" onClick={() => setUserMenuOpen(false)}>Admin Panel</Link>
                           </>
                         )}
                         <div className="my-1 border-t border-gray-100" />
                         <button onClick={() => { logout(); setUserMenuOpen(false); navigate('/'); }}
-                          className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50">Logout</button>
+                          className="w-full px-4 py-2.5 text-left text-sm text-red-700 hover:bg-red-50">Logout</button>
                       </div>
                     </>
                   )}
@@ -219,7 +220,7 @@ export default function Header() {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white pb-safe md:hidden" aria-label="Main navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 pb-safe backdrop-blur md:hidden" aria-label="Main navigation">
         <div className="flex items-stretch justify-around">
           {mobileNav.map(item => {
             const active = item.to === '/' ? location.pathname === '/' : item.to === '/buy-phones'
@@ -228,9 +229,9 @@ export default function Header() {
             const Icon = item.icon
             return (
               <Link key={item.to} to={item.to}
-                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${active ? 'text-brand-600' : 'text-gray-500'}`}>
-                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active ? 'bg-brand-50' : ''}`}>
-                  <Icon className={`h-[22px] w-[22px] ${active ? 'text-brand-600' : 'text-gray-400'}`} />
+                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${active ? 'text-navy-900' : 'text-gray-500'}`}>
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${active ? 'bg-navy-50' : ''}`}>
+                  <Icon className={`h-[22px] w-[22px] ${active ? 'text-navy-900' : 'text-gray-400'}`} />
                 </span>
                 <span className={active ? 'font-semibold' : ''}>{item.label}</span>
               </Link>

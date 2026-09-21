@@ -173,7 +173,7 @@ export default function SearchPanel() {
         ref={triggerRef}
         aria-label="Search"
         onClick={() => setOpen(true)}
-        className="flex h-11 min-w-[44px] items-center justify-center rounded-full px-3 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+        className="flex h-11 min-w-[44px] items-center justify-center rounded-full px-3 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900"
       >
         <Search className="h-5 w-5" />
       </button>
@@ -212,7 +212,7 @@ export default function SearchPanel() {
                   <div className="flex flex-wrap gap-2 px-2">
                     {popular.map(b => (
                       <button key={b} onClick={() => pickBrand(b)}
-                        className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700">
+                        className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-navy-300 hover:bg-navy-50 hover:text-navy-800">
                         {b}
                       </button>
                     ))}
@@ -235,7 +235,7 @@ export default function SearchPanel() {
                     {models.map((m, i) => (
                       <button key={m.id + m.modelName} onClick={() => openModel(m)}
                         onMouseEnter={() => setActiveIndex(i)}
-                        className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === i ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
+                        className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === i ? 'bg-navy-50' : 'hover:bg-gray-50'}`}>
                         {m.image
                           ? <img src={m.image} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                           : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100"><Smartphone className="h-4 w-4 text-gray-400" /></div>}
@@ -258,7 +258,7 @@ export default function SearchPanel() {
                       return (
                         <button key={p.id + p.name} onClick={() => openProduct(p)}
                           onMouseEnter={() => setActiveIndex(idx)}
-                          className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === idx ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
+                          className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left ${activeIndex === idx ? 'bg-navy-50' : 'hover:bg-gray-50'}`}>
                           <ProductImage src={p.image || ''} alt={p.name} className="h-9 w-9 shrink-0 overflow-hidden rounded-lg" imgClassName="h-full w-full object-contain" />
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{p.name}</p>
                         </button>

@@ -335,7 +335,7 @@ export default function CheckoutPage() {
 
       {!user ? (
         <div className="mt-6 card p-8 text-center">
-          <ShieldCheck className="mx-auto h-10 w-10 text-brand-500" />
+          <ShieldCheck className="mx-auto h-10 w-10 text-navy-700" />
           <h2 className="mt-3 text-lg font-bold text-gray-900">Login to continue checkout</h2>
           <p className="mt-1 text-sm text-gray-500">You need to be logged in to place an order. Your cart is saved.</p>
           <div className="mt-5 flex justify-center gap-3">
@@ -361,7 +361,7 @@ export default function CheckoutPage() {
                       <label
                         key={addrId}
                         className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-colors ${
-                          selectedAddressId === addrId ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                          selectedAddressId === addrId ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         <input type="radio" name="address" checked={selectedAddressId === addrId} onChange={() => selectSavedAddress(addr)} className="mt-1" />
@@ -377,7 +377,7 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedAddressId('')}
-                      className={`text-sm font-medium ${selectedAddressId === '' ? 'text-brand-700 underline' : 'text-brand-600 hover:text-brand-700'}`}
+                      className={`text-sm font-medium ${selectedAddressId === '' ? 'text-navy-800 underline' : 'text-navy-700 hover:text-navy-800'}`}
                     >
                       + Add a new address
                     </button>
@@ -450,9 +450,9 @@ export default function CheckoutPage() {
                 )}
 
                 {showNotifyForm && (
-                  <div className="mt-3 rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+                  <div className="mt-3 rounded-xl border border-navy-200 bg-navy-50/50 p-4">
                     <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                      <BellRing className="h-4 w-4 text-brand-600" /> Notify me when delivery is available
+                      <BellRing className="h-4 w-4 text-navy-700" /> Notify me when delivery is available
                     </h3>
                     <p className="mt-1 text-xs text-gray-600">We will contact you as soon as delivery reaches your PIN code.</p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -480,7 +480,7 @@ export default function CheckoutPage() {
               </h2>
               <div className="mt-4 space-y-3">
                 <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
-                  paymentMethod === 'cod' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                  paymentMethod === 'cod' ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
                   <Banknote className="h-5 w-5 text-gray-500" />
@@ -493,7 +493,7 @@ export default function CheckoutPage() {
                 {onlinePaymentEnabled && (
                   <>
                     <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
-                      paymentMethod === 'upi' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                      paymentMethod === 'upi' ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'
                     }`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} />
                       <QrCode className="h-5 w-5 text-gray-500" />
@@ -504,7 +504,7 @@ export default function CheckoutPage() {
                     </label>
 
                     <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-colors ${
-                      paymentMethod === 'netbanking' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                      paymentMethod === 'netbanking' ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'
                     }`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'netbanking'} onChange={() => setPaymentMethod('netbanking')} />
                       <Building2 className="h-5 w-5 text-gray-500" />
@@ -520,7 +520,7 @@ export default function CheckoutPage() {
               {onlinePaymentEnabled && paymentMethod !== 'cod' && (
                 <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50/70 p-5">
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                    <Wallet className="h-4 w-4 text-brand-600" /> Secure {paymentMethod.toUpperCase()} Payment
+                    <Wallet className="h-4 w-4 text-navy-700" /> Secure {paymentMethod.toUpperCase()} Payment
                   </h3>
                   <p className="mt-2 text-sm text-gray-600">
                     You will be redirected to a secure payment page to pay <span className="font-semibold text-gray-900">{formatPrice(total)}</span>.
@@ -559,7 +559,7 @@ export default function CheckoutPage() {
                 <Truck className="h-5 w-5" /> Visit Our Store
               </h2>
               <p className="mt-2 text-sm text-gray-600">{storeAddressText()}</p>
-              <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+              <a href={googleMapsSearchUrl()} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-navy-700 hover:text-navy-800">
                 Get directions on Google Maps <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
