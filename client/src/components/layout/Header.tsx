@@ -109,7 +109,7 @@ export default function Header() {
               <span className="hidden text-lg font-bold tracking-tight text-navy-900 sm:inline">OM Cellular</span>
             </Link>
 
-            <nav className="hidden items-center gap-1 md:flex">
+            <nav className="hidden items-center gap-1 lg:flex">
               {navLinks.map(link => (
                 <Link
                   key={link.to}
@@ -252,7 +252,7 @@ export default function Header() {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 pb-safe backdrop-blur md:hidden" aria-label="Main navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 pb-safe backdrop-blur lg:hidden" aria-label="Main navigation">
         <div className="flex items-stretch justify-around">
           {mobileNav.map(item => {
             const active = item.to === '/' ? location.pathname === '/' : item.to === '/buy-phones'
