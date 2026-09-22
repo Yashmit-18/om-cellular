@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { evaluateServiceability, ServiceAreaMatchInput } from '../src/services/serviceabilityLogic'
+import { validateArea } from '../src/routes/serviceability'
 
 const cityArea: ServiceAreaMatchInput = {
   city: 'Bengaluru',
@@ -62,4 +63,19 @@ test('serviceability: area counts and service gating work across multiple areas'
 test('serviceability: empty or missing pincode never matches a configured store', () => {
   assert.equal(evaluateServiceability([cityArea], '', 'delivery').serviceable, false)
   assert.equal(evaluateServiceability([cityArea], undefined as unknown as string, 'delivery').serviceable, false)
+})
+
+test('service area validation accepts a real six-digit PIN list', () => {
+  assert.equal(validateArea({ city: 'Kota', state: 'Rajasthan', pinCodes: ['324001', '324002'] }), null)
+})
+
+test('service area validation rejects missing city/state/PINs', () => {
+  assert.equal(validateArea({ state: 'Rajasthan', pinCodes: ['324001'] }), 'City is required')
+  assert.equal(validateArea({ city: 'Kota', pinCodes: ['324001'] }), 'State is required')
+  assert.equal(validateArea({ city: 'Kota', state: 'Rajasthan', pinCodes: [] }), 'At least one PIN code is required')
+})
+
+test('service area validation rejects malformed PINs', () => {
+  assert.equal(validateArea({ city: 'Kota', state: 'Rajasthan', pinCodes: ['3240'] }), 'Each PIN code must be a valid 6-digit number')
+  assert.equal(validateArea({ city: 'Kota', state: 'Rajasthan', pinCodes: ['ABC123'] }), 'Each PIN code must be a valid 6-digit number')
 })

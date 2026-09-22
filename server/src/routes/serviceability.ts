@@ -1,10 +1,12 @@
 import { Router, Response } from 'express'
+import mongoose from 'mongoose'
 import { ServiceArea } from '../models/serviceArea.model'
 import { ServiceabilityRequest, RequestedService } from '../models/serviceabilityRequest.model'
 import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { checkServiceability } from '../services/serviceability.service'
 import { paginate, normalizePhone } from '../utils/helpers'
+import { writeAudit, serializeAuditValue } from '../services/audit.service'
 
 const router = Router()
 
@@ -40,7 +42,7 @@ router.post('/check', async (req: AuthRequest, res: Response) => {
 // Admin: list service areas with optional pincode lookup.
 router.get('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = '1', limit = '50', search } = req.query
+    const { page = '1', limit = '20', search, enabled, delivery } = req.query
     const { skip, limit: safeLimit, page: safePage } = paginate(parseInt(page as string), parseInt(limit as string))
 
     const where: any = {}
@@ -51,19 +53,25 @@ router.get('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
         { pinCodes: String(search) },
       ]
     }
+    if (enabled === 'true' || enabled === 'false') where.isEnabled = enabled === 'true'
+    if (delivery === 'true') where['services.delivery'] = true
+    if (delivery === 'false') where['services.delivery'] = false
 
-    const [areas, total] = await Promise.all([
+    const [areas, total, configuredPins, serviceableAreas, inactiveAreas] = await Promise.all([
       ServiceArea.find(where).sort({ city: 1, state: 1 }).skip(skip).limit(safeLimit),
       ServiceArea.countDocuments(where),
+      ServiceArea.countDocuments({ isEnabled: true }),
+      ServiceArea.countDocuments({ isEnabled: true, 'services.delivery': true }),
+      ServiceArea.countDocuments({ isEnabled: false }),
     ])
 
-    return res.json({ success: true, data: areas, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) } })
+    return res.json({ success: true, data: areas, summary: { configuredPins, serviceableAreas, nonServiceableAreas: Math.max(0, configuredPins - serviceableAreas), inactiveAreas }, pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.max(1, Math.ceil(total / safeLimit)) } })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })
 
-function validateArea(body: any): string | null {
+export function validateArea(body: any): string | null {
   if (!body.city || !String(body.city).trim()) return 'City is required'
   if (!body.state || !String(body.state).trim()) return 'State is required'
   if (!body.pinCodes || !Array.isArray(body.pinCodes) || !body.pinCodes.length) return 'At least one PIN code is required'
@@ -73,6 +81,12 @@ function validateArea(body: any): string | null {
   return null
 }
 
+async function findDuplicatePin(pinCodes: string[], excludeId?: string) {
+  const query: any = { isEnabled: true, pinCodes: { $in: pinCodes } }
+  if (excludeId) query._id = { $ne: excludeId }
+  return ServiceArea.findOne(query).select('_id city state pinCodes').lean()
+}
+
 // Admin: create a service area.
 router.post('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
@@ -80,10 +94,13 @@ router.post('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (validationError) return res.status(400).json({ success: false, message: validationError })
 
     const pinCodes = req.body.pinCodes.map((p: string) => String(p).trim())
+    const uniquePins: string[] = [...new Set<string>(pinCodes)]
+    const duplicate = await findDuplicatePin(uniquePins)
+    if (duplicate) return res.status(409).json({ success: false, message: `PIN code already belongs to ${duplicate.city}, ${duplicate.state}` })
     const area = await ServiceArea.create({
       city: String(req.body.city).trim(),
       state: String(req.body.state).trim(),
-      pinCodes: [...new Set(pinCodes)],
+      pinCodes: uniquePins,
       isEnabled: req.body.isEnabled !== false,
       services: {
         delivery: req.body.services?.delivery !== false,
@@ -94,6 +111,8 @@ router.post('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
       },
     })
 
+    await writeAudit({ adminId: req.user!.id, action: 'SERVICE_AREA_CREATED', entity: 'ServiceArea', entityId: String(area._id), newValue: serializeAuditValue({ city: area.city, state: area.state, pinCodes: area.pinCodes, services: area.services }), ipAddress: req.ip })
+
     return res.status(201).json({ success: true, message: 'Service area created', data: area })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -103,10 +122,12 @@ router.post('/areas', requireAdmin, async (req: AuthRequest, res: Response) => {
 // Admin: update a service area.
 router.put('/areas/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid service area id' })
     const area = await ServiceArea.findById(req.params.id)
     if (!area) return res.status(404).json({ success: false, message: 'Service area not found' })
 
     const { city, state, pinCodes, isEnabled, services } = req.body
+    const before = area.toObject()
     const patch: any = {}
     if (city !== undefined) patch.city = String(city).trim()
     if (state !== undefined) patch.state = String(state).trim()
@@ -126,8 +147,17 @@ router.put('/areas/:id', requireAdmin, async (req: AuthRequest, res: Response) =
       }
     }
 
+    const willEnable = patch.isEnabled ?? area.isEnabled
+    const effectivePins = patch.pinCodes ?? area.pinCodes
+    if (willEnable) {
+      const duplicate = await findDuplicatePin(effectivePins, String(area._id))
+      if (duplicate) return res.status(409).json({ success: false, message: `PIN code already belongs to ${duplicate.city}, ${duplicate.state}` })
+    }
+
     Object.assign(area, patch)
     await area.save()
+    const action = !area.isEnabled ? 'SERVICE_AREA_DEACTIVATED' : !before.isEnabled ? 'SERVICE_AREA_REACTIVATED' : 'SERVICE_AREA_UPDATED'
+    await writeAudit({ adminId: req.user!.id, action, entity: 'ServiceArea', entityId: String(area._id), oldValue: serializeAuditValue({ isEnabled: before.isEnabled, city: before.city, state: before.state, pinCodes: before.pinCodes, services: before.services }), newValue: serializeAuditValue({ isEnabled: area.isEnabled, city: area.city, state: area.state, pinCodes: area.pinCodes, services: area.services }), ipAddress: req.ip })
     return res.json({ success: true, message: 'Service area updated', data: area })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
@@ -137,9 +167,11 @@ router.put('/areas/:id', requireAdmin, async (req: AuthRequest, res: Response) =
 // Admin: delete a service area.
 router.delete('/areas/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const area = await ServiceArea.findByIdAndDelete(req.params.id)
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid service area id' })
+    const area = await ServiceArea.findByIdAndUpdate(req.params.id, { $set: { isEnabled: false } }, { new: true })
     if (!area) return res.status(404).json({ success: false, message: 'Service area not found' })
-    return res.json({ success: true, message: 'Service area deleted', data: { id: area._id } })
+    await writeAudit({ adminId: req.user!.id, action: 'SERVICE_AREA_DEACTIVATED', entity: 'ServiceArea', entityId: String(area._id), newValue: serializeAuditValue({ isEnabled: false }), ipAddress: req.ip })
+    return res.json({ success: true, message: 'Service area deactivated', data: area })
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
