@@ -13,6 +13,7 @@ import ProductImage from '../../components/shop/ProductImage'
 import RelatedProducts from '../../components/shop/RelatedProducts'
 import RecentlyViewed from '../../components/shop/RecentlyViewed'
 import ProductReviews from '../../components/shop/ProductReviews'
+import DeliveryServiceability from '../../components/shop/DeliveryServiceability'
 import type { Product, ProductVariant } from '../../types'
 
 function parseArrayItems(value: unknown): string[] {
@@ -338,6 +339,8 @@ export default function ProductDetailPage() {
               </div>
             </>
           )}
+
+          <DeliveryServiceability />
 
           {/* Variant selection */}
           {variants.length > 0 ? (

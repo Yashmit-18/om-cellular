@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const [checkingPaymentConfig, setCheckingPaymentConfig] = useState(true)
   const [paymentState, setPaymentState] = useState<'idle' | 'creating' | 'initializing' | 'processing'>('idle')
   const [deliveryCheck, setDeliveryCheck] = useState<any>(null)
+  const [deliveryCheckError, setDeliveryCheckError] = useState('')
   const [checkingDelivery, setCheckingDelivery] = useState(false)
   const [showNotifyForm, setShowNotifyForm] = useState(false)
   const [notifySubmitting, setNotifySubmitting] = useState(false)
@@ -103,6 +104,7 @@ export default function CheckoutPage() {
       city: addr.city, state: addr.state, pincode: addr.pincode,
     })
     setDeliveryCheck(null)
+    setDeliveryCheckError('')
     setShowNotifyForm(false)
   }
 
@@ -128,10 +130,12 @@ export default function CheckoutPage() {
       const res = await serviceabilityService.check(addressForm.pincode, ['delivery'])
       const data = res.data
       setDeliveryCheck(data)
+      setDeliveryCheckError('')
       setShowNotifyForm(!data.serviceable)
       return { ok: data.serviceable }
     } catch {
       setDeliveryCheck(null)
+      setDeliveryCheckError('Serviceability is temporarily unavailable. We will validate delivery again before placing your order.')
       return { ok: true }
     } finally {
       setCheckingDelivery(false)
@@ -449,15 +453,20 @@ export default function CheckoutPage() {
 
                 {deliveryCheck && (
                   <div className={`mt-3 rounded-lg border p-3 text-sm ${
-                    deliveryCheck.serviceable ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                    deliveryCheck.serviceable && deliveryCheck.configured ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
                   }`}>
                     <p className="flex items-center gap-2 font-medium">
-                      {deliveryCheck.serviceable ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                      {deliveryCheck.serviceable
+                      {deliveryCheck.serviceable && deliveryCheck.configured ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {!deliveryCheck.configured
+                        ? 'Serviceability is currently being configured. Availability will be confirmed before your order is placed.'
+                        : deliveryCheck.serviceable
                         ? `Great news! Delivery is available for PIN code ${addressForm.pincode}${deliveryCheck.results?.delivery?.city ? ` (${deliveryCheck.results.delivery.city})` : ''}.`
                         : `We do not currently deliver to PIN code ${addressForm.pincode}.`}
                     </p>
                   </div>
+                )}
+                {deliveryCheckError && (
+                  <p role="status" aria-live="polite" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{deliveryCheckError}</p>
                 )}
 
                 {showNotifyForm && (

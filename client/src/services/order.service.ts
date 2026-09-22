@@ -20,5 +20,5 @@ export const orderService = {
 
   invoice: (id: string) => api.get(`/orders/${id}/invoice`, { responseType: 'blob' }).then(r => r.data),
 
-  trackOrder: (orderNumber: string) => api.get(`/orders/track/${orderNumber}`).then(r => r.data),
+  trackOrder: (orderNumber: string, phone: string) => api.get(`/orders/track/${orderNumber}`, { params: { phone } }).then(r => r.data),
 }

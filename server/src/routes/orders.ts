@@ -78,8 +78,13 @@ async function couponTargetsMatch(coupon: any, orderItems: { variantId: any }[])
 
 router.get('/track/:orderNumber', async (req, res) => {
   try {
+    const phone = normalizePhone(String(req.query.phone || ''))
+    if (!phone) return res.status(400).json({ success: false, message: 'Order number and phone number are required for tracking' })
     const order = await Order.findOne({ orderNumber: req.params.orderNumber })
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' })
+    if (normalizePhone(String(order.shippingAddress?.phone || '')) !== phone) {
+      return res.status(404).json({ success: false, message: 'Order not found' })
+    }
 
     const items = await OrderItem.find({ orderId: order._id }).populate('variantId')
     // Public tracking surface: expose only what a courier/ordering customer
@@ -109,6 +114,7 @@ router.get('/track/:orderNumber', async (req, res) => {
           price: it.price,
         }
       }),
+      statusHistory: (order.statusHistory || []).map((entry: any) => ({ status: entry.status, changedAt: entry.changedAt })),
     }
     return res.json({ success: true, data })
   } catch (error) {

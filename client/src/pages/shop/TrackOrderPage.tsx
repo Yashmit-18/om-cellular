@@ -5,10 +5,12 @@ import { orderService } from '../../services/order.service'
 import { formatDate, formatPrice } from '../../utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../constants'
 import ProductImage from '../../components/shop/ProductImage'
+import StatusTimeline from '../../components/StatusTimeline'
 
 export default function TrackOrderPage() {
   const [searchParams] = useSearchParams()
   const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '')
+  const [phone, setPhone] = useState('')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -21,14 +23,14 @@ export default function TrackOrderPage() {
     setErrorMsg(null)
     setSubmitted(true)
     try {
-      const res = await orderService.trackOrder(number)
+      const res = await orderService.trackOrder(number, phone)
       setResult(res.data || res)
     } catch (err: any) {
       setResult(null)
       const status = err?.response?.status
       setErrorMsg(status === 404
         ? 'We couldn’t find an order with that number. Double-check it (format like ORD-00001) and try again.'
-        : 'Something went wrong while tracking your order. Please try again in a moment.')
+        : status === 400 ? 'Enter the phone number used for this order to verify tracking access.' : 'Something went wrong while tracking your order. Please try again in a moment.')
     } finally {
       setLoading(false)
     }
@@ -52,11 +54,11 @@ export default function TrackOrderPage() {
             <PackageSearch className="h-3.5 w-3.5" /> Stay updated
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Track Your Order</h1>
-          <p className="mt-2 text-gray-500">Enter your order number to see live status updates</p>
+          <p className="mt-2 text-gray-500">Enter your order number and phone number to securely view status updates</p>
         </div>
 
         <div className="card mt-8 p-6">
-          <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
+          <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
             <input
               value={orderNumber}
               onChange={e => { setOrderNumber(e.target.value); setResult(null); setErrorMsg(null) }}
@@ -64,6 +66,7 @@ export default function TrackOrderPage() {
               className="input flex-1"
               aria-label="Order number"
             />
+            <input value={phone} onChange={e => { setPhone(e.target.value); setResult(null); setErrorMsg(null) }} placeholder="Phone used at checkout" className="input" aria-label="Phone used for order" inputMode="tel" autoComplete="tel" />
             <button type="submit" disabled={loading} className="btn-primary">
               <Search className="mr-1.5 h-4 w-4" />{loading ? 'Tracking...' : 'Track'}
             </button>
@@ -92,6 +95,11 @@ export default function TrackOrderPage() {
                 <div><p className="text-gray-500">Total</p><p className="mt-0.5 font-medium">{formatPrice(result.total)}</p></div>
                 {result.trackingNumber && <div><p className="text-gray-500">Tracking</p><p className="mt-0.5 font-medium">{result.trackingNumber}</p></div>}
                 <div><p className="text-gray-500">Payment</p><p className="mt-0.5 font-medium capitalize">{result.paymentMethod || 'N/A'}</p></div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-900">Order progress</h3>
+                <div className="mt-4"><StatusTimeline history={result.statusHistory} labels={ORDER_STATUS_LABELS} colors={ORDER_STATUS_COLORS} /></div>
               </div>
 
               {Array.isArray(result.items) && result.items.length > 0 && (
