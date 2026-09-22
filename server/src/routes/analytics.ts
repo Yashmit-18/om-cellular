@@ -8,6 +8,7 @@ import { Product } from '../models/product.model'
 import { ProductVariant } from '../models/productVariant.model'
 import { ServiceArea } from '../models/serviceArea.model'
 import { ServiceabilityRequest } from '../models/serviceabilityRequest.model'
+import { Review } from '../models/review.model'
 import { requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 
@@ -41,6 +42,15 @@ router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
       enabledServiceAreas,
       pendingServiceRequests,
       totalServiceRequests,
+      pendingPayments,
+      failedPayments,
+      activeVariants,
+      outOfStockVariants,
+      lowStockVariants,
+      pendingReviews,
+      approvedReviews,
+      rejectedReviews,
+      inactiveServiceAreas,
     ] = await Promise.all([
       Order.aggregate([
         { $match: { status: { $in: ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'READY_TO_SHIP', 'PAYMENT_CONFIRMED', 'DELIVERED'] } } },
@@ -76,6 +86,21 @@ router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
       ServiceArea.countDocuments({ isEnabled: true }),
       ServiceabilityRequest.countDocuments({ status: 'WAITING' }),
       ServiceabilityRequest.countDocuments(),
+      Order.countDocuments({ paymentStatus: 'PENDING_PAYMENT' }),
+      Order.countDocuments({ paymentStatus: 'FAILED' }),
+      ProductVariant.countDocuments({ isActive: true }),
+      ProductVariant.countDocuments({ isActive: true, stock: { $lte: 0 } }),
+      ProductVariant.aggregate([
+        { $match: { isActive: true, stock: { $gt: 0 } } },
+        { $lookup: { from: 'inventories', localField: '_id', foreignField: 'variantId', as: 'inventory' } },
+        { $unwind: { path: '$inventory', preserveNullAndEmptyArrays: true } },
+        { $match: { $expr: { $lte: ['$stock', { $ifNull: ['$inventory.lowStockThreshold', 5] }] } } },
+        { $count: 'count' },
+      ]),
+      Review.countDocuments({ status: 'PENDING' }),
+      Review.countDocuments({ status: 'APPROVED', isApproved: true, isVerifiedPurchase: true }),
+      Review.countDocuments({ status: 'REJECTED' }),
+      ServiceArea.countDocuments({ isEnabled: false }),
     ])
 
     const sevenDaysAgo = new Date()
@@ -121,9 +146,14 @@ router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
         totalProducts,
         activeProducts,
         lowStockProducts: lowStockProducts[0]?.count || 0,
+        pendingPayments,
+        failedPayments,
+        inventory: { activeVariants, outOfStockVariants, lowStockVariants: lowStockVariants[0]?.count || 0 },
+        reviews: { pending: pendingReviews, approved: approvedReviews, rejected: rejectedReviews },
         serviceability: {
           totalServiceAreas,
           enabledServiceAreas,
+          inactiveServiceAreas,
           pendingServiceRequests,
           totalServiceRequests,
           // When no service areas are enabled the store runs in legacy mode and

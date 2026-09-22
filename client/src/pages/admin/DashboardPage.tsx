@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Package, Users, DollarSign, TrendingUp, Clock, Smartphone, ArrowRightLeft, Wrench, AlertTriangle, MapPin, BellRing } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { ShoppingCart, Package, Users, DollarSign, TrendingUp, Clock, Smartphone, ArrowRightLeft, Wrench, AlertTriangle, MapPin, CreditCard, Star, Plus, Boxes } from 'lucide-react'
 import api from '../../services/api'
-import { formatPrice } from '../../utils'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)
@@ -20,16 +18,16 @@ export default function DashboardPage() {
   if (!stats) return <div className="text-center py-12 text-gray-500">Failed to load dashboard data</div>
 
   const statCards = [
-    { label: 'Total Revenue', value: formatPrice(stats.totalSales || 0), icon: DollarSign, color: 'bg-emerald-500', sub: `Today: ${formatPrice(stats.todaySales || 0)}` },
-    { label: 'Total Orders', value: stats.totalOrders || 0, icon: ShoppingCart, color: 'bg-blue-500', sub: `${stats.pendingOrders || 0} pending` },
-    { label: 'Products', value: stats.totalProducts || 0, icon: Package, color: 'bg-purple-500', sub: `${stats.activeProducts || 0} active` },
-    { label: 'Customers', value: stats.totalCustomers || 0, icon: Users, color: 'bg-amber-500', sub: '' },
+    { label: 'Orders', value: stats.totalOrders || 0, icon: ShoppingCart, color: 'bg-blue-500', sub: `${stats.pendingOrders || 0} pending` },
+    { label: 'Pending Payments', value: stats.pendingPayments || 0, icon: CreditCard, color: 'bg-amber-500', sub: `${stats.failedPayments || 0} failed` },
+    { label: 'Active Variants', value: stats.inventory?.activeVariants || 0, icon: Boxes, color: 'bg-purple-500', sub: `${stats.inventory?.outOfStockVariants || 0} out of stock` },
+    { label: 'Low Stock', value: stats.inventory?.lowStockVariants || 0, icon: AlertTriangle, color: 'bg-red-500', sub: 'Authoritative variant stock' },
+    { label: 'Pending Reviews', value: stats.reviews?.pending || 0, icon: Star, color: 'bg-indigo-500', sub: `${stats.reviews?.approved || 0} approved` },
     { label: 'Pending Repairs', value: stats.pendingRepairs || 0, icon: Wrench, color: 'bg-orange-500', sub: `${stats.totalRepairs || 0} total` },
     { label: 'Sell Requests', value: stats.pendingSellRequests || 0, icon: Smartphone, color: 'bg-cyan-500', sub: `${stats.totalSellRequests || 0} total` },
     { label: 'Exchange Requests', value: stats.pendingExchangeRequests || 0, icon: ArrowRightLeft, color: 'bg-pink-500', sub: `${stats.totalExchangeRequests || 0} total` },
-    { label: 'Service Areas', value: stats.serviceability?.enabledServiceAreas || 0, icon: MapPin, color: 'bg-indigo-500', sub: `${stats.serviceability?.totalServiceAreas || 0} total` },
-    { label: 'Service Requests', value: stats.serviceability?.pendingServiceRequests || 0, icon: BellRing, color: 'bg-teal-500', sub: `${stats.totalServiceRequests || 0} total` },
-    { label: 'Low Stock', value: stats.lowStockProducts || 0, icon: AlertTriangle, color: 'bg-red-500', sub: 'Products need attention' },
+    { label: 'Customers', value: stats.totalCustomers || 0, icon: Users, color: 'bg-amber-500', sub: 'Registered customers' },
+    { label: 'Service Areas', value: stats.serviceability?.enabledServiceAreas || 0, icon: MapPin, color: 'bg-indigo-500', sub: `${stats.serviceability?.inactiveServiceAreas || 0} inactive` },
   ]
 
   return (
@@ -57,8 +55,9 @@ export default function DashboardPage() {
             card.label.includes('Service Requests') ? '/admin/service-requests' :
             card.label.includes('Product') ? '/admin/products' :
             card.label.includes('Customer') ? '/admin/customers' :
-            card.label.includes('Revenue') ? '/admin/orders' :
             card.label.includes('Low Stock') ? '/admin/inventory' :
+            card.label.includes('Payment') ? '/admin/orders' :
+            card.label.includes('Review') ? '/admin/reviews' :
             '/admin'
           } className="card-premium p-5">
             <div className="flex items-center justify-between">
@@ -75,21 +74,19 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {stats.salesChart && stats.salesChart.length > 0 && (
-        <div className="mt-6 card p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Sales Overview (Last 7 Days)</h2>
-          <div className="mt-4 h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.salesChart.map((d: any) => ({ date: d._id?.slice(5) || d.date, revenue: d.sales || 0, orders: d.orders || 0 }))}>
-                <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value: number) => formatPrice(value)} />
-                <Bar dataKey="revenue" fill="#4c6ef5" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <section aria-labelledby="needs-attention-heading" className="mt-6 card p-6">
+        <div className="flex items-center justify-between gap-3"><div><h2 id="needs-attention-heading" className="text-lg font-semibold text-gray-900">Needs Attention</h2><p className="mt-1 text-sm text-gray-500">Live operational queues requiring an admin decision.</p></div><AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" /></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'Pending payments', value: stats.pendingPayments || 0, to: '/admin/orders', icon: CreditCard },
+            { label: 'Low stock variants', value: stats.inventory?.lowStockVariants || 0, to: '/admin/inventory', icon: AlertTriangle },
+            { label: 'Pending reviews', value: stats.reviews?.pending || 0, to: '/admin/reviews', icon: Star },
+            { label: 'Pending repairs', value: stats.pendingRepairs || 0, to: '/admin/repairs', icon: Wrench },
+          ].filter(alert => alert.value > 0).map(alert => <Link key={alert.label} to={alert.to} className="flex min-h-[44px] items-center justify-between rounded-lg border border-gray-200 p-3 text-sm hover:border-brand-300 hover:bg-gray-50"><span className="flex items-center gap-2"><alert.icon className="h-4 w-4 text-brand-600" aria-hidden="true" />{alert.label}</span><strong>{alert.value}</strong></Link>)}
+          {![stats.pendingPayments, stats.inventory?.lowStockVariants, stats.reviews?.pending, stats.pendingRepairs].some(value => value > 0) && <p className="text-sm text-gray-500">No operational alerts right now.</p>}
         </div>
-      )}
+      </section>
+
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Quick Actions */}
@@ -97,7 +94,12 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[
+              { to: '/admin/products/new', label: 'Add Product', icon: Plus },
               { to: '/admin/products', label: 'Manage Products', icon: Package },
+              { to: '/admin/inventory', label: 'Manage Inventory', icon: Boxes },
+              { to: '/admin/orders', label: 'Manage Orders', icon: ShoppingCart },
+              { to: '/admin/reviews', label: 'Review Moderation', icon: Star },
+              { to: '/admin/service-areas', label: 'Service Areas', icon: MapPin },
               { to: '/admin/phone-catalog', label: 'Phone Catalog', icon: Smartphone },
               { to: '/admin/repair-services', label: 'Repair Services', icon: Wrench },
               { to: '/admin/sell-requests', label: 'Sell Requests', icon: DollarSign },
