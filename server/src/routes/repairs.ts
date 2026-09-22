@@ -5,6 +5,7 @@ import { authenticate, optionalAuth, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateRepairBookingNumber, paginate } from '../utils/helpers'
 import { checkServiceability } from '../services/serviceability.service'
+import { normalizePhone } from '../utils/helpers'
 import { REPAIR_TRANSITIONS, assertTransition } from '../services/fsm.service'
 import { notify } from '../services/notification.service'
 
@@ -81,8 +82,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.get('/track/:bookingNumber', async (req, res) => {
   try {
+    const phone = normalizePhone(String(req.query.phone || ''))
+    if (!phone) return res.status(400).json({ success: false, message: 'Booking number and phone number are required for tracking' })
     const repair = await RepairBooking.findOne({ bookingNumber: req.params.bookingNumber }).populate('serviceId')
     if (!repair) return res.status(404).json({ success: false, message: 'Repair not found' })
+    if (normalizePhone(String(repair.phone || '')) !== phone) return res.status(404).json({ success: false, message: 'Repair not found' })
 
     const statusHistory = await RepairStatusHistory.find({ repairId: repair._id }).sort({ createdAt: -1 })
     // Public tracking surface: no customer phone/address, no internal

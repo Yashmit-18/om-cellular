@@ -10,6 +10,7 @@ import StatusTimeline from '../../components/StatusTimeline'
 export default function RepairTrackPage() {
   const [searchParams] = useSearchParams()
   const [bookingNumber, setBookingNumber] = useState(searchParams.get('booking') || '')
+  const [phone, setPhone] = useState('')
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -20,13 +21,13 @@ export default function RepairTrackPage() {
     setLoading(true)
     setErrorMsg(null)
     try {
-      const res = await repairService.trackRepair(number)
+      const res = await repairService.trackRepair(number, phone)
       setResult(res.data || res.data?.data || res)
     } catch (err: any) {
       const status = err?.response?.status
       setErrorMsg(status === 404
         ? 'We couldn’t find a repair with that booking number. Double-check it and try again, or contact us for assistance.'
-        : 'Something went wrong while tracking your repair. Please try again in a moment.')
+        : status === 400 ? 'Enter the phone number used for this repair booking to verify access.' : 'Something went wrong while tracking your repair. Please try again in a moment.')
       setResult(null)
     } finally {
       setLoading(false)
@@ -50,11 +51,11 @@ export default function RepairTrackPage() {
             <Wrench className="h-3.5 w-3.5" /> Repair status
           </span>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Track Your Repair</h1>
-          <p className="mt-2 text-gray-500">Enter your booking number to see live status updates</p>
+          <p className="mt-2 text-gray-500">Enter your booking number and phone number to securely view status updates</p>
         </div>
 
         <div className="card mt-8 p-6">
-          <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="flex gap-3">
+          <form onSubmit={e => { e.preventDefault(); handleTrack() }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
             <input
               value={bookingNumber}
               onChange={e => { setBookingNumber(e.target.value); setResult(null); setErrorMsg(null) }}
@@ -62,6 +63,7 @@ export default function RepairTrackPage() {
               className="input flex-1"
               aria-label="Booking number"
             />
+            <input value={phone} onChange={e => { setPhone(e.target.value); setResult(null); setErrorMsg(null) }} placeholder="Phone used for booking" className="input" aria-label="Phone used for repair booking" inputMode="tel" autoComplete="tel" />
             <button type="submit" disabled={loading} className="btn-primary">
               <Search className="mr-1.5 h-4 w-4" />{loading ? 'Tracking...' : 'Track'}
             </button>

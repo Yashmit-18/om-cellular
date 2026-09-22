@@ -12,7 +12,7 @@ export const repairService = {
 
   updateRepair: (id: string, data: any) => api.put(`/repairs/${id}`, data).then(r => r.data),
 
-  trackRepair: (bookingNumber: string) => api.get(`/repairs/track/${bookingNumber}`).then(r => r.data),
+  trackRepair: (bookingNumber: string, phone: string) => api.get(`/repairs/track/${bookingNumber}`, { params: { phone } }).then(r => r.data),
 
   getRepairServices: () => api.get('/repairs/services').then(r => r.data),
 }
