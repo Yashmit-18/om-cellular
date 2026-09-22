@@ -9,6 +9,7 @@ import { slugify } from '../utils/helpers'
 import { validateVariantPayload, isDuplicateKeyError, variantListMatchesRole, publicVariantProject } from '../services/productVariant.service'
 import { extractVariantImage, effectiveVariantPrice, computeProductSummary } from '../services/productView.service'
 import { rankRelatedProducts, RelatedCandidate, RelatedContext } from '../services/relatedProducts.service'
+import { getProductRatingSummary } from '../services/review.service'
 import {
   parseProductQuery,
   buildProductMatch,
@@ -94,6 +95,23 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
         },
       },
       {
+        $lookup: {
+          from: 'reviews',
+          let: { productId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [{ $eq: ['$productId', '$$productId'] }, { $eq: ['$status', 'APPROVED'] }, { $eq: ['$isApproved', true] }, { $eq: ['$isVerifiedPurchase', true] }] } } },
+            { $group: { _id: null, rating: { $avg: '$rating' }, ratingCount: { $sum: 1 } } },
+          ],
+          as: '_ratingSummary',
+        },
+      },
+      {
+        $addFields: {
+          rating: { $ifNull: [{ $arrayElemAt: ['$_ratingSummary.rating', 0] }, 0] },
+          ratingCount: { $ifNull: [{ $arrayElemAt: ['$_ratingSummary.ratingCount', 0] }, 0] },
+        },
+      },
+      {
         $addFields: {
           variants: {
             $map: {
@@ -166,6 +184,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       const rest = { ...p }
       delete rest._matchedVariants
       delete rest._matchedInStock
+      delete rest._ratingSummary
       return mapListedProduct(rest)
     })
 
@@ -444,12 +463,16 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const variants = await ProductVariant.find({ productId: product._id, isActive: true }).lean()
+    const ratingSummary = await getProductRatingSummary(String(product._id))
     return res.json({
       success: true,
       data: {
         ...product.toObject(),
         variants: variants.map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
         ...computeProductSummary(product, variants),
+        rating: ratingSummary.average || 0,
+        ratingCount: ratingSummary.count,
+        ratingSummary,
       },
     })
   } catch (error) {

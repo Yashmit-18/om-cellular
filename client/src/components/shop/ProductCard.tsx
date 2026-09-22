@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingBag, ArrowRight, Scale } from 'lucide-react'
+import { Heart, ShoppingBag, ArrowRight, Scale, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn, formatPrice, getConditionLabel, getStockStatus, calculateDiscount } from '../../utils'
 import ProductImage from './ProductImage'
@@ -187,6 +187,14 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     </div>
   )
 
+  const ratingBlock = Number(product.ratingCount) > 0 && Number(product.rating) > 0 ? (
+    <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-600" aria-label={`${Number(product.rating).toFixed(1)} out of 5 from ${product.ratingCount} reviews`}>
+      <Star className="h-3.5 w-3.5 fill-gold-400 text-gold-500" aria-hidden="true" />
+      <span className="font-semibold text-navy-800">{Number(product.rating).toFixed(1)}</span>
+      <span>({product.ratingCount})</span>
+    </div>
+  ) : null
+
   const actions = (
     <div className="mt-3 flex flex-col gap-2 sm:flex-row">
       {buy ? (
@@ -255,6 +263,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
             <Link to={detailsTo} className="transition-colors hover:text-navy-900">{product.name}</Link>
           </h3>
           {meta && <p className="mt-1 truncate text-xs text-gray-400">{meta}</p>}
+          {ratingBlock}
           {priceBlock}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {buy ? (
@@ -310,6 +319,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
           <Link to={detailsTo} className="transition-colors hover:text-navy-900">{product.name}</Link>
         </h3>
         {meta && <p className="mt-1 line-clamp-1 text-xs text-gray-400">{meta}</p>}
+        {ratingBlock}
         {priceBlock}
         {actions}
       </div>

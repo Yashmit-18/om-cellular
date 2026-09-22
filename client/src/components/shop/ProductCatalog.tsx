@@ -21,6 +21,7 @@ const SORT_OPTIONS = [
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'discount', label: 'Biggest Discount' },
+  { value: 'rating', label: 'Top Rated' },
   { value: 'name', label: 'Name: A-Z' },
 ]
 

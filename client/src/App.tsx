@@ -62,6 +62,7 @@ const AdminPhoneValuation = lazy(() => import('./pages/admin/PhoneValuationPage'
 const AdminBanners = lazy(() => import('./pages/admin/BannersPage'))
 const AdminHomepage = lazy(() => import('./pages/admin/HomepageSectionsPage'))
 const AdminTestimonials = lazy(() => import('./pages/admin/TestimonialsPage'))
+const AdminReviews = lazy(() => import('./pages/admin/ReviewsPage'))
 const AdminFAQs = lazy(() => import('./pages/admin/FAQsPage'))
 const AdminInformationCards = lazy(() => import('./pages/admin/InformationCardsPage'))
 const AdminCoupons = lazy(() => import('./pages/admin/CouponsPage'))
@@ -185,6 +186,7 @@ export default function App() {
           <Route path="banners" element={<AdminBanners />} />
           <Route path="homepage" element={<AdminHomepage />} />
           <Route path="testimonials" element={<AdminTestimonials />} />
+          <Route path="reviews" element={<AdminReviews />} />
           <Route path="faqs" element={<AdminFAQs />} />
           <Route path="information-cards" element={<AdminInformationCards />} />
           <Route path="coupons" element={<AdminCoupons />} />

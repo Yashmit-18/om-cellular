@@ -128,9 +128,7 @@ test('boolean flags accept true/1 and sort is whitelisted', () => {
 
   assert.equal(parseProductQuery({ sort: 'price_desc' }).sort, 'price_desc')
   assert.equal(parseProductQuery({ sort: 'discount' }).sort, 'discount')
-  // Removed: products carry no persisted rating rollup, so `rating` is no longer
-  // a supported sort — unknown sort keys fall back to `newest`.
-  assert.equal(parseProductQuery({ sort: 'rating' }).sort, 'newest')
+  assert.equal(parseProductQuery({ sort: 'rating' }).sort, 'rating')
   assert.equal(parseProductQuery({ sort: 'DROP TABLE' }).sort, 'newest')
   assert.equal(parseProductQuery({ sort: '' }).sort, 'newest')
 })
@@ -246,7 +244,7 @@ test('buildSortDoc whitelists known sorts with createdAt tiebreakers', () => {
   assert.deepEqual(buildSortDoc('price_asc'), { lowestPrice: 1, createdAt: -1 })
   assert.deepEqual(buildSortDoc('price_desc'), { lowestPrice: -1, createdAt: -1 })
   assert.deepEqual(buildSortDoc('discount'), { maxDiscount: -1, createdAt: -1 })
-  assert.deepEqual(buildSortDoc('rating'), { createdAt: -1 })
+  assert.deepEqual(buildSortDoc('rating'), { ratingCount: -1, rating: -1, createdAt: -1 })
 })
 
 test('ids param keeps valid ObjectId tokens and drops everything else', () => {

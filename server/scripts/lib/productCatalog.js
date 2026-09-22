@@ -211,9 +211,6 @@ async function buildProducts(db, { log = () => {} } = {}) {
       flags.isNewArrival = existingProduct.isNewArrival ?? flags.isNewArrival
       flags.isBestSeller = existingProduct.isBestSeller ?? flags.isBestSeller
     }
-    const rating = 4.3 + (hash(slug) % 5) * 0.1
-    const ratingCount = 30 + (hash(slug) % 380)
-
     const productUpdate = {
       name,
       description,
@@ -235,8 +232,9 @@ async function buildProducts(db, { log = () => {} } = {}) {
       seoTitle: `${name} - Buy Online at OM Cellular`,
       seoDescription: description.slice(0, 150),
       seoKeywords: `${model.brandName} ${model.modelName} buy online kota`.toLowerCase(),
-      rating,
-      ratingCount,
+      // Ratings are maintained only from approved customer reviews.
+      rating: 0,
+      ratingCount: 0,
       isActive: true,
       updatedAt: new Date(),
     }

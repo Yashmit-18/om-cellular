@@ -12,6 +12,7 @@ import { formatPrice, calculateDiscount, getImageList, cn } from '../../utils'
 import ProductImage from '../../components/shop/ProductImage'
 import RelatedProducts from '../../components/shop/RelatedProducts'
 import RecentlyViewed from '../../components/shop/RecentlyViewed'
+import ProductReviews from '../../components/shop/ProductReviews'
 import type { Product, ProductVariant } from '../../types'
 
 function parseArrayItems(value: unknown): string[] {
@@ -123,6 +124,15 @@ export default function ProductDetailPage() {
         availability: (selectedVariant?.stock ?? 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
         price: String(selectedVariant?.discountPrice ?? selectedVariant?.price ?? 0),
       },
+      ...((product.ratingCount || 0) > 0 && (product.rating || 0) > 0 ? {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: String(product.rating),
+          reviewCount: String(product.ratingCount),
+          bestRating: '5',
+          worstRating: '1',
+        },
+      } : {}),
     } : undefined,
   })
 
@@ -527,6 +537,8 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {product && <div className="mt-14"><ProductReviews productId={product.id} /></div>}
 
       {/* Related + Recently viewed */}
       {product && (

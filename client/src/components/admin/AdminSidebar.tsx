@@ -26,6 +26,7 @@ const links = [
   { to: '/admin/banners', label: 'Banners', icon: Image },
   { to: '/admin/homepage', label: 'Homepage', icon: LayoutTemplate },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
+  { to: '/admin/reviews', label: 'Reviews', icon: MessageSquare },
   { to: '/admin/faqs', label: 'FAQs', icon: HelpCircle },
   { to: '/admin/information-cards', label: 'Information Cards', icon: Info },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag },

@@ -81,6 +81,9 @@ export interface Product {
   seoDescription: string | null
   seoKeywords: string | null
   images: string[]
+  rating?: number
+  ratingCount?: number
+  ratingSummary?: RatingSummary
   createdAt: Date
   updatedAt: Date
   category?: Category
@@ -244,16 +247,27 @@ export interface OrderItem {
 export interface Review {
   id: string
   userId: string
+  productId: string
   variantId: string
+  orderId: string
+  orderItemId: string
   rating: number
   title: string | null
   comment: string | null
   isAdminReply: boolean
   isApproved: boolean
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  isVerifiedPurchase: boolean
   createdAt: Date
   updatedAt: Date
   user?: User
   variant?: ProductVariant
+}
+
+export interface RatingSummary {
+  average: number | null
+  count: number
+  distribution: Record<1 | 2 | 3 | 4 | 5, number>
 }
 
 export interface Wishlist {

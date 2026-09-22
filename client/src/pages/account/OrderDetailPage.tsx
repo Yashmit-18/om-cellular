@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { orderService } from '../../services/order.service'
 import { returnService, warrantyService } from '../../services/returnRequest.service'
+import { reviewService } from '../../services/review.service'
 import { formatDate, formatPrice } from '../../utils'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '../../constants'
 import StatusTimeline from '../../components/StatusTimeline'
@@ -24,6 +25,9 @@ export default function AccountOrderDetailPage() {
   const [returnItems, setReturnItems] = useState<string[]>([])
   const [returnSubmitting, setReturnSubmitting] = useState(false)
   const [claimingId, setClaimingId] = useState<string | null>(null)
+  const [reviewedItemIds, setReviewedItemIds] = useState<string[]>([])
+  const [reviewingItemId, setReviewingItemId] = useState<string | null>(null)
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' })
 
   const itemIds = useMemo(() => (order?.items?.length ? order.items.map((i: any) => String(i.id)) : []), [order])
 
@@ -48,6 +52,21 @@ export default function AccountOrderDetailPage() {
     if (!id || !order) return
     warrantyService.getWarrantiesByOrder(id).then(r => setWarranties(r.data.data || [])).catch(() => setWarranties([]))
   }, [id, order])
+
+  useEffect(() => {
+    if (!id || order?.status !== 'DELIVERED') return
+    reviewService.getReviews({ orderId: id, limit: '100' }).then(result => setReviewedItemIds((result.data || []).map((review: any) => String(review.orderItemId)))).catch(() => setReviewedItemIds([]))
+  }, [id, order?.status])
+
+  const submitReview = async (item: any) => {
+    try {
+      await reviewService.createReview({ orderItemId: item.id, variantId: item.variantId?._id || item.variantId, ...reviewForm })
+      setReviewedItemIds(current => [...current, String(item.id)])
+      setReviewingItemId(null)
+      setReviewForm({ rating: 5, title: '', comment: '' })
+      toast.success('Review submitted for moderation')
+    } catch (error: any) { toast.error(error?.response?.data?.message || 'Could not submit review') }
+  }
 
   const CANCELABLE = ['PENDING', 'PAYMENT_CONFIRMED', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP']
   const RETURNABLE = ['DELIVERED']
@@ -268,9 +287,12 @@ export default function AccountOrderDetailPage() {
             <h3 className="font-semibold mb-3">Items</h3>
             <div className="space-y-3">
               {(order.items || []).map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                <div key={item.id} className="rounded-xl border border-gray-100 p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0"><p className="truncate font-medium">{item.variant?.name || item.variantId?.name || item.variantId}</p><p className="text-gray-500">Qty: {item.quantity}</p></div>
                   <p className="shrink-0 font-medium">{formatPrice(item.total)}</p>
+                  </div>
+                  {order.status === 'DELIVERED' && (reviewedItemIds.includes(String(item.id)) ? <p className="mt-3 text-xs font-semibold text-emerald-700">Review submitted</p> : reviewingItemId === String(item.id) ? <div className="mt-3 space-y-2"><div className="flex gap-1" role="radiogroup" aria-label="Rating"><span className="sr-only">Choose a rating</span>{[1, 2, 3, 4, 5].map(value => <button type="button" key={value} onClick={() => setReviewForm(form => ({ ...form, rating: value }))} className="min-h-[44px] min-w-[44px] text-xl" aria-label={`${value} star${value === 1 ? '' : 's'}`} aria-pressed={reviewForm.rating === value}><span className={value <= reviewForm.rating ? 'text-gold-500' : 'text-gray-300'}>★</span></button>)}</div><input aria-label="Review title" value={reviewForm.title} onChange={e => setReviewForm(form => ({ ...form, title: e.target.value }))} placeholder="Title (optional)" className="input !py-2" /><textarea aria-label="Review" value={reviewForm.comment} onChange={e => setReviewForm(form => ({ ...form, comment: e.target.value }))} placeholder="Share your experience" rows={3} className="input" /><div className="flex gap-2"><button type="button" onClick={() => submitReview(item)} className="btn-primary !px-3 !py-2 text-sm">Submit review</button><button type="button" onClick={() => setReviewingItemId(null)} className="btn-ghost !px-3 !py-2 text-sm">Cancel</button></div></div> : <button type="button" onClick={() => setReviewingItemId(String(item.id))} className="btn-secondary mt-3 !min-h-[44px] !px-3 !py-2 text-sm">Write a Review</button>)}
                 </div>
               ))}
             </div>
