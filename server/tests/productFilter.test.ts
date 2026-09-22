@@ -217,6 +217,22 @@ test('buildSortDoc whitelists known sorts with createdAt tiebreakers', () => {
   assert.deepEqual(buildSortDoc('rating'), { rating: -1, ratingCount: -1, createdAt: -1 })
 })
 
+test('ids param keeps valid ObjectId tokens and drops everything else', () => {
+  const mixed = parseProductQuery({ ids: `${BRAND_A},${BRAND_B},not-an-id,` })
+  assert.deepEqual(mixed.ids, [BRAND_A, BRAND_B])
+  assert.deepEqual(parseProductQuery({}).ids, [])
+  assert.deepEqual(parseProductQuery({ ids: 'nope' }).ids, [])
+  assert.deepEqual(parseProductQuery({ ids: [BRAND_A, '', BRAND_B] }).ids, [BRAND_A, BRAND_B])
+})
+
+test('buildProductMatch restricts _id via $in when ids are provided', () => {
+  const match = buildProductMatch(parseProductQuery({ ids: `${BRAND_A},${BRAND_B}` }))
+  assert.equal(match._id.$in.length, 2)
+
+  const noIds = buildProductMatch(parseProductQuery({}))
+  assert.equal(noIds._id, undefined)
+})
+
 test('facet value helpers clean and order option lists', () => {
   assert.deepEqual(cleanStringValues(['Black', null, '', 'Black', ' Blue ']), ['Black', 'Blue'])
   assert.equal(storageRank('128GB'), 128)

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ShoppingCart, User, ChevronDown, Store, Wrench, Smartphone, Bell } from 'lucide-react'
+import { Home, ShoppingCart, User, ChevronDown, Store, Wrench, Smartphone, Bell, Heart, Scale } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useCartStore } from '../../stores/cartStore'
+import { useWishlistStore } from '../../stores/wishlistStore'
+import { useCompareStore } from '../../stores/compareStore'
 import { settingsService } from '../../services/settings.service'
 import { notificationService } from '../../services/notification.service'
 import { formatRelative } from '../../utils'
@@ -19,6 +21,8 @@ const mobileNav = [
 export default function Header() {
   const { user, logout } = useAuthStore()
   const itemCount = useCartStore(s => s.items.reduce((sum, i) => sum + i.quantity, 0))
+  const wishlistCount = useWishlistStore(s => s.items.length)
+  const compareCount = useCompareStore(s => s.items.length)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [notifications, setNotifications] = useState<any[]>([])
@@ -134,6 +138,24 @@ export default function Header() {
                 {itemCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[10px] font-bold text-gold-200">
                     {itemCount > 9 ? '9+' : itemCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link to="/wishlist" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label={`Wishlist, ${wishlistCount} item${wishlistCount === 1 ? '' : 's'}`}>
+                <Heart className="h-5 w-5" />
+                {wishlistCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                    {wishlistCount > 9 ? '9+' : wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link to="/compare" className="relative rounded-full p-2.5 text-gray-600 transition-colors hover:bg-navy-50 hover:text-navy-900" aria-label={`Compare, ${compareCount} product${compareCount === 1 ? '' : 's'}`}>
+                <Scale className="h-5 w-5" />
+                {compareCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy-900 text-[10px] font-bold text-gold-200">
+                    {compareCount > 9 ? '9+' : compareCount}
                   </span>
                 )}
               </Link>

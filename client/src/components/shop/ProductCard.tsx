@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingBag, ArrowRight } from 'lucide-react'
+import { Heart, ShoppingBag, ArrowRight, Scale } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn, formatPrice, getConditionLabel, getStockStatus, calculateDiscount } from '../../utils'
 import ProductImage from './ProductImage'
 import { useCartStore } from '../../stores/cartStore'
-import { useWishlistStore } from '../../stores/wishlistStore'
+import { useWishlist } from '../../hooks/useWishlist'
+import { useCompareStore } from '../../stores/compareStore'
 import type { Product, ProductWithVariant, ProductVariant } from '../../types'
 
 interface ProductCardProps {
@@ -38,7 +39,10 @@ function totalStock(product: Product): number {
 
 export function ProductCard({ product, variant = 'grid', showWishlist = true, className }: ProductCardProps) {
   const addItem = useCartStore(s => s.addItem)
-  const wishlist = useWishlistStore()
+  const wishlist = useWishlist()
+  const compareAdd = useCompareStore(s => s.add)
+  const compareRemove = useCompareStore(s => s.remove)
+  const compareHas = useCompareStore(s => s.has)
 
   const detailsTo = `/products/${product.slug || product.id}`
   const best = cheapestVariant(product)
@@ -64,11 +68,33 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     : 'smartphone'
 
   const wishlistId = best?.id || product.id
-  const wished = showWishlist && wishlist.hasItem(wishlistId)
+  const wished = showWishlist && wishlist.has(wishlistId)
 
   const toggleWishlist = () => {
-    wishlist.toggleItem(wishlistId)
-    toast.success(wished ? 'Removed from wishlist' : 'Added to wishlist')
+    wishlist.toggle(wishlistId, product.name)
+  }
+
+  const comparing = compareHas(product.id)
+
+  const toggleCompare = () => {
+    if (comparing) {
+      compareRemove(product.id)
+      toast.success('Removed from compare')
+      return
+    }
+    const category = product.category as any
+    const categoryId = category?.id || category?._id || null
+    const error = compareAdd(product.id, categoryId)
+    if (error === 'duplicate') return
+    if (error === 'max') {
+      toast.error('You can compare up to 4 products at a time.')
+      return
+    }
+    if (error === 'category') {
+      toast.error('Comparison works within the same category. Clear your current selection first.')
+      return
+    }
+    toast.success('Added to compare')
   }
 
   const handleAddToCart = () => {
@@ -107,6 +133,23 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
       )}
     >
       <Heart className={cn('h-5 w-5', wished && 'fill-current')} />
+    </button>
+  )
+
+  const compareButton = (
+    <button
+      type="button"
+      onClick={toggleCompare}
+      aria-label={comparing ? `Remove ${product.name} from compare` : `Add ${product.name} to compare`}
+      aria-pressed={comparing}
+      className={cn(
+        'absolute right-2 top-14 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 ring-1 ring-black/5 backdrop-blur transition-all duration-200 active:scale-90 motion-reduce:transition-none motion-reduce:active:scale-100',
+        comparing
+          ? 'text-navy-900 ring-navy-300 bg-navy-50'
+          : 'text-gray-400 hover:text-navy-700 hover:shadow-sm'
+      )}
+    >
+      <Scale className="h-5 w-5" />
     </button>
   )
 
@@ -165,6 +208,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
         <span className={cn('h-1.5 w-1.5 rounded-full', stockPill.dot)} /> {stockPill.label}
       </span>
       {wishlistButton}
+      {compareButton}
     </div>
   )
 
@@ -213,6 +257,18 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
                 <Heart className={cn('h-5 w-5', wished ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
               </button>
             )}
+            <button
+              type="button"
+              onClick={toggleCompare}
+              aria-label={comparing ? `Remove ${product.name} from compare` : `Add ${product.name} to compare`}
+              aria-pressed={comparing}
+              className={cn(
+                'inline-flex min-h-[44px] items-center justify-center rounded-lg border px-3.5 transition-colors hover:border-navy-300',
+                comparing ? 'border-navy-300 bg-navy-50 text-navy-900' : 'border-gray-200 text-gray-400 hover:text-navy-700'
+              )}
+            >
+              <Scale className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>

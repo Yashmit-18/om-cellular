@@ -27,6 +27,7 @@ const RepairBook = lazy(() => import('./pages/shop/RepairBookPage'))
 const RepairTrack = lazy(() => import('./pages/shop/RepairTrackPage'))
 const Search = lazy(() => import('./pages/shop/SearchPage'))
 const Wishlist = lazy(() => import('./pages/shop/WishlistPage'))
+const Compare = lazy(() => import('./pages/shop/ComparePage'))
 const TrackOrder = lazy(() => import('./pages/shop/TrackOrderPage'))
 
 const AccountDashboard = lazy(() => import('./pages/account/DashboardPage'))
@@ -90,6 +91,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/repair/track': 'Track Your Repair | OM Cellular',
   '/cart': 'Your Cart | OM Cellular',
   '/wishlist': 'Wishlist | OM Cellular',
+  '/compare': 'Compare Phones | OM Cellular',
   '/faq': 'FAQs | OM Cellular',
   '/contact': 'Contact Us | OM Cellular',
   '/track-order': 'Track Your Order | OM Cellular',
@@ -127,6 +129,8 @@ export default function App() {
           <Route path="/buy-phones" element={<BuyPhones />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/compare" element={<Compare />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/faq" element={<FAQ />} />
@@ -136,7 +140,6 @@ export default function App() {
           <Route path="/repair" element={<RepairBook />} />
           <Route path="/repair/track" element={<RepairTrack />} />
           <Route path="/search" element={<Search />} />
-          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/track-order" element={<TrackOrder />} />
 
           <Route element={<AccountLayout />}>

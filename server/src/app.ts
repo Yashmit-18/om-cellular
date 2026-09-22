@@ -11,6 +11,7 @@ import { release } from './config/version'
 // Route imports
 import authRoutes from './routes/auth'
 import productRoutes from './routes/products'
+import wishlistRoutes from './routes/wishlists'
 import categoryRoutes from './routes/categories'
 import brandRoutes from './routes/brands'
 import orderRoutes from './routes/orders'
@@ -86,6 +87,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 // API Routes
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/products', productRoutes)
+app.use('/api/v1/wishlist', wishlistRoutes)
 app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/brands', brandRoutes)
 app.use('/api/v1/orders', orderRoutes)

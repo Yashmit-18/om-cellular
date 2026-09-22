@@ -7,6 +7,8 @@ import { requireAdmin, optionalAuth } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { slugify } from '../utils/helpers'
 import { validateVariantPayload, isDuplicateKeyError, variantListMatchesRole, publicVariantProject } from '../services/productVariant.service'
+import { extractVariantImage, effectiveVariantPrice, computeProductSummary } from '../services/productView.service'
+import { rankRelatedProducts, RelatedCandidate, RelatedContext } from '../services/relatedProducts.service'
 import {
   parseProductQuery,
   buildProductMatch,
@@ -19,34 +21,17 @@ import {
 
 const router = Router()
 
-function extractVariantImage(variant: any): string {
-  if (!variant.images) return ''
-  if (typeof variant.images === 'string') return variant.images
-  if (Array.isArray(variant.images)) return variant.images.find(Boolean) || ''
-  return ''
-}
-
-function effectiveVariantPrice(variant: any): number {
-  const p = Number(variant.price) || 0
-  const dp = variant.discountPrice != null ? Number(variant.discountPrice) : null
-  return dp !== null && dp < p ? dp : p
-}
-
-function computeProductSummary(p: any, variants: any[]) {
-  const effectivePrices = variants.map(effectiveVariantPrice)
-  const noVariants = variants.length === 0
-  const lowestPrice = noVariants ? 0 : Math.min(...effectivePrices)
-  const highestPrice = noVariants ? 0 : Math.max(...effectivePrices)
-  const anyImage =
-    (Array.isArray(p.images) && p.images.find(Boolean)) ||
-    variants.map(extractVariantImage).find(Boolean) ||
-    ''
+// Public "listed product" mapper shared by GET / and the related endpoint so a
+// product serializes identically from either route.
+function mapListedProduct(rest: any): any {
   return {
-    lowestPrice,
-    highestPrice,
-    inStock: variants.some(v => (Number(v.stock) || 0) > 0),
-    variantCount: variants.length,
-    primaryImage: anyImage,
+    ...rest,
+    id: String(rest._id),
+    variants: (rest.variants || []).map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
+    primaryImage:
+      (Array.isArray(rest.images) && rest.images.find(Boolean)) ||
+      (rest.variants || []).map(extractVariantImage).find(Boolean) ||
+      '',
   }
 }
 
@@ -169,15 +154,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     // them, so expose `id` explicitly for both the product and its variants.
     const data = raw.map((p: any) => {
       const { _matchedVariants, ...rest } = p
-      return {
-        ...rest,
-        id: String(rest._id),
-        variants: (rest.variants || []).map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
-        primaryImage:
-          (Array.isArray(rest.images) && rest.images.find(Boolean)) ||
-          (rest.variants || []).map(extractVariantImage).find(Boolean) ||
-          '',
-      }
+      return mapListedProduct(rest)
     })
 
     return res.json({
@@ -314,6 +291,125 @@ router.get('/by-variant/:variantId', optionalAuth, async (req: AuthRequest, res:
     })
   } catch (error) {
     console.error('GET /products/by-variant error:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+})
+
+// Products similar to /:id via honest catalogue signals (category, brand,
+// price band, matching storage/RAM). The scoring is pure and deterministic —
+// see tests/relatedProducts.test.ts — so two calls always return the same list.
+router.get('/:id/related', optionalAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    let product: any = null
+
+    if (mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)) {
+      product = await Product.findById(id)
+    }
+    if (!product) {
+      product = await Product.findOne({ slug: id })
+    }
+
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
+    if (!product.isActive && req.user?.role !== 'ADMIN') {
+      return res.status(404).json({ success: false, message: 'Product not found' })
+    }
+
+    const effectivePrices = (vs: any[]) => vs.map(effectiveVariantPrice)
+    const distinctValues = (vs: any[], key: string) => Array.from(new Set(vs.map((v: any) => String(v?.[key] || '').trim()).filter(Boolean)))
+
+    const ownVariants = await ProductVariant.find({ productId: product._id, isActive: true }).lean()
+    // A product with nothing purchasable has nothing comparable against.
+    if (ownVariants.length === 0) return res.json({ success: true, data: [] })
+
+    const context: RelatedContext = {
+      id: String(product._id),
+      categoryId: product.categoryId ? String(product.categoryId) : null,
+      brandId: product.brandId ? String(product.brandId) : null,
+      lowestPrice: Math.min(...effectivePrices(ownVariants)),
+      storageValues: distinctValues(ownVariants, 'storage'),
+      ramValues: distinctValues(ownVariants, 'ram'),
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 8)
+
+    // Candidate pool: prefer products sharing category/brand, topped up with
+    // the newest catalogue rows so scoring always has something to rank.
+    const groupClauses: any[] = []
+    if (product.categoryId) groupClauses.push({ categoryId: product.categoryId })
+    if (product.brandId) groupClauses.push({ brandId: product.brandId })
+    const sameGroupMatch: any = { isActive: true, _id: { $ne: product._id } }
+    if (groupClauses.length) sameGroupMatch.$or = groupClauses
+    const grouped = groupClauses.length
+      ? await Product.find(sameGroupMatch).select('name brandId categoryId isFeatured').limit(300).lean()
+      : []
+
+    let filler: any[] = []
+    if (grouped.length < 30) {
+      const seenIds = grouped.map((g: any) => g._id)
+      filler = await Product.find({ isActive: true, _id: { $nin: [...seenIds, product._id] } })
+        .select('name brandId categoryId isFeatured')
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .lean()
+    }
+    const pool = [...grouped, ...filler]
+    if (pool.length === 0) return res.json({ success: true, data: [] })
+
+    const poolVariants = await ProductVariant
+      .find({ productId: { $in: pool.map((p: any) => p._id) }, isActive: true })
+      .select('productId price discountPrice storage ram')
+      .lean()
+
+    const variantsByProduct = new Map<string, any[]>()
+    for (const v of poolVariants) {
+      const pid = String(v.productId)
+      const list = variantsByProduct.get(pid) || []
+      list.push(v)
+      variantsByProduct.set(pid, list)
+    }
+
+    const candidates: RelatedCandidate[] = []
+    for (const p of pool) {
+      const pid = String(p._id)
+      const vs = variantsByProduct.get(pid) || []
+      if (vs.length === 0) continue
+      candidates.push({
+        id: pid,
+        name: p.name,
+        categoryId: p.categoryId ? String(p.categoryId) : null,
+        brandId: p.brandId ? String(p.brandId) : null,
+        isFeatured: !!p.isFeatured,
+        lowestPrice: Math.min(...effectivePrices(vs)),
+        storageValues: distinctValues(vs, 'storage'),
+        ramValues: distinctValues(vs, 'ram'),
+      })
+    }
+
+    const ranked = rankRelatedProducts(candidates, context, limit)
+    if (ranked.length === 0) return res.json({ success: true, data: [] })
+
+    const rankedIds = ranked.map(r => r.id)
+    const shown = await Product.find({ _id: { $in: rankedIds } }).populate('brand').populate('category').lean()
+    const shownById = new Map<string, any>(shown.map((s: any) => [String(s._id), s]))
+
+    const data = ranked
+      .map(r => {
+        const p = shownById.get(r.id)
+        if (!p) return null
+        const pvs = variantsByProduct.get(r.id) || []
+        return {
+          ...p,
+          id: String(p._id),
+          variants: pvs.map((v: any) => ({ ...publicVariantProject(v), id: String(v._id) })),
+          ...computeProductSummary(p, pvs),
+        }
+      })
+      .filter(Boolean)
+
+    return res.json({ success: true, data })
+  } catch (error) {
+    console.error('GET /products/:id/related error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 })

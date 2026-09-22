@@ -2,9 +2,11 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
+import { useWishlistSync } from '../hooks/useWishlist'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import ScrollProgress from '../components/layout/ScrollProgress'
+import CompareBar from '../components/shop/CompareBar'
 import { settingsService } from '../services/settings.service'
 
 export default function ShopLayout() {
@@ -13,6 +15,16 @@ export default function ShopLayout() {
   const [whatsAppUrl, setWhatsAppUrl] = useState('')
 
   useEffect(() => { fetchUser() }, [fetchUser])
+
+  // Signed-in wishlist reconciliation (server ↔ guest-local) — runs once per
+  // auth or location change so stale entries never survive a login.
+  useWishlistSync()
+
+  const hideCompareBar =
+    location.pathname.startsWith('/products/') ||
+    location.pathname.startsWith('/cart') ||
+    location.pathname.startsWith('/checkout') ||
+    location.pathname.startsWith('/compare')
 
   useEffect(() => {
     settingsService.getSettings().then(r => {
@@ -46,6 +58,8 @@ return (
           <MessageCircle className="h-6 w-6" />
         </a>
       )}
+      {/* Global compare dock — hidden on pages carrying the full table/cart UI */}
+      {!hideCompareBar && <CompareBar />}
       {/* Spacer matching fixed mobile bottom nav height (+ notch safe area) */}
       <div className="h-[calc(5rem+env(safe-area-inset-bottom))] md:hidden" aria-hidden="true" />
     </div>

@@ -15,6 +15,7 @@ export interface ParsedProductQuery {
   page: number
   limit: number
   search: string
+  ids: string[]
   brandIds: string[]
   categoryIds: string[]
   conditions: string[]
@@ -85,6 +86,8 @@ export function parseProductQuery(query: Record<string, any>, opts: { isAdmin?: 
   const categoryTokens = parseMultiParam(query.category ?? query.categoryId)
   const brandIds = brandTokens.filter(token => mongoose.Types.ObjectId.isValid(token))
   const categoryIds = categoryTokens.filter(token => mongoose.Types.ObjectId.isValid(token))
+  const idsText = parseMultiParam(query.ids)
+  const ids = idsText.filter(token => mongoose.Types.ObjectId.isValid(token))
 
   let minPrice = parseNumberParam(query.minPrice, { min: 0, max: MAX_PRICE })
   let maxPrice = parseNumberParam(query.maxPrice, { min: 0, max: MAX_PRICE })
@@ -96,6 +99,7 @@ export function parseProductQuery(query: Record<string, any>, opts: { isAdmin?: 
     page,
     limit,
     search: normalizeSearchTerm(query.search ?? query.query),
+    ids,
     brandIds,
     categoryIds,
     conditions: parseMultiParam(query.condition),
@@ -128,6 +132,7 @@ export function buildProductMatch(parsed: ParsedProductQuery): Record<string, an
   }
   if (parsed.brandIds.length) match.brandId = { $in: parsed.brandIds.map(id => new mongoose.Types.ObjectId(id)) }
   if (parsed.categoryIds.length) match.categoryId = { $in: parsed.categoryIds.map(id => new mongoose.Types.ObjectId(id)) }
+  if (parsed.ids.length) match._id = { $in: parsed.ids.map(id => new mongoose.Types.ObjectId(id)) }
   if (parsed.isFeatured) match.isFeatured = true
   if (parsed.isRefurbished) match.isRefurbished = true
   if (parsed.isNewArrival) match.isNewArrival = true

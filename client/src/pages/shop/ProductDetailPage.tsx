@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Heart, Shield, RotateCcw, ChevronRight, Minus, Plus, Zap, Check } from 'lucide-react'
+import { ShoppingCart, Heart, Shield, RotateCcw, ChevronRight, Minus, Plus, Zap, Check, Scale } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import { useCartStore, MAX_QUANTITY_PER_ITEM } from '../../stores/cartStore'
-import { useWishlistStore } from '../../stores/wishlistStore'
-import { useAuthStore } from '../../stores/authStore'
+import { useWishlist } from '../../hooks/useWishlist'
+import { useCompareStore } from '../../stores/compareStore'
+import { useRecentlyViewedStore } from '../../stores/recentlyViewedStore'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { formatPrice, calculateDiscount, getImageList, cn } from '../../utils'
 import ProductImage from '../../components/shop/ProductImage'
+import RelatedProducts from '../../components/shop/RelatedProducts'
+import RecentlyViewed from '../../components/shop/RecentlyViewed'
 import type { Product, ProductVariant } from '../../types'
 
 function parseArrayItems(value: unknown): string[] {
@@ -65,9 +68,10 @@ export default function ProductDetailPage() {
   const [error, setError] = useState(false)
   const [touchX, setTouchX] = useState<number | null>(null)
   const addItem = useCartStore(s => s.addItem)
-  const toggleItem = useWishlistStore(s => s.toggleItem)
-  const hasItem = useWishlistStore(s => s.hasItem)
-  const { user } = useAuthStore()
+  const wishlist = useWishlist()
+  const compareAdd = useCompareStore(s => s.add)
+  const compareRemove = useCompareStore(s => s.remove)
+  const compareHas = useCompareStore(s => s.has)
 
   useEffect(() => {
     if (!id) return
@@ -92,6 +96,13 @@ export default function ProductDetailPage() {
     })
     return () => { isActive = false }
   }, [id])
+
+  // Record this product in the "Recently viewed" trail (newest-first, capped,
+  // de-duplicated — see utils/discovery/recentlyViewed).
+  const productId = product?.id
+  useEffect(() => {
+    if (productId) useRecentlyViewedStore.getState().record(productId)
+  }, [productId])
 
   useDocumentMeta({
     title: product ? `${product.name} - Buy Certified ${product.name} | OM Cellular` : 'Product | OM Cellular',
@@ -161,12 +172,30 @@ export default function ProductDetailPage() {
 
   const handleWishlist = () => {
     if (!selectedVariant) return
-    if (!user) {
-      toast.error('Please login to add to wishlist')
+    wishlist.toggle(selectedVariant.id, product?.name)
+  }
+
+  const handleCompare = () => {
+    if (!product) return
+    const comparing = compareHas(product.id)
+    if (comparing) {
+      compareRemove(product.id)
+      toast.success('Removed from compare')
       return
     }
-    toggleItem(selectedVariant.id)
-    toast.success(hasItem(selectedVariant.id) ? 'Added to wishlist' : 'Removed from wishlist')
+    const category = product.category as any
+    const categoryId = category?.id || category?._id || null
+    const error = compareAdd(product.id, categoryId)
+    if (error === 'duplicate') return
+    if (error === 'max') {
+      toast.error('You can compare up to 4 products at a time.')
+      return
+    }
+    if (error === 'category') {
+      toast.error('Comparison works within the same category. Clear your current selection first.')
+      return
+    }
+    toast.success('Added to compare')
   }
 
   if (loading) {
@@ -371,11 +400,43 @@ export default function ProductDetailPage() {
             <button
               onClick={handleWishlist}
               disabled={!selectedVariant}
-              className={cn('rounded-lg border px-4 transition-colors disabled:opacity-40', selectedVariant && hasItem(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-600')}
-              aria-label={selectedVariant && hasItem(selectedVariant.id) ? 'Remove from wishlist' : 'Add to wishlist'}
-              aria-pressed={selectedVariant ? hasItem(selectedVariant.id) : undefined}
+              className={cn('rounded-lg border px-4 transition-colors disabled:opacity-40', selectedVariant && wishlist.has(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-600')}
+              aria-label={selectedVariant && wishlist.has(selectedVariant.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-pressed={selectedVariant ? wishlist.has(selectedVariant.id) : undefined}
             >
-              <Heart className={cn('h-5 w-5', selectedVariant && hasItem(selectedVariant.id) && 'fill-current')} />
+              <Heart className={cn('h-5 w-5', selectedVariant && wishlist.has(selectedVariant.id) && 'fill-current')} />
+            </button>
+            <button
+              onClick={handleCompare}
+              className={cn('rounded-lg border px-4 transition-colors', compareHas(product.id) ? 'border-navy-300 bg-navy-50 text-navy-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-600')}
+              aria-label={compareHas(product.id) ? `Remove ${product.name} from compare` : `Add ${product.name} to compare`}
+              aria-pressed={compareHas(product.id)}
+            >
+              <Scale className={cn('h-5 w-5', compareHas(product.id) && 'fill-none')} />
+            </button>
+          </div>
+
+          {/* Secondary actions (mobile): the sticky buy bar stays focused on
+              cart/buy, so save + compare live in this compact row. */}
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+            <button
+              onClick={handleWishlist}
+              disabled={!selectedVariant}
+              className={cn('inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors disabled:opacity-40', selectedVariant && wishlist.has(selectedVariant.id) ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
+              aria-label={selectedVariant && wishlist.has(selectedVariant.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-pressed={selectedVariant ? wishlist.has(selectedVariant.id) : undefined}
+            >
+              <Heart className={cn('h-4 w-4', selectedVariant && wishlist.has(selectedVariant.id) && 'fill-current')} />
+              {selectedVariant && wishlist.has(selectedVariant.id) ? 'Saved' : 'Wishlist'}
+            </button>
+            <button
+              onClick={handleCompare}
+              className={cn('inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors', compareHas(product.id) ? 'border-navy-300 bg-navy-50 text-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
+              aria-label={compareHas(product.id) ? `Remove ${product.name} from compare` : `Add ${product.name} to compare`}
+              aria-pressed={compareHas(product.id)}
+            >
+              <Scale className="h-4 w-4" />
+              {compareHas(product.id) ? 'In Compare' : 'Compare'}
             </button>
           </div>
 
@@ -466,6 +527,14 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Related + Recently viewed */}
+      {product && (
+        <div className="mt-14 space-y-14 border-t border-gray-100 pt-10">
+          <RelatedProducts productId={product.id} categoryId={product.categoryId} brandId={product.brandId} />
+          <RecentlyViewed excludeId={product.id} />
+        </div>
+      )}
 
       {/* Mobile sticky action bar (above bottom nav) */}
       <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:hidden">

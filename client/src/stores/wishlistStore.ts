@@ -7,6 +7,7 @@ interface WishlistState {
   removeItem: (variantId: string) => void
   toggleItem: (variantId: string) => void
   hasItem: (variantId: string) => boolean
+  setItems: (variantIds: string[]) => void
   clearWishlist: () => void
 }
 
@@ -35,6 +36,8 @@ export const useWishlistStore = create<WishlistState>()(
       },
 
       hasItem: (variantId) => get().items.includes(variantId),
+
+      setItems: (variantIds) => set({ items: Array.isArray(variantIds) ? variantIds : [] }),
 
       clearWishlist: () => set({ items: [] }),
     }),
