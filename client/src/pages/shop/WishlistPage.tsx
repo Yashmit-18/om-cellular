@@ -6,7 +6,6 @@ import { useWishlistStore } from '../../stores/wishlistStore'
 import { useAuthStore } from '../../stores/authStore'
 import api from '../../services/api'
 import { wishlistService, type WishlistEntry } from '../../services/wishlist.service'
-import { unionWishlistIds } from '../../utils/discovery/wishlist'
 import ProductCard, { ProductCardSkeleton } from '../../components/shop/ProductCard'
 
 export default function WishlistPage() {
@@ -29,10 +28,7 @@ export default function WishlistPage() {
           if (!active) return
           const clean = (list || []).filter(entry => entry?.variantId && entry?.product)
           setEntries(clean)
-          setItems(unionWishlistIds(
-            clean.map(entry => entry.variantId),
-            useWishlistStore.getState().items,
-          ))
+          setItems(clean.map(entry => entry.variantId))
         })
         .catch(() => { if (active) { setError(true); setEntries([]) } })
         .finally(() => { if (active) setLoading(false) })
@@ -51,6 +47,7 @@ export default function WishlistPage() {
         if (!active) return
         const resolved = (results.filter(Boolean) as WishlistEntry[]).filter(entry => entry.product)
         setEntries(resolved)
+        setItems(resolved.map(entry => entry.variantId))
         // A wholly stale selection (deactivated variants) resolves to nothing.
         setError(resolved.length === 0 && results.some(r => r === null))
       })

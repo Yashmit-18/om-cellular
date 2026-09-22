@@ -3,6 +3,70 @@ import { ProductVariant } from '../models/productVariant.model'
 import { Inventory } from '../models/inventory.model'
 import { Coupon } from '../models/coupon.model'
 import { recordInventoryMovement } from '../models/inventoryLedger.model'
+import { env } from '../config/env'
+
+export interface PendingPaymentSweepMetrics {
+  scanned: number
+  eligible: number
+  cancelled: number
+  stockRestored: number
+  couponsReleased: number
+  skippedRace: number
+  errors: number
+}
+
+export interface PendingPaymentSweepDependencies {
+  findCandidates: (filter: Record<string, unknown>) => Promise<any[]>
+  claim: (candidate: any, filter: Record<string, unknown>, now: Date) => Promise<any | null>
+  restore: (order: any) => Promise<{ restored: boolean; couponReleased: boolean }>
+}
+
+export function pendingPaymentCutoff(now = new Date(), timeoutMinutes = env.PENDING_PAYMENT_TIMEOUT_MINUTES): Date {
+  return new Date(now.getTime() - timeoutMinutes * 60 * 1000)
+}
+
+export async function sweepAbandonedPendingPayments(now = new Date(), dependencies?: PendingPaymentSweepDependencies): Promise<PendingPaymentSweepMetrics> {
+  const metrics: PendingPaymentSweepMetrics = { scanned: 0, eligible: 0, cancelled: 0, stockRestored: 0, couponsReleased: 0, skippedRace: 0, errors: 0 }
+  const cutoff = pendingPaymentCutoff(now)
+  const filter = { status: 'PENDING', paymentStatus: 'PENDING_PAYMENT', createdAt: { $lt: cutoff } }
+  const defaults: PendingPaymentSweepDependencies = {
+    findCandidates: async query => Order.find(query).lean(),
+    claim: async (candidate, query, sweepNow) => Order.findOneAndUpdate(
+      { _id: candidate._id, ...query },
+      {
+        $set: { status: 'CANCELLED' },
+        $push: { statusHistory: { status: 'CANCELLED', changedAt: sweepNow, changedBy: 'SYSTEM', note: 'Expired abandoned pending payment' } },
+      },
+      { new: true }
+    ),
+    restore: async order => ({ restored: await restoreStockAndCoupon(order, 'ORDER_CANCELLED'), couponReleased: Boolean(order.couponId) }),
+  }
+  const runner = dependencies || defaults
+  const candidates = await runner.findCandidates(filter)
+  metrics.scanned = candidates.length
+
+  for (const candidate of candidates) {
+    metrics.eligible++
+    try {
+      const claimed = await runner.claim(candidate, filter, now)
+      if (!claimed) {
+        metrics.skippedRace++
+        continue
+      }
+
+      metrics.cancelled++
+      const restored = await runner.restore(claimed)
+      if (restored.restored) {
+        metrics.stockRestored++
+        if (restored.couponReleased) metrics.couponsReleased++
+      }
+    } catch (error) {
+      metrics.errors++
+      console.error('Pending payment sweep item failed:', error instanceof Error ? error.message : error)
+    }
+  }
+  return metrics
+}
 
 export async function syncInventory(
   variantId: any,

@@ -60,7 +60,13 @@ export function useWishlistSync() {
         useWishlistStore.getState().setItems(union)
 
         const toPush = union.filter(id => !serverIds.includes(id))
-        if (toPush.length > 0) wishlistService.merge(toPush).catch(() => {})
+        if (toPush.length > 0) {
+          wishlistService.merge(toPush)
+            .then(response => {
+              if (!cancelled) useWishlistStore.getState().setItems((response.data || []).map((entry: { variantId?: string }) => entry.variantId || ''))
+            })
+            .catch(() => {})
+        }
       })
       .catch(() => { /* session not ready / offline — keep the local list */ })
 

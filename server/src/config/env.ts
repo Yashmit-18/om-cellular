@@ -60,6 +60,8 @@ export const env = {
   // True only when every Razorpay credential is configured.
   RAZORPAY_CONFIGURED: Boolean(razorpayKeyId && razorpayKeySecret),
   RAZORPAY_WEBHOOK_CONFIGURED: Boolean(razorpayWebhookSecret),
+  PENDING_PAYMENT_TIMEOUT_MINUTES: Math.max(1, parseInt(process.env.PENDING_PAYMENT_TIMEOUT_MINUTES || '30', 10) || 30),
+  PENDING_PAYMENT_SWEEP_INTERVAL_MINUTES: Math.max(1, parseInt(process.env.PENDING_PAYMENT_SWEEP_INTERVAL_MINUTES || '5', 10) || 5),
 } as const
 
 export function assertRazorpayConfigured() {

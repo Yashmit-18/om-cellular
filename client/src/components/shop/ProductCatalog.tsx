@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, Grid, List, ChevronLeft, ChevronRight, X, PackageOpen, Search } from 'lucide-react'
 import api from '../../services/api'
 import { cn, getConditionLabel, formatPrice } from '../../utils'
+import { isTruthyParam } from '../../utils/urlParams'
 import ProductCard, { ProductCardSkeleton } from './ProductCard'
 import ProductFilters, { type MultiFilterKey, type FlagFilterKey, type ProductFilterSelection } from './ProductFilters'
 import type { ProductWithVariant, ProductFacets, Pagination, Brand } from '../../types'
@@ -20,7 +21,6 @@ const SORT_OPTIONS = [
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'discount', label: 'Biggest Discount' },
-  { value: 'rating', label: 'Top Rated' },
   { value: 'name', label: 'Name: A-Z' },
 ]
 
@@ -65,6 +65,53 @@ export default function ProductCatalog({
   const [error, setError] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const filtersDrawerRef = useRef<HTMLDivElement>(null)
+  const filtersTriggerRef = useRef<HTMLButtonElement>(null)
+
+  const closeFilters = useCallback(() => setShowFilters(false), [])
+
+  // Mobile filter drawer: treat as a modal dialog — lock scroll, trap focus,
+  // close on Escape, restore focus to the "Open filters" trigger on return.
+  useEffect(() => {
+    if (!showFilters) return
+    const drawer = filtersDrawerRef.current
+    const trigger = filtersTriggerRef.current
+    const previouslyOverflow = document.body.style.overflow
+    if (drawer) drawer.focus()
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowFilters(false)
+        return
+      }
+      if (event.key !== 'Tab' || !drawer) return
+      const focusables = drawer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusables.length) {
+        event.preventDefault()
+        return
+      }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown, true)
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      document.body.style.overflow = previouslyOverflow
+      if (drawer && drawer.contains(document.activeElement)) trigger?.focus()
+    }
+  }, [showFilters])
   const [brands, setBrands] = useState<Brand[]>([])
   const [searchInput, setSearchInput] = useState(searchParams.get('query') || searchParams.get('q') || '')
 
@@ -76,8 +123,8 @@ export default function ProductCatalog({
   const colors = parseList(searchParams.get('color'))
   const priceMinParam = searchParams.get('minPrice') || ''
   const priceMaxParam = searchParams.get('maxPrice') || ''
-  const inStock = searchParams.get('inStock') === 'true'
-  const discount = searchParams.get('discount') === 'true'
+  const inStock = isTruthyParam(searchParams.get('inStock'))
+  const discount = isTruthyParam(searchParams.get('discount'))
   const currentQuery = searchParams.get('query') || searchParams.get('q') || ''
   const currentIsFeatured = searchParams.get('isFeatured') || ''
   const currentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
@@ -238,7 +285,7 @@ export default function ProductCatalog({
 
   const toggleFlag = (key: FlagFilterKey) => {
     const params = new URLSearchParams(searchParams)
-    const next = !(searchParams.get(key) === 'true')
+    const next = !isTruthyParam(searchParams.get(key))
     if (next) params.set(key, 'true'); else params.delete(key)
     params.delete('page')
     setSearchParams(params)
@@ -383,24 +430,32 @@ export default function ProductCatalog({
             </div>
           </aside>
 
-          {/* Mobile filter drawer */}
-          {showFilters && (
-            <div className="fixed inset-0 z-50 md:hidden">
-              <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-              <div className="absolute left-0 top-0 flex h-full w-80 max-w-[85%] flex-col bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-100 p-5">
-                  <h2 className="text-lg font-bold text-gray-900">Filters</h2>
-                  <button onClick={() => setShowFilters(false)} aria-label="Close filters" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-5">{filterPanel('drawer')}</div>
-                <div className="border-t border-gray-100 p-4">
-                  <button onClick={() => setShowFilters(false)} className="btn-primary w-full">
-                    {loading ? 'Loading…' : `Show ${pagination?.total ?? 0} result${pagination?.total === 1 ? '' : 's'}`}
-                  </button>
-                </div>
-              </div>
+      {/* Mobile filter drawer */}
+      {showFilters && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={closeFilters} />
+          <div
+            ref={filtersDrawerRef}
+            id="catalog-filters-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="catalog-filters-drawer-title"
+            tabIndex={-1}
+            className="absolute left-0 top-0 flex h-full w-80 max-w-[85%] flex-col bg-white shadow-xl outline-none"
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 p-5">
+              <h2 id="catalog-filters-drawer-title" className="text-lg font-bold text-gray-900">Filters</h2>
+              <button onClick={closeFilters} aria-label="Close filters" aria-controls="catalog-filters-drawer" className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
             </div>
-          )}
+            <div className="flex-1 overflow-y-auto p-5">{filterPanel('drawer')}</div>
+            <div className="border-t border-gray-100 p-4">
+              <button onClick={closeFilters} className="btn-primary w-full">
+                {loading ? 'Loading…' : `Show ${pagination?.total ?? 0} result${pagination?.total === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
           {/* Product Grid */}
           <div className="min-w-0 flex-1">

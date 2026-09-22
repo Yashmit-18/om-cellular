@@ -3,6 +3,7 @@ import { connectDatabase } from './config/database'
 import { release } from './config/version'
 import app from './app'
 import { ServiceArea } from './models/serviceArea.model'
+import { sweepAbandonedPendingPayments } from './services/orderLifecycle.service'
 
 async function startServer() {
   await connectDatabase()
@@ -19,6 +20,10 @@ async function startServer() {
     console.log(`✓ Release: ${release.version}${release.commit ? ` (commit ${release.commit.slice(0, 12)})` : ''}`)
     console.log(`✓ Client URL: ${env.CLIENT_URL}`)
     console.log(`✓ Serviceability: ${serviceabilityMode}`)
+    const sweep = () => sweepAbandonedPendingPayments().catch(error => console.error('Pending payment sweep failed:', error instanceof Error ? error.message : error))
+    sweep()
+    const interval = setInterval(sweep, env.PENDING_PAYMENT_SWEEP_INTERVAL_MINUTES * 60 * 1000)
+    interval.unref()
   })
 }
 

@@ -88,11 +88,11 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     : categoryName.includes('accessor') ? 'headphones'
     : 'smartphone'
 
-  const wishlistId = best?.id || product.id
+  const wishlistId = best?.id || ''
   const wished = showWishlist && wishlist.has(wishlistId)
 
   const toggleWishlist = () => {
-    wishlist.toggle(wishlistId, product.name)
+    if (wishlistId) wishlist.toggle(wishlistId, product.name)
   }
 
   const comparing = compareHas(product.id)
@@ -144,6 +144,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
     <button
       type="button"
       onClick={toggleWishlist}
+      disabled={!wishlistId}
       aria-label={wished ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
       aria-pressed={wished}
       className={cn(
@@ -271,6 +272,7 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
               <button
                 type="button"
                 onClick={toggleWishlist}
+                disabled={!wishlistId}
                 aria-label={wished ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
                 aria-pressed={wished}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-200 px-3.5 transition-colors hover:border-navy-300"

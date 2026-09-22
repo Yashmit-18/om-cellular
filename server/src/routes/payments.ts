@@ -150,6 +150,25 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ success: false, message: 'Payment could not be confirmed' })
     }
 
+    // Claim the pending order atomically so an abandoned-payment sweep cannot
+    // cancel it between the read above and this settlement.
+    if (order.status === 'PENDING' && order.paymentStatus === 'PENDING_PAYMENT') {
+      const settled = await Order.findOneAndUpdate(
+        { _id: order._id, status: 'PENDING', paymentStatus: 'PENDING_PAYMENT' },
+        {
+          $set: { paymentStatus: 'PAID', razorpayPaymentId, razorpaySignature, paidAt: new Date(), paymentGateway: 'razorpay', status: 'PAYMENT_CONFIRMED' },
+          $push: { statusHistory: { status: 'PAYMENT_CONFIRMED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Payment received via Razorpay' } },
+        },
+        { new: true }
+      )
+      if (!settled) {
+        const current = await Order.findById(orderId).select('paymentStatus')
+        if (current?.paymentStatus === 'PAID') return res.json({ success: true, data: { orderId: String(orderId), status: 'PAID', alreadyPaid: true } })
+        return res.status(409).json({ success: false, message: 'Order is no longer awaiting payment' })
+      }
+      return res.json({ success: true, data: { orderId: String(order._id), status: 'PAID' } })
+    }
+
     order.paymentStatus = 'PAID'
     order.razorpayPaymentId = razorpayPaymentId
     order.razorpaySignature = razorpaySignature
@@ -223,6 +242,25 @@ router.post('/webhook', async (req: AuthRequest, res: Response) => {
 
       const order = await Order.findOne(where)
       if (order) {
+        if (order.status === 'PENDING' && order.paymentStatus === 'PENDING_PAYMENT') {
+          const settled = await Order.findOneAndUpdate(
+            { _id: order._id, status: 'PENDING', paymentStatus: 'PENDING_PAYMENT' },
+            {
+              $set: { paymentStatus: 'PAID', razorpayPaymentId: paymentId, paidAt: new Date(), paymentGateway: 'razorpay', status: 'PAYMENT_CONFIRMED' },
+              $push: { statusHistory: { status: 'PAYMENT_CONFIRMED', changedAt: new Date(), changedBy: 'SYSTEM', note: 'Payment received via Razorpay (webhook)' } },
+            },
+            { new: true }
+          )
+          if (!settled) return res.json({ success: true, received: true, ignored: 'Order is no longer awaiting payment' })
+          await notify({
+            userId: String(settled.userId._id || settled.userId),
+            type: 'PAYMENT',
+            title: 'Payment received',
+            message: `Your payment for order ${settled.orderNumber} was successful.`,
+            metadata: { orderId: String(settled._id), entity: 'order' },
+          }).catch(() => {})
+          return res.json({ success: true, received: true })
+        }
         order.paymentStatus = 'PAID'
         order.razorpayPaymentId = paymentId
         order.paidAt = new Date()

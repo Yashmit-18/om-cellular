@@ -4,9 +4,13 @@ import { paginate } from '../utils/helpers'
 // Pure, DB-free query parsing + aggregation-shape helpers for GET /products.
 // Kept side-effect free so node:test can exercise every branch without Mongo.
 
-export type ProductSortKey = 'newest' | 'name' | 'price_asc' | 'price_desc' | 'discount' | 'rating'
+export type ProductSortKey = 'newest' | 'name' | 'price_asc' | 'price_desc' | 'discount'
 
-export const PRODUCT_SORT_KEYS: ProductSortKey[] = ['newest', 'name', 'price_asc', 'price_desc', 'discount', 'rating']
+// Products can never accumulate a real rating — reviews here are user feedback on
+// variants (Review model), not a persisted product-rating rollup. So `rating` was
+// a fake sort (constant product.rating=0 → identical to `newest`). Removed from the
+// contract so the UI can't offer a sort box that silently does nothing.
+export const PRODUCT_SORT_KEYS: ProductSortKey[] = ['newest', 'name', 'price_asc', 'price_desc', 'discount']
 
 // Guards against absurd client-supplied bounds that would poison the index scan.
 export const MAX_PRICE = 10_000_000
@@ -190,8 +194,6 @@ export function buildSortDoc(sort: ProductSortKey): Record<string, 1 | -1> {
       return { lowestPrice: -1, createdAt: -1 }
     case 'discount':
       return { maxDiscount: -1, createdAt: -1 }
-    case 'rating':
-      return { rating: -1, ratingCount: -1, createdAt: -1 }
     default:
       return { createdAt: -1 }
   }
