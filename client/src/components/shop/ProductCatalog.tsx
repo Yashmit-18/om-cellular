@@ -155,6 +155,7 @@ export default function ProductCatalog({
       if (seq !== requestSeq.current) return
       setError(true)
       setProducts([])
+      setPagination(null)
     } finally {
       if (seq === requestSeq.current) setLoading(false)
     }
@@ -294,6 +295,7 @@ export default function ProductCatalog({
       onPriceChange={onPriceChange}
       onClear={clearFilters}
       idPrefix={idPrefix}
+      priceDrafts={{ min: priceMin, max: priceMax }}
     />
   )
 
@@ -443,6 +445,7 @@ export default function ProductCatalog({
                       product={product}
                       variant={viewMode === 'list' ? 'list' : 'grid'}
                       className="h-full"
+                      variantFilter={{ storages, rams, colors, conditions }}
                     />
                   ))}
                 </div>

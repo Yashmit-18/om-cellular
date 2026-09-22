@@ -69,6 +69,16 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     }
     if (variantAttrCondition) {
       summaryFields._matchedVariants = { $filter: { input: '$variants', as: 'v', cond: variantAttrCondition } }
+      // Variants that match the attr filter AND are currently in stock.
+      // Computed independently of _matchedVariants so an out-of-stock matched
+      // variant can never satisfy "inStock" when attribute filters are active.
+      summaryFields._matchedInStock = {
+        $filter: {
+          input: '$variants',
+          as: 'v',
+          cond: { $and: [variantAttrCondition, { $gt: [{ $ifNull: ['$$v.stock', 0] }, 0] }] },
+        },
+      }
     }
 
     const pipeline: any[] = [
@@ -153,7 +163,9 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     // Aggregated rows are plain POJOs — Mongoose's `id` virtual never runs on
     // them, so expose `id` explicitly for both the product and its variants.
     const data = raw.map((p: any) => {
-      const { _matchedVariants, ...rest } = p
+      const rest = { ...p }
+      delete rest._matchedVariants
+      delete rest._matchedInStock
       return mapListedProduct(rest)
     })
 

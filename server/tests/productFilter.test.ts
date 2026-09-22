@@ -208,6 +208,36 @@ test('buildPostLookupMatch requires a matched variant for attribute filters', ()
   assert.deepEqual(combined['_matchedVariants.0'], { $exists: true })
 })
 
+test('buildPostLookupMatch scopes inStock to the matched variant when attrs are active', () => {
+  // Cheap to list (no variant-attr filters): inStock is the whole-product check.
+  const plain = buildPostLookupMatch(parseProductQuery({ inStock: 'true' }))
+  assert.equal(plain.inStock, true)
+  assert.equal('_matchedInStock.0' in plain, false)
+  assert.equal('_matchedVariants.0' in plain, false)
+
+  // With a storage filter, inStock must reference the matched (256GB) variant,
+  // not any variant — so it can never be satisfied by an unrelated in-stock one.
+  const attr = buildPostLookupMatch(parseProductQuery({ inStock: 'true', storage: '256GB' }))
+  assert.deepEqual(attr['_matchedInStock.0'], { $exists: true })
+  assert.equal(attr.inStock, undefined)
+
+  // Attribute filters that would make `_matchedInStock` genuinely come back
+  // empty (all matched variants out of stock) are correctly tightened: the
+  // dot-path `_matchedInStock.0` only exists when such a variant is in stock.
+  assert.deepEqual(buildPostLookupMatch(parseProductQuery({ inStock: 'true', ram: '12GB', color: 'Black' }))['_matchedInStock.0'], { $exists: true })
+
+  // inStock=false never adds any inStock-related predicate.
+  const off = buildPostLookupMatch(parseProductQuery({ storage: '256GB' }))
+  assert.equal('_matchedInStock.0' in off, false)
+  assert.equal('inStock' in off, false)
+
+  // Condition-only queries keep the product-level OR semantics unchanged
+  // (inStock is still the whole-product boolean, not the variant-scoped one).
+  const cond = buildPostLookupMatch(parseProductQuery({ inStock: 'true', condition: 'GOOD' }))
+  assert.equal(cond.inStock, true)
+  assert.equal('_matchedInStock.0' in cond, false)
+})
+
 test('buildSortDoc whitelists known sorts with createdAt tiebreakers', () => {
   assert.deepEqual(buildSortDoc('newest'), { createdAt: -1 })
   assert.deepEqual(buildSortDoc('name'), { name: 1 })

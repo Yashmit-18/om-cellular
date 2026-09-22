@@ -6,13 +6,21 @@ import ProductImage from './ProductImage'
 import { useCartStore } from '../../stores/cartStore'
 import { useWishlist } from '../../hooks/useWishlist'
 import { useCompareStore } from '../../stores/compareStore'
-import type { Product, ProductWithVariant, ProductVariant } from '../../types'
+import type { ProductWithVariant, ProductVariant } from '../../types'
+
+interface VariantFilter {
+  storages?: string[]
+  rams?: string[]
+  colors?: string[]
+  conditions?: string[]
+}
 
 interface ProductCardProps {
   product: ProductWithVariant
   variant?: 'grid' | 'list'
   showWishlist?: boolean
   className?: string
+  variantFilter?: VariantFilter
 }
 
 function effectivePrice(v: ProductVariant): number {
@@ -21,23 +29,34 @@ function effectivePrice(v: ProductVariant): number {
   return dp !== null && dp < p ? dp : p
 }
 
-function cheapestVariant(product: Product): ProductVariant | null {
-  const vs = product.variants || []
+function cheapestVariant(vs: ProductVariant[]): ProductVariant | null {
   if (vs.length === 0) return null
   return vs.reduce((best, v) => (effectivePrice(v) < effectivePrice(best) ? v : best), vs[0])
 }
 
-function inStockVariant(product: Product): ProductVariant | null {
-  const vs = (product.variants || []).filter(v => (Number(v.stock) || 0) > 0)
-  if (vs.length === 0) return null
-  return vs.reduce((best, v) => (effectivePrice(v) < effectivePrice(best) ? v : best), vs[0])
+function inStockVariant(vs: ProductVariant[]): ProductVariant | null {
+  const inStock = vs.filter(v => (Number(v.stock) || 0) > 0)
+  if (inStock.length === 0) return null
+  return inStock.reduce((best, v) => (effectivePrice(v) < effectivePrice(best) ? v : best), inStock[0])
 }
 
-function totalStock(product: Product): number {
-  return (product.variants || []).reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+function totalStock(vs: ProductVariant[]): number {
+  return vs.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
 }
 
-export function ProductCard({ product, variant = 'grid', showWishlist = true, className }: ProductCardProps) {
+// Restricts a product's variants to those satisfying the active storage/RAM/
+// colour/condition filters, mirroring the server's variant-scoped matching for
+// price display and quick-add (so a "256GB" listing never adds the 128GB unit).
+function matchesFilter(v: ProductVariant, filter?: VariantFilter): boolean {
+  if (!filter) return true
+  if (filter.storages?.length && !filter.storages.includes(v.storage ?? '')) return false
+  if (filter.rams?.length && !filter.rams.includes(v.ram ?? '')) return false
+  if (filter.colors?.length && !filter.colors.includes(v.color ?? '')) return false
+  if (filter.conditions?.length && !filter.conditions.includes(v.condition ?? '')) return false
+  return true
+}
+
+export function ProductCard({ product, variant = 'grid', showWishlist = true, className, variantFilter }: ProductCardProps) {
   const addItem = useCartStore(s => s.addItem)
   const wishlist = useWishlist()
   const compareAdd = useCompareStore(s => s.add)
@@ -45,15 +64,17 @@ export function ProductCard({ product, variant = 'grid', showWishlist = true, cl
   const compareHas = useCompareStore(s => s.has)
 
   const detailsTo = `/products/${product.slug || product.id}`
-  const best = cheapestVariant(product)
-  const buy = inStockVariant(product)
+  const allVariants = product.variants || []
+  const scopedVariants = allVariants.filter(v => matchesFilter(v, variantFilter))
+  const best = cheapestVariant(scopedVariants)
+  const buy = inStockVariant(scopedVariants)
 
   const current = best ? effectivePrice(best) : (product.lowestPrice ?? 0)
   const original = best ? Number(best.price) || 0 : 0
   const pct = current > 0 && original > current ? calculateDiscount(original, current) : 0
 
-  const stockStatus = product.variants && product.variants.length > 0
-    ? getStockStatus(totalStock(product))
+  const stockStatus = scopedVariants.length > 0
+    ? getStockStatus(totalStock(scopedVariants))
     : (product.inStock ? 'in_stock' : 'out_of_stock')
 
   const condition = best?.condition || product.condition || null

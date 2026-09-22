@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import ShopLayout from './layouts/ShopLayout'
 import AdminLayout from './layouts/AdminLayout'
 import AccountLayout from './layouts/AccountLayout'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const Loading = () => (
   <div className="flex h-screen items-center justify-center">
@@ -120,7 +121,8 @@ function RouteTitle() {
 
 export default function App() {
   return (
-    <Suspense fallback={<Loading />}>
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
       <ScrollToTop />
       <RouteTitle />
       <Routes>
@@ -197,6 +199,7 @@ export default function App() {
           <Route path="contact-requests" element={<AdminContactRequests />} />
         </Route>
       </Routes>
-    </Suspense>
+      </Suspense>
+    </ErrorBoundary>
   )
 }

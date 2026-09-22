@@ -29,6 +29,11 @@ interface ProductFiltersProps {
   onPriceChange: (min: string, max: string) => void
   onClear: () => void
   idPrefix: string
+  // ProductCatalog owns the committed URL price bounds AND the in-progress
+  // draft values (typed but not yet debounced into the URL). The inputs must
+  // bind to the drafts rather than the committed selection so editing one
+  // field never clobbers the other's pending value.
+  priceDrafts: { min: string; max: string }
 }
 
 const PRICE_PRESETS = [
@@ -116,11 +121,12 @@ export default function ProductFilters({
   onPriceChange,
   onClear,
   idPrefix,
+  priceDrafts,
 }: ProductFiltersProps) {
   const [brandSearch, setBrandSearch] = useState('')
 
   const visibleBrands = (facets?.brands || []).filter(b => b.name.toLowerCase().includes(brandSearch.trim().toLowerCase()))
-  const activePricePreset = PRICE_PRESETS.findIndex(p => p.min === selection.priceMin && p.max === selection.priceMax)
+  const activePricePreset = PRICE_PRESETS.findIndex(p => p.min === priceDrafts.min && p.max === priceDrafts.max)
 
   const selectedCount =
     selection.categoryIds.length +
@@ -184,8 +190,8 @@ export default function ProductFilters({
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  value={selection.priceMin}
-                  onChange={e => onPriceChange(e.target.value, selection.priceMax)}
+                  value={priceDrafts.min}
+                  onChange={e => onPriceChange(e.target.value, priceDrafts.max)}
                   placeholder={facets ? String(facets.price.min) : 'Min'}
                   aria-label="Minimum price"
                   className="input !py-2 !pl-6 text-sm"
@@ -198,8 +204,8 @@ export default function ProductFilters({
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  value={selection.priceMax}
-                  onChange={e => onPriceChange(selection.priceMin, e.target.value)}
+                  value={priceDrafts.max}
+                  onChange={e => onPriceChange(priceDrafts.min, e.target.value)}
                   placeholder={facets ? String(facets.price.max) : 'Max'}
                   aria-label="Maximum price"
                   className="input !py-2 !pl-6 text-sm"

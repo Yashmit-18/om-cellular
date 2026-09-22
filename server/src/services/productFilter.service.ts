@@ -161,7 +161,17 @@ export function buildPostLookupMatch(parsed: ParsedProductQuery): Record<string,
     // Product-level condition OR any active variant at that condition.
     match.$or = [{ condition: { $in: parsed.conditions } }, { '_matchedVariants.0': { $exists: true } }]
   }
-  if (parsed.inStock) match.inStock = true
+  if (parsed.inStock) {
+    if (hasAttr) {
+      // When attribute filters are active, in-stock must be scoped to the
+      // *matched* variant (a 256GB variant, for example), not to any variant.
+      // `_matchedInStock` is an array so `.0` only exists when the matched
+      // variant is actually in stock.
+      match['_matchedInStock.0'] = { $exists: true }
+    } else {
+      match.inStock = true
+    }
+  }
   if (parsed.discount) match.maxDiscount = { $gt: 0 }
   const priceRange: any = {}
   if (parsed.minPrice !== null) priceRange.$gte = parsed.minPrice
