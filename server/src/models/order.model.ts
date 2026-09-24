@@ -51,6 +51,7 @@ export interface IOrderItem extends Document {
   price: number
   discount: number
   total: number
+  restored: boolean
 }
 
 const orderItemSchema = new Schema<IOrderItem>({
@@ -60,6 +61,7 @@ const orderItemSchema = new Schema<IOrderItem>({
   price: { type: Number, required: true, min: 0 },
   discount: { type: Number, default: 0, min: 0 },
   total: { type: Number, required: true, min: 0 },
+  restored: { type: Boolean, default: false },
 }, { toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 orderItemSchema.index({ orderId: 1 })

@@ -186,7 +186,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
 
       if (status === 'RETURN_RECEIVED') {
         if (order && !(order as any).stockRestored) {
-          await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch(() => {})
+          await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch((error) => console.error('Return stock restoration failed:', error?.message || error))
           order.statusHistory = order.statusHistory || []
           order.statusHistory.push({ status: order.status, changedAt: new Date(), changedBy: 'ADMIN', note: 'Returned items received — stock restored' })
           await order.save()
@@ -213,7 +213,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
         }
         if (order) {
           if (!(order as any).stockRestored) {
-            await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch(() => {})
+            await restoreStockAndCoupon(order, 'RETURN_RECEIVED').catch((error) => console.error('Return stock restoration failed:', error?.message || error))
           }
           returnRequest.refundedAt = new Date()
           returnRequest.refundId = (order as any).razorpayRefundId || returnRequest.refundId

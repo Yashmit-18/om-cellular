@@ -93,38 +93,88 @@ export async function syncInventory(
   }).catch(() => {})
 }
 
-// Idempotent stock + coupon restoration for an order that will never be
-// fulfilled (cancelled or payment failed). Returns true when the restoration
-// was performed by this call — concurrent callers are de-duplicated with the
-// stockRestored flag claim.
-export async function restoreStockAndCoupon(order: any, reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED' = 'ORDER_CANCELLED'): Promise<boolean> {
-  const claim = await Order.findOneAndUpdate(
-    { _id: order._id, stockRestored: false },
-    { $set: { stockRestored: true } }
-  )
-  if (!claim) return false
+// Restoration semantics:
+//  - stockRestored === true  means EVERY OrderItem of the order was restored.
+//  - couponRestored === true means the coupon usage count was fully released.
+//  - Flags are written only AFTER the corresponding work completes, never
+//    before. A failure mid-restoration leaves the order-level flag false so a
+//    retry can finish the remaining items.
+//  - Idempotency is provided per OrderItem via the atomically-claimed
+//    `restored` marker (a conditional findOneAndUpdate — NOT a unique index),
+//    so a concurrent restorer can never double-restore a line item and a retry
+//    after a partial failure only touches the lines that still need it.
+//  - Errors propagate instead of being swallowed; a thrown error reverts the
+//    item/coupon claim so the retry remains retryable.
+export interface RestoreDependencies {
+  findItems: (orderId: any) => Promise<any[]>
+  claimItem: (item: any) => Promise<boolean>
+  applyItemRestore: (item: any) => Promise<void>
+  unclaimItem: (item: any) => Promise<void>
+  completeStockRestoration: (orderId: any) => Promise<void>
+  claimCoupon: (order: any) => Promise<boolean>
+  releaseCouponUsage: (couponId: any) => Promise<void>
+  unclaimCoupon: (order: any) => Promise<void>
+}
 
-  const items = await OrderItem.find({ orderId: order._id })
-  for (const item of items) {
-    await ProductVariant.findByIdAndUpdate(item.variantId, {
-      $inc: { stock: +item.quantity, soldCount: -item.quantity },
-    }).catch(() => {})
-    await syncInventory(item.variantId, +item.quantity, { reason, referenceType: 'Order', referenceId: order._id }).catch(() => {})
-  }
-
-  if (order.couponId) {
-    const couponClaim = await Order.findOneAndUpdate(
+function defaultRestoreDependencies(reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED'): RestoreDependencies {
+  return {
+    findItems: orderId => OrderItem.find({ orderId }),
+    claimItem: item => OrderItem.findOneAndUpdate(
+      { _id: item._id, restored: { $ne: true } },
+      { $set: { restored: true } }
+    ).then(doc => Boolean(doc)),
+    applyItemRestore: async item => {
+      await ProductVariant.findByIdAndUpdate(item.variantId, {
+        $inc: { stock: +item.quantity, soldCount: -item.quantity },
+      })
+      await syncInventory(item.variantId, +item.quantity, { reason, referenceType: 'Order', referenceId: item.orderId })
+    },
+    unclaimItem: item => OrderItem.updateOne({ _id: item._id }, { $set: { restored: false } }).then(() => {}),
+    completeStockRestoration: orderId => Order.updateOne({ _id: orderId }, { $set: { stockRestored: true } }).then(() => {}),
+    claimCoupon: order => Order.findOneAndUpdate(
       { _id: order._id, couponRestored: false, couponId: { $exists: true, $ne: null } },
       { $set: { couponRestored: true } }
-    )
-    if (couponClaim) {
-      await Coupon.findOneAndUpdate(
-        { _id: order.couponId, usedCount: { $gt: 0 } },
-        { $inc: { usedCount: -1 } }
-      ).catch(() => {})
-    }
+    ).then(doc => Boolean(doc)),
+    releaseCouponUsage: couponId => Coupon.findOneAndUpdate(
+      { _id: couponId, usedCount: { $gt: 0 } },
+      { $inc: { usedCount: -1 } }
+    ).then(() => {}),
+    unclaimCoupon: order => Order.updateOne({ _id: order._id }, { $set: { couponRestored: false } }).then(() => {}),
   }
-  return true
+}
+
+export async function restoreStockAndCoupon(order: any, reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED' = 'ORDER_CANCELLED', deps?: RestoreDependencies): Promise<boolean> {
+  const d = deps || defaultRestoreDependencies(reason)
+  let didWork = false
+
+  // Stock phase — guarded by its own completion flag so a coupon-phase
+  // failure never blocks a later stock retry (and vice versa).
+  if (!order.stockRestored) {
+    const items = await d.findItems(order._id)
+    for (const item of items) {
+      if (!(await d.claimItem(item))) continue
+      try {
+        await d.applyItemRestore(item)
+      } catch (error) {
+        await d.unclaimItem(item).catch(() => {})
+        throw error
+      }
+    }
+    await d.completeStockRestoration(order._id)
+    didWork = true
+  }
+
+  // Coupon phase.
+  if (order.couponId && (await d.claimCoupon(order))) {
+    try {
+      await d.releaseCouponUsage(order.couponId)
+    } catch (error) {
+      await d.unclaimCoupon(order).catch(() => {})
+      throw error
+    }
+    didWork = true
+  }
+  return didWork
 }
 
 // Re-consumes stock and coupon usage for an order that previously failed but

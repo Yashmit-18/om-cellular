@@ -48,6 +48,55 @@ async function decrementStock(variant: any, quantity: number): Promise<boolean> 
   return true
 }
 
+// Releases a single stock claim (reverse of decrementStock). Rollback failures
+// are logged loudly rather than swallowed silently.
+async function restoreSingleStockClaim(variantId: any, quantity: number, referenceType = 'checkout-rollback'): Promise<void> {
+  try {
+    await ProductVariant.findByIdAndUpdate(variantId, { $inc: { stock: +quantity, soldCount: -quantity } })
+    await syncInventory(variantId, +quantity, { reason: 'ORDER_CANCELLED', referenceType }).catch(() => {})
+  } catch (error) {
+    console.error('Checkout stock rollback failed:', error instanceof Error ? error.message : error)
+  }
+}
+
+async function rollbackStockClaims(claims: { variant: any; quantity: number }[], referenceType = 'checkout-rollback') {
+  for (const claim of claims) {
+    await restoreSingleStockClaim(claim.variant._id, claim.quantity, referenceType)
+  }
+}
+
+// Reverses an earlier coupon usage-count claim. Failures are logged, never swallowed.
+async function releaseCouponCount(couponId: any) {
+  await Coupon.findOneAndUpdate({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }).catch((error) => {
+    console.error('Checkout coupon count release failed:', error?.message || error)
+  })
+}
+
+interface StockClaimEngine {
+  decrement: (variant: any, quantity: number) => Promise<boolean>
+  rollback: (variantId: any, quantity: number) => Promise<void>
+}
+
+// The checkout mutation phase: guarded decrements staged strictly after every
+// deterministic validation, with reverse-order rollback of earlier claims when
+// a later guarded decrement loses the stock race. Exported for DB-free tests.
+export async function applyStagedStockClaims(
+  items: { variant: any; quantity: number }[],
+  engine: StockClaimEngine,
+): Promise<{ ok: true; claims: { variant: any; quantity: number }[] } | { ok: false; reason: string }> {
+  const claims: { variant: any; quantity: number }[] = []
+  for (const item of items) {
+    if (!(await engine.decrement(item.variant, item.quantity))) {
+      for (const claim of claims.slice().reverse()) {
+        await engine.rollback(claim.variant._id, claim.quantity)
+      }
+      return { ok: false, reason: `Insufficient stock for ${item.variant.name}` }
+    }
+    claims.push({ variant: item.variant, quantity: item.quantity })
+  }
+  return { ok: true, claims }
+}
+
 async function loadActiveVariant(variantId: any) {
   // A missing/garbage variantId previously resolved to the first active
   // variant (findOne with an undefined filter), silently charging the wrong
@@ -180,9 +229,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Invalid payment method' })
     }
 
+    // PASS 1 — pure validation only. No mutation happens in this pass, so a
+    // deterministically-rejected request can never leak a stock decrement.
     let subtotal = 0
     const orderItems: any[] = []
-    const decremented: { variant: any; quantity: number }[] = []
 
     for (const item of items) {
       const variant = await loadActiveVariant(item.variantId)
@@ -197,22 +247,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       const price = variant.discountPrice || variant.price
       if (price == null || price < 0) return res.status(400).json({ success: false, message: 'Pricing data unavailable for this item' })
 
-      const ok = await decrementStock(variant, quantity)
-      if (!ok) {
-        // Roll back any stock already decremented earlier in this request.
-        for (const d of decremented) {
-          await ProductVariant.findByIdAndUpdate(d.variant._id, { $inc: { stock: +d.quantity, soldCount: -d.quantity } }).catch(() => {})
-          await syncInventory(d.variant._id, +d.quantity, { reason: 'ORDER_CANCELLED', referenceType: 'checkout-rollback' }).catch(() => {})
-        }
-        return res.status(400).json({ success: false, message: `Insufficient stock for ${variant.name}` })
-      }
-      decremented.push({ variant, quantity })
-
       const itemTotal = price * quantity
       orderItems.push({
         variantId: variant._id, quantity, price: variant.price,
         discount: variant.discountPrice ? (variant.price - variant.discountPrice) * quantity : 0,
         total: itemTotal,
+        variant,
       })
       subtotal += itemTotal
     }
@@ -315,23 +355,6 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Atomically consume a usage-limited coupon.
-    if (couponId) {
-      const coupon = await Coupon.findById(couponId)
-      if (coupon && coupon.usageLimit) {
-        const claimed = await Coupon.findOneAndUpdate(
-          { _id: couponId, $expr: { $lt: ['$usedCount', '$usageLimit'] } },
-          { $inc: { usedCount: 1 } }
-        )
-        if (!claimed) {
-          couponId = null
-          couponDiscount = 0
-        }
-      } else if (coupon) {
-        await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } })
-      }
-    }
-
     const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
     const orderNumber = generateOrderNumber()
     const isCod = paymentMethod === 'cod' || !paymentMethod
@@ -341,7 +364,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     // Short-window duplicate guard: the same user submitting the identical
     // cart within 5 seconds of their last order is almost certainly a double
     // submit / retry. Reject instead of creating a second (or, for COD, a
-    // second unpaid order the user must later cancel).
+    // second unpaid order the user must later cancel). This runs BEFORE any
+    // stock or coupon mutation, so a duplicate rejection needs no rollback.
     if (userId) {
       const variantFingerprint = orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')
       const recentDuplicate = await Order.findOne({
@@ -350,56 +374,91 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         createdAt: { $gte: new Date(Date.now() - 5000) },
       })
       if (recentDuplicate) {
-        // Release the stock claimed by this request.
-        for (const d of decremented) {
-          await ProductVariant.findByIdAndUpdate(d.variant._id, { $inc: { stock: +d.quantity, soldCount: -d.quantity } }).catch(() => {})
-          await syncInventory(d.variant._id, +d.quantity, { reason: 'ORDER_CANCELLED', referenceType: 'checkout-rollback' }).catch(() => {})
-        }
-        // Release the coupon count that was claimed before the duplicate check.
-        if (couponId) {
-          await Coupon.findOneAndUpdate({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }).catch(() => {})
-        }
         return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
       }
     }
 
-    const order = await Order.create({
-      orderNumber, userId, addressId: resolvedAddress!.id, subtotal,
-      discount: 0, shipping, tax, total,
-      couponId: couponId || null,
-      couponCode: couponId ? String(req.body.couponCode || '').toUpperCase() : undefined,
-      couponDiscount, paymentMethod: paymentMethod || 'cod',
-      paymentGateway: isCod ? 'cod' : undefined,
-      paymentStatus, shippingAddress,
-      statusHistory: [{
-        status: initialStatus,
-        changedAt: new Date(),
-        changedBy: 'SYSTEM',
-        note: isCod ? 'Order placed with Cash on Delivery' : 'Order placed, payment pending',
-      }],
-      upiReferenceId: paymentMethod && paymentMethod !== 'cod' && upiReferenceId ? String(upiReferenceId).trim() : undefined,
-      notes,
-      stockRestored: false,
-      couponRestored: false,
-      dedupeKey: userId ? `${userId}|${orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')}|${Math.round(total * 100)}` : undefined,
-    })
+    // PASS 2 — mutations, staged strictly after every deterministic validation.
+    // The only failures that can still occur here are non-deterministic races
+    // (coupon/stock contention) or infrastructure errors; each is rolled back.
+    let couponCountClaimed = false
+    let stagedClaims: { variant: any; quantity: number }[] = []
+    const claimEngine: StockClaimEngine = { decrement: decrementStock, rollback: restoreSingleStockClaim }
+    try {
+      // 2a. Atomically consume a usage-limited coupon (a validation race now).
+      if (couponId) {
+        const coupon = await Coupon.findById(couponId)
+        if (coupon && coupon.usageLimit) {
+          const claimed = await Coupon.findOneAndUpdate(
+            { _id: couponId, $expr: { $lt: ['$usedCount', '$usageLimit'] } },
+            { $inc: { usedCount: 1 } }
+          )
+          if (!claimed) {
+            couponId = null
+            couponDiscount = 0
+          } else {
+            couponCountClaimed = true
+          }
+        } else if (coupon) {
+          await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } })
+          couponCountClaimed = true
+        }
+      }
 
-    for (const item of orderItems) {
-      await OrderItem.create({ orderId: order._id, ...item })
+      // 2b. Guarded stock decrements. A losing race rolls back the claims that
+      // were already staged by this request (never a peek at other requests).
+      const claimResult = await applyStagedStockClaims(
+        orderItems.map((o: any) => ({ variant: o.variant, quantity: o.quantity })),
+        claimEngine,
+      )
+      if (!claimResult.ok) {
+        if (couponCountClaimed && couponId) await releaseCouponCount(couponId)
+        return res.status(400).json({ success: false, message: claimResult.reason })
+      }
+      stagedClaims = claimResult.claims
+
+      const order = await Order.create({
+        orderNumber, userId, addressId: resolvedAddress!.id, subtotal,
+        discount: 0, shipping, tax, total,
+        couponId: couponId || null,
+        couponCode: couponId ? String(req.body.couponCode || '').toUpperCase() : undefined,
+        couponDiscount, paymentMethod: paymentMethod || 'cod',
+        paymentGateway: isCod ? 'cod' : undefined,
+        paymentStatus, shippingAddress,
+        statusHistory: [{
+          status: initialStatus,
+          changedAt: new Date(),
+          changedBy: 'SYSTEM',
+          note: isCod ? 'Order placed with Cash on Delivery' : 'Order placed, payment pending',
+        }],
+        upiReferenceId: paymentMethod && paymentMethod !== 'cod' && upiReferenceId ? String(upiReferenceId).trim() : undefined,
+        notes,
+        stockRestored: false,
+        couponRestored: false,
+        dedupeKey: userId ? `${userId}|${orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')}|${Math.round(total * 100)}` : undefined,
+      })
+
+      for (const item of orderItems) {
+        await OrderItem.create({ orderId: order._id, ...item })
+      }
+
+      const result = await Order.findById(order._id).populate('userId', 'name email')
+      const resultItems = await OrderItem.find({ orderId: order._id }).populate('variantId')
+
+      await notify({
+        userId: String(userId),
+        type: 'ORDER',
+        title: 'Order placed',
+        message: `Your order ${orderNumber} has been placed for ${formatAmount(total)}.`,
+        metadata: { orderId: String(order._id), status: initialStatus, entity: 'order' },
+      }).catch((error) => console.error('Order notification failed:', error?.message || error))
+
+      return res.status(201).json({ success: true, message: 'Order created', data: { ...result!.toObject(), items: resultItems } })
+    } catch (error) {
+      await rollbackStockClaims(stagedClaims, 'checkout-rollback')
+      if (couponCountClaimed && couponId) await releaseCouponCount(couponId)
+      throw error
     }
-
-    const result = await Order.findById(order._id).populate('userId', 'name email')
-    const resultItems = await OrderItem.find({ orderId: order._id }).populate('variantId')
-
-    await notify({
-      userId: String(userId),
-      type: 'ORDER',
-      title: 'Order placed',
-      message: `Your order ${orderNumber} has been placed for ${formatAmount(total)}.`,
-      metadata: { orderId: String(order._id), status: initialStatus, entity: 'order' },
-    })
-
-    return res.status(201).json({ success: true, message: 'Order created', data: { ...result!.toObject(), items: resultItems } })
   } catch (error) {
     console.error('POST /orders error:', error)
     return res.status(500).json({ success: false, message: 'Internal server error' })
