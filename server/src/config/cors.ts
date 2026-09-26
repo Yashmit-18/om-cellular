@@ -24,7 +24,14 @@ export const corsOptions: CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  // `Idempotency-Key` is mandatory on POST /api/v1/orders (see the D28 header
+  // contract). It is not a CORS-safelisted request header, so a cross-origin
+  // checkout from the deployed frontend triggers a preflight that must
+  // explicitly allow it. Without this entry the browser fails the preflight and
+  // the order request is never sent — the API looks healthy and no server-side
+  // test fails, because the order suite mounts its routers on a bare express()
+  // app with no CORS middleware (see tests/cors.test.ts).
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key'],
   exposedHeaders: ['Set-Cookie'],
   maxAge: 86400,
 }
