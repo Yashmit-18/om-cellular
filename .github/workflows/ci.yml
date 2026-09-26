@@ -31,6 +31,20 @@ jobs:
     defaults:
       run:
         working-directory: client
+    # D35: the client build inlines VITE_API_URL at build time (see
+    # client/src/services/api.ts, which falls back to the relative "/api/v1"
+    # when the variable is unset). Without this, CI compiled an artifact that
+    # would have baked in the relative fallback, which cannot work on the Vercel
+    # origin because there is no /api reverse proxy in front of the static
+    # frontend — every request would 404. CI is validation-only (it does not
+    # deploy), but the artifact it proves should still be built against the real
+    # production API contract so CI validates what production actually ships.
+    #
+    # This is a public, non-secret URL and is committed in netlify.toml and
+    # client/.env.example for the same reason; it is not a credential and is
+    # deliberately not stored as a repository secret.
+    env:
+      VITE_API_URL: https://om-cellular.onrender.com/api/v1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,3 +55,31 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+      # D35: prove the validated artifact targets the production API rather than
+      # the relative dev fallback. Runs on the Linux CI build, where any
+      # machine-local client/.env is absent, so this genuinely reflects the
+      # workflow environment.
+      - name: Verify production API URL was inlined
+        working-directory: client
+        run: |
+          set -euo pipefail
+          expected="https://om-cellular.onrender.com/api/v1"
+
+          if grep -rqF "$expected" dist/; then
+            echo "PASS: production API URL is inlined in the build"
+          else
+            echo "FAIL: production API URL not found anywhere in dist/" >&2
+            exit 1
+          fi
+
+          # client/src/services/api.ts falls back to the relative "/api/v1" when
+          # VITE_API_URL is unset. Vite inlines the variable at build time, so
+          # when it is set correctly the fallback literal must be gone. If it is
+          # still present, the env var did not reach the build.
+          if grep -rqF '"/api/v1"' dist/; then
+            echo "FAIL: the relative /api/v1 fallback is still present in the build" >&2
+            grep -rlF '"/api/v1"' dist/ >&2 || true
+            exit 1
+          fi
+          echo "PASS: no relative /api/v1 fallback in the build"

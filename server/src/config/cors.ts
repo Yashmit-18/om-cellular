@@ -8,10 +8,29 @@ export const corsOptions: CorsOptions = {
       .map((o) => o.trim())
       .filter(Boolean)
 
+    // Origins are matched by exact string equality against this list. Nothing
+    // here is a suffix, wildcard or pattern, so a look-alike host such as
+    // `https://om-cellular.vercel.app.evil.com` cannot match.
+    //
+    // D35 removed `https://om-cellular-iota.vercel.app`. It was never a
+    // deployment target of this repository: it entered the allow-list in 7bf92a9
+    // ("Fix Vercel SPA routing and frontend deployment") together with a root
+    // `vercel.json` that ccd1e40 later deleted, and it was left behind when the
+    // frontend moved to `client/vercel.json` + om-cellular.vercel.app. No client
+    // code, canonical link, Open Graph tag, sitemap entry, robots.txt entry,
+    // `client/vercel.json`, `netlify.toml` or CI job references that host, and
+    // it serves no storefront (HTTP 404, `Server: Vercel`, `text/plain`).
+    //
+    // Removing it matters because production auth cookies are SameSite=None
+    // (see src/routes/auth.ts), so any origin on this list is a host the browser
+    // will attach accessToken/refreshToken to. An allow-listed origin that this
+    // project does not control is therefore a credential-exfiltration surface.
+    // `*.vercel.app` resolves by wildcard DNS, so an unclaimed project name can
+    // be registered by a third party. If that host is ever genuinely needed, add
+    // it back here explicitly rather than restoring a broader pattern.
     const allowedOrigins = [
       env.CLIENT_URL,
       'https://om-cellular.vercel.app',
-      'https://om-cellular-iota.vercel.app',
       ...extraOrigins,
       'http://localhost:5173',
       'http://localhost:3000',
