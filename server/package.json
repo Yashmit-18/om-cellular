@@ -7,6 +7,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test tests/*.test.ts",
+    "test:db": "tsx --test --test-concurrency=1 tests/db/*.test.ts",
     "lint": "eslint src tests scripts",
     "seed": "node scripts/seedAll.js",
     "seed:all": "node scripts/seedAll.js",
@@ -45,6 +46,7 @@
     "@types/multer": "^1.4.11",
     "@types/uuid": "^10.0.0",
     "eslint": "^10.10.0",
+    "mongodb-memory-server": "^11.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.69.0"
