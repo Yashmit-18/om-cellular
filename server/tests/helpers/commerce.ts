@@ -15,6 +15,7 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import mongoose from 'mongoose'
+import { randomUUID } from 'node:crypto'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -223,9 +224,26 @@ export interface HttpResponse<T = any> {
   body: T
 }
 
+export interface PostOptions {
+  /**
+   * Controls the `Idempotency-Key` header for one request.
+   *
+   * Omit it (or pass a fresh key) for a brand new checkout attempt — the
+   * default, which is what almost every test wants. Pass a fixed key to replay
+   * one attempt. Pass `null` to send no header at all, which is how the
+   * now-mandatory contract is proven.
+   */
+  idempotencyKey?: string | null
+}
+
+/** A canonical v4 key, matching what a real client generates. */
+export function newIdempotencyKey(): string {
+  return randomUUID()
+}
+
 export interface CommerceClient {
   baseUrl: string
-  post(path: string, body: unknown, token?: string): Promise<HttpResponse>
+  post(path: string, body: unknown, token?: string, options?: PostOptions): Promise<HttpResponse>
   put(path: string, body: unknown, token?: string): Promise<HttpResponse>
   get(path: string, token?: string): Promise<HttpResponse>
   /**
@@ -270,7 +288,8 @@ export async function startCommerceClient(): Promise<CommerceClient> {
     method: 'GET' | 'POST' | 'PUT',
     url: string,
     body: unknown,
-    token?: string
+    token?: string,
+    idempotencyHeader?: string | null
   ): Promise<HttpResponse> {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
@@ -280,6 +299,12 @@ export async function startCommerceClient(): Promise<CommerceClient> {
       connection: 'close',
     }
     if (token) headers.authorization = `Bearer ${token}`
+    // `undefined` means "new attempt, mint a key"; `null` means "send nothing".
+    if (idempotencyHeader === null) {
+      // deliberate: omitting the header is the case under test
+    } else {
+      headers['idempotency-key'] = idempotencyHeader ?? newIdempotencyKey()
+    }
     const response = await fetch(url, {
       method,
       headers,
@@ -291,7 +316,8 @@ export async function startCommerceClient(): Promise<CommerceClient> {
 
   return {
     baseUrl: ordersUrl,
-    post: (path, body, token) => request('POST', `${ordersUrl}${path}`, body, token),
+    post: (path, body, token, options) =>
+      request('POST', `${ordersUrl}${path}`, body, token, options?.idempotencyKey),
     put: (path, body, token) => request('PUT', `${ordersUrl}${path}`, body, token),
     get: (path, token) => request('GET', `${ordersUrl}${path}`, undefined, token),
     getCoupon: (path, token) => request('GET', `${couponsUrl}${path}`, undefined, token),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { MapPin, CreditCard, Truck, Tag, Building2, QrCode, ExternalLink, ShieldCheck, Banknote, Wallet, BellRing, CheckCircle2, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -10,6 +10,7 @@ import { settingsService } from '../../services/settings.service'
 import { serviceabilityService } from '../../services/serviceability.service'
 import { paymentService, loadRazorpayScript, type OnlinePaymentMethod } from '../../services/payment.service'
 import { formatPrice, googleMapsSearchUrl, storeAddressText } from '../../utils'
+import { newCheckoutIdempotencyKey } from '../../utils/idempotency'
 import ProductImage from '../../components/shop/ProductImage'
 
 type PaymentMethod = 'cod' | 'upi' | 'netbanking' | 'online'
@@ -41,6 +42,39 @@ export default function CheckoutPage() {
   const [addressForm, setAddressForm] = useState({
     name: '', phone: '', alternatePhone: '', addressLine1: '', addressLine2: '', landmark: '', city: '', state: '', pincode: '',
   })
+
+  // Checkout attempt identity.
+  //
+  // The key must survive every retry of the same attempt — a double submit, a
+  // network error, or an online payment whose gateway window failed — so the
+  // server replays the original order rather than placing another one. It is
+  // therefore bound to the attempt's inputs, not to the click: the fingerprint
+  // below is recomputed on each render and a change in any of it means the user
+  // has started a materially different order, which must get its own key.
+  const attemptRef = useRef<{ key: string; fingerprint: string } | null>(null)
+
+  const attemptFingerprint = JSON.stringify({
+    items: items
+      .map(item => [item.variantId, item.quantity])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    address: selectedAddressId || addressForm,
+    paymentMethod,
+    coupon: appliedCoupon?.code || '',
+  })
+
+  const resolveAttemptKey = (): string => {
+    const current = attemptRef.current
+    if (current && current.fingerprint === attemptFingerprint) return current.key
+    const key = newCheckoutIdempotencyKey()
+    attemptRef.current = { key, fingerprint: attemptFingerprint }
+    return key
+  }
+
+  // Never carry an attempt key across a completed order: the next checkout must
+  // be a new attempt, even if the customer rebuilds an identical cart.
+  const resetAttempt = () => {
+    attemptRef.current = null
+  }
 
   const subtotal = getTotal()
   const shipping = subtotal >= shippingConfig.free ? 0 : shippingConfig.standard
@@ -205,6 +239,7 @@ export default function CheckoutPage() {
             })
             if (verify.success) {
               clearCart()
+              resetAttempt()
               setPlacedOrderId(orderId)
               toast.success('Payment successful! Your order is confirmed.')
               navigate('/account/orders/' + orderId, { state: { orderPlaced: true, paymentPending: false } })
@@ -293,12 +328,15 @@ export default function CheckoutPage() {
         }
       }
 
-      const res = await orderService.createOrder(orderData)
+      // Resolved once per attempt and reused by every retry of it.
+      const idempotencyKey = resolveAttemptKey()
+      const res = await orderService.createOrder(orderData, idempotencyKey)
       if (res.success) {
         const orderId = res.data.id || res.data._id
 
         if (paymentMethod === 'cod') {
           clearCart()
+          resetAttempt()
           setPlacedOrderId(orderId)
           setPaymentState('idle')
           toast.success('Order placed successfully!')
@@ -308,6 +346,10 @@ export default function CheckoutPage() {
 
         // Online method: open the secure gateway checkout. The order is only
         // marked PAID after server-side signature verification, not here.
+        //
+        // The attempt key is deliberately NOT reset here. If the gateway window
+        // fails or is dismissed, retrying must reuse this key: the order already
+        // exists, and a fresh key would place a second one.
         const gateMethod: OnlinePaymentMethod = paymentMethod === 'netbanking' ? 'netbanking' : paymentMethod === 'online' ? 'card' : 'upi'
         const gatewayStarted = await openGatewayCheckout(orderId, gateMethod, total)
         if (!gatewayStarted) setPaymentState('idle')

@@ -39,6 +39,14 @@ export interface IOrder extends Document {
   couponRestored: boolean
   paidAt?: Date
   dedupeKey?: string
+  /**
+   * Client-supplied key identifying one logical checkout attempt. Distinct from
+   * `dedupeKey`: this is never derived from cart contents, and it is enforced by
+   * a unique index so a retried submit cannot create a second order. Absent on
+   * historical orders written before the key existed, which is why the index is
+   * partial rather than plain unique.
+   */
+  idempotencyKey?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -111,10 +119,31 @@ const orderSchema = new Schema<IOrder>({
   couponRestored: { type: Boolean, default: false },
   paidAt: { type: Date, default: null },
   dedupeKey: { type: String, trim: true, index: true },
+  idempotencyKey: { type: String, trim: true },
 }, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } })
 
 orderSchema.index({ userId: 1 })
 orderSchema.index({ status: 1 })
 orderSchema.index({ createdAt: -1 })
+
+/**
+ * The concurrency authority for checkout idempotency. Two simultaneous submits
+ * carrying the same (userId, idempotencyKey) cannot both insert: MongoDB lets
+ * exactly one win and rejects the other with E11000, which the route turns into
+ * a replay of the winner. Scoping by userId means two different customers may
+ * independently use the same UUID without colliding.
+ *
+ * Partial rather than a plain unique index so that:
+ *   - historical orders (idempotencyKey absent) stay valid and stay together;
+ *   - an explicitly stored empty string is not treated as a real key.
+ */
+orderSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    name: 'uniq_user_idempotency_key',
+    partialFilterExpression: { idempotencyKey: { $type: 'string', $gt: '' } },
+  },
+)
 
 export const Order = mongoose.model<IOrder>('Order', orderSchema)

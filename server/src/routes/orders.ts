@@ -8,13 +8,20 @@ import { Setting } from '../models/setting.model'
 import { Address } from '../models/address.model'
 import { authenticate, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
-import { generateOrderNumber, paginate, normalizePhone } from '../utils/helpers'
+import { paginate, normalizePhone } from '../utils/helpers'
 import { checkServiceability } from '../services/serviceability.service'
 import { couponApplicabilityError } from '../services/coupon.service'
 import { ORDER_TRANSITIONS, assertTransition, PRE_CANCEL_STATES } from '../services/fsm.service'
 import { writeAudit, serializeAuditValue } from '../services/audit.service'
 import { notify } from '../services/notification.service'
 import { restoreStockAndCoupon, syncInventory } from '../services/orderLifecycle.service'
+import {
+  IDEMPOTENCY_HEADER,
+  findOrderByIdempotencyKey,
+  isIdempotencyKeyCollision,
+  parseIdempotencyHeader,
+} from '../services/idempotency.service'
+import { createOrderWithUniqueNumber } from '../services/orderNumber.service'
 
 const router = Router()
 
@@ -120,6 +127,17 @@ interface StockClaimEngine {
   rollback: (variantId: any, quantity: number) => Promise<void>
 }
 
+/**
+ * Loads an order and its items in the shape checkout responses use.
+ *
+ * Shared by the fresh-insert path and the idempotent replay path so a retry
+ * cannot be distinguished from the original response by body shape alone.
+ */
+async function loadOrderResponsePayload(orderId: any) {
+  const order = await Order.findById(orderId).populate('userId', 'name email')
+  const items = await OrderItem.find({ orderId }).populate('variantId')
+  return { ...order!.toObject(), items }
+}
 // The checkout mutation phase: guarded decrements staged strictly after every
 // deterministic validation, with reverse-order rollback of earlier claims when
 // a later guarded decrement loses the stock race. Exported for DB-free tests.
@@ -266,6 +284,53 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { items, addressId, address, couponCode, paymentMethod, notes, upiReferenceId } = req.body
     const userId = req.user!.id
+
+    // Idempotency gate, ahead of every other check.
+    //
+    // The key must be supplied by the client. A missing one is a 400 rather
+    // than a server-generated substitute, because inventing a key would make
+    // each repeat submit look like a brand new attempt and silently restore the
+    // duplicate-order bug this key exists to close.
+    const idempotency = parseIdempotencyHeader(req.get(IDEMPOTENCY_HEADER))
+    if (!idempotency.ok) {
+      return res.status(400).json({
+        success: false,
+        message:
+          idempotency.reason === 'missing'
+            ? `${IDEMPOTENCY_HEADER} header is required`
+            : `${IDEMPOTENCY_HEADER} header must be a valid UUID v4`,
+      })
+    }
+    const idempotencyKey = idempotency.key
+    res.setHeader(IDEMPOTENCY_HEADER, idempotencyKey)
+
+    /**
+     * Answers with the order this key already produced, if there is one.
+     *
+     * Returns true when it responded, so callers can `return` it directly.
+     * Every replay check in this handler goes through here so a retry is always
+     * answered the same way, with the same body shape.
+     */
+    const respondWithReplayIfExists = async (): Promise<boolean> => {
+      const existing = await findOrderByIdempotencyKey(String(userId), idempotencyKey)
+      if (!existing) return false
+      res.status(200).json({
+        success: true,
+        message: 'Order already placed',
+        replayed: true,
+        data: await loadOrderResponsePayload(existing._id),
+      })
+      return true
+    }
+
+    // Replay before any validation or mutation.
+    //
+    // Placed ahead of the body checks on purpose: once an attempt has succeeded,
+    // its outcome is a function of the key, not of whatever the retried body
+    // happens to contain. If the catalogue changed or the cart emptied after the
+    // original checkout, a retry must still return the original order instead of
+    // a validation error. It also guarantees the retry costs one indexed read.
+    if (await respondWithReplayIfExists()) return
 
     if (!items || !items.length) return res.status(400).json({ success: false, message: 'Items are required' })
     if (paymentMethod && !['cod', 'online', 'upi', 'netbanking', 'card', 'wallet'].includes(paymentMethod)) {
@@ -423,7 +488,6 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
-    const orderNumber = generateOrderNumber()
     const isCod = paymentMethod === 'cod' || !paymentMethod
     const paymentStatus = isCod ? 'PENDING' : 'PENDING_PAYMENT'
     const initialStatus = 'PENDING'
@@ -436,6 +500,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     // BEFORE any stock or coupon mutation, so a duplicate rejection needs no
     // rollback.
     if (dedupeKey && await findRecentDuplicateOrder(String(userId), dedupeKey)) {
+      // A retry of an attempt that already succeeded is not a duplicate order at
+      // all — it is the same order. The winner may have inserted between the
+      // replay check above and here, so replay must be preferred over rejecting;
+      // otherwise a genuine retry would be answered 409 and the customer would
+      // still see a duplicate.
+      if (await respondWithReplayIfExists()) return
       return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
     }
 
@@ -487,11 +557,13 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       // shrinks the unguarded interval to the single insert that follows.
       //
       // This narrows the window; it does NOT close it. The guard is a
-      // check-then-act read with no unique index to arbitrate, so simultaneous
-      // identical submissions can still both pass. Closing that race needs a
-      // client-supplied idempotency key backed by a unique index, which is a
-      // schema migration gated on the production dedupe audit. See the D26
-      // report; do not treat this as a fix.
+      // check-then-act read, so two *different* attempts that happen to share a
+      // fingerprint can still both pass. What now closes the race that matters
+      // is the client-supplied idempotency key and its unique index: retries of
+      // one attempt cannot both insert, and the loser replays the winner. The
+      // fingerprint remains a UX guard against a customer placing two genuinely
+      // separate identical orders seconds apart, which is a different problem
+      // and must stay non-unique to avoid rejecting that legitimate case.
       if (dedupeKey && await findRecentDuplicateOrder(String(userId), dedupeKey)) {
         // Compensate in place, then clear the flags. Clearing matters: if either
         // release below were to throw, the catch block must not attempt the same
@@ -503,11 +575,16 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
           couponCountClaimed = false
           await releaseCouponCount(couponId)
         }
+        // Same reasoning as the first guard: if this key already produced an
+        // order, this is a retry of that attempt and must be replayed, not
+        // rejected as a duplicate. The claims above are released either way, so
+        // the replayed order's stock is untouched.
+        if (await respondWithReplayIfExists()) return
         return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
       }
 
-      const order = await Order.create({
-        orderNumber, userId, addressId: resolvedAddress!.id, subtotal,
+      const orderDoc = {
+        userId, addressId: resolvedAddress!.id, subtotal,
         discount: 0, shipping, tax, total,
         couponId: couponId || null,
         couponCode: couponId ? String(req.body.couponCode || '').toUpperCase() : undefined,
@@ -525,25 +602,64 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         stockRestored: false,
         couponRestored: false,
         dedupeKey,
-      })
+        idempotencyKey,
+      }
+
+      let order: any
+      try {
+        // Regenerates orderNumber only on a real orderNumber collision; an
+        // idempotency collision propagates to the handler below.
+        order = await createOrderWithUniqueNumber(orderDoc)
+      } catch (error) {
+        if (!isIdempotencyKeyCollision(error)) throw error
+
+        // This request lost the insert race for the same key. The unique index,
+        // not any timing, decided the outcome: exactly one request owns the key
+        // and that request is the winner whose order is already committed.
+        //
+        // `createdOrderId` is still null because the insert never returned, so
+        // the outer catch's discardUnacknowledgedOrder cannot run against the
+        // winner. Undo only this request's own claims.
+        await rollbackStockClaims(stagedClaims, 'idempotency-race-rollback')
+        stagedClaims = []
+        if (couponCountClaimed && couponId) {
+          couponCountClaimed = false
+          await releaseCouponCount(couponId)
+        }
+
+        const winner = await findOrderByIdempotencyKey(String(userId), idempotencyKey)
+        if (!winner) {
+          // The index rejected the insert, so a winner must exist; treat an
+          // unreadable winner as a genuine failure rather than reporting success.
+          throw error
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Order already placed',
+          replayed: true,
+          data: await loadOrderResponsePayload(winner._id),
+        })
+      }
       createdOrderId = order._id
 
       for (const item of orderItems) {
         await OrderItem.create({ orderId: order._id, ...item })
       }
 
-      const result = await Order.findById(order._id).populate('userId', 'name email')
-      const resultItems = await OrderItem.find({ orderId: order._id }).populate('variantId')
+      const data = await loadOrderResponsePayload(order._id)
 
       await notify({
         userId: String(userId),
         type: 'ORDER',
         title: 'Order placed',
-        message: `Your order ${orderNumber} has been placed for ${formatAmount(total)}.`,
+        // The persisted number, not a pre-drawn one: a collision retry may have
+        // regenerated it during insert.
+        message: `Your order ${order.orderNumber} has been placed for ${formatAmount(total)}.`,
         metadata: { orderId: String(order._id), status: initialStatus, entity: 'order' },
       }).catch((error) => console.error('Order notification failed:', error?.message || error))
 
-      return res.status(201).json({ success: true, message: 'Order created', data: { ...result!.toObject(), items: resultItems } })
+      return res.status(201).json({ success: true, message: 'Order created', data })
     } catch (error) {
       await rollbackStockClaims(stagedClaims, 'checkout-rollback')
       if (couponCountClaimed && couponId) await releaseCouponCount(couponId)

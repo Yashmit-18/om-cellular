@@ -8,7 +8,14 @@ export const orderService = {
 
   getOrder: (id: string) => api.get(`/orders/${id}`).then(r => r.data),
 
-  createOrder: (data: any) => api.post('/orders', data).then(r => r.data),
+  /**
+   * Creates an order for one checkout attempt.
+   *
+   * `idempotencyKey` must be stable across retries of the same attempt so the
+   * server replays the original order instead of placing another one.
+   */
+  createOrder: (data: any, idempotencyKey: string) =>
+    api.post('/orders', data, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data),
 
   updateOrder: (id: string, data: any) => api.put(`/orders/${id}`, data).then(r => r.data),
 
