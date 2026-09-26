@@ -2,6 +2,7 @@ import dns from 'dns'
 import mongoose from 'mongoose'
 import { env } from './env'
 import { indexLifecycleOptions } from './indexPolicy'
+import { describeError } from './redact'
 
 // Force Node.js to use reliable public DNS servers.
 // Required because the system DNS resolver is returning ECONNREFUSED
@@ -23,11 +24,14 @@ export async function connectDatabase(): Promise<void> {
     // This is set per connection rather than via a global `mongoose.set` so the
     // real-MongoDB regression suite, which opens its own connection, keeps
     // building its indexes and stays a faithful test of production schemas.
+    //
+    // `isProduction` is now a validated environment value rather than a guess,
+    // so production index protection cannot be lost to a missing NODE_ENV.
     const policy = indexLifecycleOptions(env.isProduction)
     await mongoose.connect(env.MONGODB_URI!, policy)
     console.log(`✓ MongoDB connected (index auto-creation ${policy.autoIndex ? 'enabled' : 'DISABLED'})`)
   } catch (error) {
-    console.error('✗ MongoDB connection failed:', error)
+    console.error('✗ MongoDB connection failed:', describeError(error))
     process.exit(1)
   }
 }
@@ -37,5 +41,5 @@ mongoose.connection.on('disconnected', () => {
 })
 
 mongoose.connection.on('error', (error) => {
-  console.error('MongoDB error:', error)
+  console.error('MongoDB error:', describeError(error))
 })

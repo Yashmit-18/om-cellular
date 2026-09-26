@@ -467,9 +467,10 @@ Client-side freshness note: `services/analytics.service.ts` calls `/analytics/da
 | Variable | Where | Required | Notes |
 |---|---|---|---|
 | `MONGODB_URI` | server | ✅ | Atlas/local URI |
-| `JWT_SECRET`, `JWT_REFRESH_SECRET` | server | ✅ (strong, random) | fallbacks to dev strings when unset |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | server | ✅ (strong, random, ≥32 chars) | test/dev only: explicit non-production defaults |
 | `CLIENT_URL`, `CLIENT_ORIGINS` | server | ✅ | CORS allow-list |
-| `PORT`, `NODE_ENV`, `UPLOAD_DIR` | server | — | defaults 5000 / development / uploads |
+| `PORT`, `UPLOAD_DIR` | server | — | defaults 5000 / uploads |
+| `NODE_ENV` | server | ✅ (`production` in `render.yaml`) | **required** — must be `development`, `test` or `production`; the server refuses to boot on any other or missing value, so a deploy can never silently run with development security |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | server | for online payments | **currently empty** → gateway disabled |
 | `ADMIN_PASSWORD` | server (seed only) | seed-time | never stored/logged |
 | `VITE_API_URL` | client (build-time) | ✅ | production API base |
