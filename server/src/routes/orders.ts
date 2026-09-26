@@ -10,6 +10,7 @@ import { authenticate, requireAdmin } from '../middleware/auth'
 import { AuthRequest } from '../types'
 import { generateOrderNumber, paginate, normalizePhone } from '../utils/helpers'
 import { checkServiceability } from '../services/serviceability.service'
+import { couponApplicabilityError } from '../services/coupon.service'
 import { ORDER_TRANSITIONS, assertTransition, PRE_CANCEL_STATES } from '../services/fsm.service'
 import { writeAudit, serializeAuditValue } from '../services/audit.service'
 import { notify } from '../services/notification.service'
@@ -70,6 +71,48 @@ async function releaseCouponCount(couponId: any) {
   await Coupon.findOneAndUpdate({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }).catch((error) => {
     console.error('Checkout coupon count release failed:', error?.message || error)
   })
+}
+
+// The duplicate-order guard looks back this far. It is a heuristic against
+// double submits, NOT a uniqueness constraint: the same customer may legitimately
+// buy an identical cart again after this window, which is why `dedupeKey` must
+// never be given a unique database index.
+const DUPLICATE_GUARD_WINDOW_MS = 5000
+
+// Single source of truth for the order fingerprint. Previously the guard and the
+// persisted field each built this string from their own duplicated template
+// literal, so a future edit to one side would silently break deduplication.
+function buildDedupeKey(userId: string, orderItems: { variantId: any; quantity: number }[], total: number): string {
+  const variantFingerprint = orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')
+  return `${userId}|${variantFingerprint}|${Math.round(total * 100)}`
+}
+
+async function findRecentDuplicateOrder(userId: string, dedupeKey: string): Promise<any | null> {
+  return Order.findOne({ userId, dedupeKey, createdAt: { $gte: new Date(Date.now() - DUPLICATE_GUARD_WINDOW_MS) } })
+}
+
+// Deterministic compensation for the non-atomic Order -> OrderItem write pair.
+//
+// Order.create and the OrderItem inserts are separate writes, and no MongoDB
+// transaction is used, so a failure between them would otherwise strand a
+// PENDING order with zero items: an order that looks valid to every reader but
+// can never be fulfilled, paid, or swept.
+//
+// This is deliberately topology-independent. It needs no replica set and no
+// session, so it behaves identically on a standalone mongod and on a replica
+// set, and it does not depend on unverified production topology. Deleting is
+// safe because the order was never acknowledged to the client: this only runs
+// while the request is still failing, and nothing is sent to the customer
+// before every item is persisted.
+async function discardUnacknowledgedOrder(orderId: any): Promise<void> {
+  try {
+    await OrderItem.deleteMany({ orderId })
+    await Order.deleteOne({ _id: orderId })
+  } catch (error) {
+    // Never mask the original checkout failure, but make any leak loud: an order
+    // stranded here is a real orphan that needs manual cleanup.
+    console.error('Checkout order compensation failed:', error instanceof Error ? error.message : error)
+  }
 }
 
 interface StockClaimEngine {
@@ -329,30 +372,54 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       country: resolvedAddress.country || 'IN',
     }
 
+    // Coupon contract (established from the rest of the system, see below):
+    // a coupon code that is supplied but not valid for THIS cart is rejected
+    // with the same reason the public validate endpoint returns. It is never
+    // silently dropped.
+    //
+    // Evidence for that contract, which this previously contradicted:
+    //  - GET /coupons/validate/:code already answers 404/400 with a specific
+    //    reason for unknown, inactive, expired, exhausted, below-minimum,
+    //    wrong-target and over-per-user coupons.
+    //  - The storefront only sends `couponCode` when that endpoint succeeded
+    //    (client CheckoutPage: `couponCode: appliedCoupon?.code || undefined`),
+    //    so a valid code here is the norm and an invalid one is a stale or
+    //    tampered request.
+    //  - The project documents coupons as "server-validated".
+    // Silently proceeding instead created the real defect: the customer was
+    // shown a discounted total at checkout and the order was created at the
+    // full, higher total with no discount and no error.
     let couponDiscount = 0
     let couponId: any = null
     if (couponCode) {
-      const coupon = await Coupon.findOne({ code: String(couponCode).toUpperCase() })
-      if (coupon && coupon.isActive) {
-        const notExpired = !coupon.expiresAt || new Date(coupon.expiresAt) >= new Date()
-        const withinLimit = !coupon.usageLimit || coupon.usedCount < coupon.usageLimit
-        const meetsMinimum = !coupon.minOrderAmount || subtotal >= coupon.minOrderAmount
+      const normalizedCode = String(couponCode).toUpperCase()
+      const coupon = await Coupon.findOne({ code: normalizedCode })
 
-        let perUserOk = true
-        if (coupon.maxPerUser && coupon.maxPerUser > 0) {
-          const usedByUser = await Order.countDocuments({ userId, couponId: coupon._id, status: { $nin: ['CANCELLED', 'FAILED', 'REFUNDED'] } })
-          perUserOk = usedByUser < coupon.maxPerUser
-        }
+      const rejectCoupon = (message: string) => res.status(400).json({ success: false, message })
 
-        if (notExpired && withinLimit && meetsMinimum && perUserOk) {
-          const { applyCouponDiscount } = await import('../services/coupon.service')
-          const targetable = await couponTargetsMatch(coupon as any, orderItems)
-          if (targetable) {
-            couponDiscount = applyCouponDiscount(coupon as any, subtotal)
-            couponId = coupon._id
-          }
+      if (!coupon || !coupon.isActive) return rejectCoupon('Invalid coupon code')
+      if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) return rejectCoupon('Coupon has expired')
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) return rejectCoupon('Coupon usage limit reached')
+
+      const applicabilityError = couponApplicabilityError(coupon as any, subtotal)
+      if (applicabilityError) return rejectCoupon(applicabilityError)
+
+      if (coupon.applicableTo === 'PRODUCTS' || coupon.applicableTo === 'CATEGORIES') {
+        if (!(await couponTargetsMatch(coupon as any, orderItems))) {
+          return rejectCoupon('This coupon does not apply to the items in your cart')
         }
       }
+
+      if (coupon.maxPerUser && coupon.maxPerUser > 0) {
+        const usedByUser = await Order.countDocuments({ userId, couponCode: normalizedCode, status: { $ne: 'CANCELLED' } })
+        if (usedByUser >= coupon.maxPerUser) {
+          return rejectCoupon('You have already used this coupon the maximum number of times')
+        }
+      }
+
+      const { applyCouponDiscount } = await import('../services/coupon.service')
+      couponDiscount = applyCouponDiscount(coupon as any, subtotal)
+      couponId = coupon._id
     }
 
     const total = Math.max(0, subtotal + shipping + tax - couponDiscount)
@@ -360,22 +427,16 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const isCod = paymentMethod === 'cod' || !paymentMethod
     const paymentStatus = isCod ? 'PENDING' : 'PENDING_PAYMENT'
     const initialStatus = 'PENDING'
+    const dedupeKey = userId ? buildDedupeKey(String(userId), orderItems, total) : undefined
 
     // Short-window duplicate guard: the same user submitting the identical
-    // cart within 5 seconds of their last order is almost certainly a double
-    // submit / retry. Reject instead of creating a second (or, for COD, a
-    // second unpaid order the user must later cancel). This runs BEFORE any
-    // stock or coupon mutation, so a duplicate rejection needs no rollback.
-    if (userId) {
-      const variantFingerprint = orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')
-      const recentDuplicate = await Order.findOne({
-        userId,
-        dedupeKey: `${userId}|${variantFingerprint}|${Math.round(total * 100)}`,
-        createdAt: { $gte: new Date(Date.now() - 5000) },
-      })
-      if (recentDuplicate) {
-        return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
-      }
+    // cart within a few seconds of their last order is almost certainly a
+    // double submit / retry. Reject instead of creating a second (or, for COD, a
+    // second unpaid order the user must later cancel). This first check runs
+    // BEFORE any stock or coupon mutation, so a duplicate rejection needs no
+    // rollback.
+    if (dedupeKey && await findRecentDuplicateOrder(String(userId), dedupeKey)) {
+      return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
     }
 
     // PASS 2 — mutations, staged strictly after every deterministic validation.
@@ -383,9 +444,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     // (coupon/stock contention) or infrastructure errors; each is rolled back.
     let couponCountClaimed = false
     let stagedClaims: { variant: any; quantity: number }[] = []
+    let createdOrderId: any = null
     const claimEngine: StockClaimEngine = { decrement: decrementStock, rollback: restoreSingleStockClaim }
     try {
-      // 2a. Atomically consume a usage-limited coupon (a validation race now).
+      // 2a. Atomically consume a usage-limited coupon. Losing this race means
+      // the coupon is no longer available, which under the established coupon
+      // contract is a rejection, not a silent downgrade to full price.
       if (couponId) {
         const coupon = await Coupon.findById(couponId)
         if (coupon && coupon.usageLimit) {
@@ -394,11 +458,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
             { $inc: { usedCount: 1 } }
           )
           if (!claimed) {
-            couponId = null
-            couponDiscount = 0
-          } else {
-            couponCountClaimed = true
+            return res.status(400).json({ success: false, message: 'Coupon usage limit reached' })
           }
+          couponCountClaimed = true
         } else if (coupon) {
           await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } })
           couponCountClaimed = true
@@ -416,6 +478,33 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ success: false, message: claimResult.reason })
       }
       stagedClaims = claimResult.claims
+
+      // 2c. Re-check the duplicate guard immediately before the insert.
+      //
+      // The first check (above) is deliberately placed before any mutation so a
+      // duplicate rejection has no side effects, but that leaves a window
+      // spanned by the coupon claim and every stock claim. Re-checking here
+      // shrinks the unguarded interval to the single insert that follows.
+      //
+      // This narrows the window; it does NOT close it. The guard is a
+      // check-then-act read with no unique index to arbitrate, so simultaneous
+      // identical submissions can still both pass. Closing that race needs a
+      // client-supplied idempotency key backed by a unique index, which is a
+      // schema migration gated on the production dedupe audit. See the D26
+      // report; do not treat this as a fix.
+      if (dedupeKey && await findRecentDuplicateOrder(String(userId), dedupeKey)) {
+        // Compensate in place, then clear the flags. Clearing matters: if either
+        // release below were to throw, the catch block must not attempt the same
+        // compensation a second time (a second coupon release would decrement
+        // usedCount twice).
+        await rollbackStockClaims(stagedClaims, 'duplicate-guard-rollback')
+        stagedClaims = []
+        if (couponCountClaimed && couponId) {
+          couponCountClaimed = false
+          await releaseCouponCount(couponId)
+        }
+        return res.status(409).json({ success: false, message: 'This looks like a duplicate order. Please check your recent orders before trying again.' })
+      }
 
       const order = await Order.create({
         orderNumber, userId, addressId: resolvedAddress!.id, subtotal,
@@ -435,8 +524,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         notes,
         stockRestored: false,
         couponRestored: false,
-        dedupeKey: userId ? `${userId}|${orderItems.map((o: any) => `${o.variantId}:${o.quantity}`).sort().join('|')}|${Math.round(total * 100)}` : undefined,
+        dedupeKey,
       })
+      createdOrderId = order._id
 
       for (const item of orderItems) {
         await OrderItem.create({ orderId: order._id, ...item })
@@ -457,6 +547,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     } catch (error) {
       await rollbackStockClaims(stagedClaims, 'checkout-rollback')
       if (couponCountClaimed && couponId) await releaseCouponCount(couponId)
+      // Nothing has been sent to the customer yet, so an order persisted before
+      // the failure is unreachable garbage. Remove it together with any items
+      // that did get written, instead of stranding a PENDING order with no items.
+      if (createdOrderId) await discardUnacknowledgedOrder(createdOrderId)
       throw error
     }
   } catch (error) {
@@ -522,7 +616,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
       }
 
       if (status === 'CANCELLED') {
-        const restored = await restoreStockAndCoupon(order)
+        const restoration = await restoreStockAndCoupon(order)
         pushOrderStatusHistory(order, 'CANCELLED', 'ADMIN', note || 'Order cancelled by admin')
         if (order.paymentStatus === 'PAID') {
           order.paymentStatus = 'REFUND_PENDING'
@@ -533,7 +627,7 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
         await writeAudit({
           adminId: req.user!.id, action: 'ORDER_CANCELLED', entity: 'Order', entityId: String(order._id),
           oldValue: serializeAuditValue({ status: before.status, paymentStatus: before.paymentStatus }),
-          newValue: serializeAuditValue({ status: 'CANCELLED', stockRestored: restored }),
+          newValue: serializeAuditValue({ status: 'CANCELLED', ...restoration }),
           ipAddress: req.ip,
         })
         await notify({

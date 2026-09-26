@@ -25,9 +25,16 @@ import { InventoryLedgerEntry } from '../../src/models/inventoryLedger.model'
 
 useIsolatedDatabase()
 
+/**
+ * A real ADMIN access token. `requireAdmin` verifies the JWT signature and the
+ * role claim only, so no User row is required for these admin-only reads.
+ */
+function adminToken() {
+  return tokenFor({ _id: objectIdFor('admin'), name: 'Test Admin', role: 'ADMIN' } as any)
+}
+
 /** Reads the authoritative stock straight from MongoDB. */
-async function stockOf(variantId: unknown): Promise<number> {
-  const variant = await ProductVariant.findById(variantId as any).lean()
+async function stockOf(variantId: unknown): Promise<number> {  const variant = await ProductVariant.findById(variantId as any).lean()
   assert.ok(variant, 'variant must still exist')
   return variant!.stock
 }
@@ -277,8 +284,21 @@ describe('POST /orders — deterministic rejections leak no stock (Phase 8.2-8.7
   })
 })
 
-describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL behaviour', () => {
-  it('8. an unknown coupon code is ignored, not rejected: the order is created at full price', async () => {
+describe('POST /orders — coupon handling (Phase 8.8-8.9, D26 contract)', () => {
+  // D26 CONTRACT CHANGE. D25 recorded that an invalid coupon was silently
+  // ignored and the order was created at full price. That contradicted the rest
+  // of the system and was a real defect: the storefront displays the discounted
+  // total it computed from a successfully-validated coupon, so silently dropping
+  // the coupon charged the customer MORE than the checkout screen showed, with
+  // no error anywhere.
+  //
+  // The contract is rejection, established from the existing code rather than
+  // invented: GET /coupons/validate/:code already answers 404/400 with a
+  // specific reason for every one of these cases, and the storefront only sends
+  // `couponCode` when that endpoint succeeded. A supplied-but-invalid code is
+  // therefore a stale or tampered request, and is now refused with the same
+  // reason the validate endpoint returns.
+  it('8. an unknown coupon code is rejected and no order is created', async () => {
     const customer = await createCustomer()
     const product = await createProduct()
     const variant = await createVariant({ productId: product._id, stock: 5 })
@@ -289,17 +309,13 @@ describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL be
       tokenFor(customer),
     )
 
-    // RECORDED BEHAVIOUR, not the behaviour the D25 brief assumed: the route
-    // silently ignores an unresolvable coupon instead of rejecting the order.
-    assert.equal(response.status, 201)
-    const order = await Order.findOne({}).lean()
-    assert.equal(order!.couponId, null)
-    assert.equal(order!.couponDiscount, 0)
-    assert.equal(order!.total, 217, 'full price: 100 subtotal + 18 tax + 99 shipping')
-    assert.equal(await stockOf(variant._id), 4, 'stock is consumed exactly once, as for any other COD order')
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'Invalid coupon code')
+    assert.equal(await Order.countDocuments({}), 0, 'no order may be created')
+    assert.equal(await stockOf(variant._id), 5, 'a rejected coupon must consume no stock')
   })
 
-  it('9. a coupon whose minimum is not met is ignored, not rejected', async () => {
+  it('9. a coupon whose minimum is not met is rejected with the shared reason', async () => {
     await createCoupon({ code: TEST_IDS.coupon, minOrderAmount: 10000 })
     const customer = await createCustomer()
     const product = await createProduct()
@@ -311,13 +327,13 @@ describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL be
       tokenFor(customer),
     )
 
-    assert.equal(response.status, 201)
-    const order = await Order.findOne({}).lean()
-    assert.equal(order!.couponId, null)
-    assert.equal(order!.couponDiscount, 0)
+    assert.equal(response.status, 400)
+    assert.match(response.body.message, /minimum order/i)
+    assert.equal(await Order.countDocuments({}), 0)
+    assert.equal(await stockOf(variant._id), 5)
   })
 
-  it('9b. a coupon restricted to other products is ignored, not rejected', async () => {
+  it('9b. a coupon restricted to other products is rejected', async () => {
     await createCoupon({
       code: TEST_IDS.coupon,
       applicableTo: 'PRODUCTS',
@@ -333,8 +349,10 @@ describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL be
       tokenFor(customer),
     )
 
-    assert.equal(response.status, 201)
-    assert.equal((await Order.findOne({}).lean())!.couponDiscount, 0)
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'This coupon does not apply to the items in your cart')
+    assert.equal(await Order.countDocuments({}), 0)
+    assert.equal(await stockOf(variant._id), 5)
   })
 
   it('9c. an applicable coupon is consumed atomically and discounted exactly once', async () => {
@@ -358,7 +376,7 @@ describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL be
     assert.equal(await couponUsedCount(coupon._id), 1, 'the coupon usage count is consumed exactly once')
   })
 
-  it('9d. an exhausted coupon is ignored rather than rejected, and its count is not incremented', async () => {
+  it('9d. an exhausted coupon is rejected and its count is not incremented', async () => {
     const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 1, usedCount: 1 })
     const customer = await createCustomer()
     const product = await createProduct()
@@ -370,10 +388,112 @@ describe('POST /orders — coupon handling (Phase 8.8-8.9) — records ACTUAL be
       tokenFor(customer),
     )
 
-    assert.equal(response.status, 201)
-    assert.equal((await Order.findOne({}).lean())!.couponDiscount, 0)
-    assert.equal(await couponUsedCount(coupon._id), 1, 'usedCount must not move when the coupon is skipped')
-    assert.equal(await stockOf(variant._id), 4)
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'Coupon usage limit reached')
+    assert.equal(await Order.countDocuments({}), 0)
+    assert.equal(await couponUsedCount(coupon._id), 1, 'usedCount must not move when the coupon is refused')
+    assert.equal(await stockOf(variant._id), 5, 'a refused coupon must consume no stock')
+  })
+
+  it('9e. an expired coupon is rejected', async () => {
+    const coupon = await createCoupon({
+      code: TEST_IDS.coupon,
+      usageLimit: 5,
+      value: 10,
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+    const customer = await createCustomer()
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 5 })
+
+    const response = await commerceClient().post(
+      '/',
+      codBody(variant._id, 1, { couponCode: TEST_IDS.coupon }),
+      tokenFor(customer),
+    )
+
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'Coupon has expired')
+    assert.equal(await Order.countDocuments({}), 0)
+    assert.equal(await couponUsedCount(coupon._id), 0)
+    assert.equal(await stockOf(variant._id), 5)
+  })
+
+  it('9f. an inactive coupon is rejected', async () => {
+    const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10, isActive: false })
+    const customer = await createCustomer()
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 5 })
+
+    const response = await commerceClient().post(
+      '/',
+      codBody(variant._id, 1, { couponCode: TEST_IDS.coupon }),
+      tokenFor(customer),
+    )
+
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'Invalid coupon code')
+    assert.equal(await Order.countDocuments({}), 0)
+    assert.equal(await couponUsedCount(coupon._id), 0)
+  })
+
+  it('9g. a coupon already used the maximum times per user is rejected', async () => {
+    const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 10, value: 10, maxPerUser: 1 })
+    const customer = await createCustomer()
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 10 })
+    const other = await createVariant({ productId: product._id, stock: 10, kind: 'variant2' })
+
+    // One prior order already used this coupon, outside the duplicate window.
+    const first = await commerceClient().post('/', codBody(other._id, 1, { couponCode: TEST_IDS.coupon }), tokenFor(customer))
+    assert.equal(first.status, 201)
+    await Order.collection.updateMany({}, { $set: { createdAt: new Date(Date.now() - 60_000) } })
+
+    const response = await commerceClient().post('/', codBody(variant._id, 1, { couponCode: TEST_IDS.coupon }), tokenFor(customer))
+
+    assert.equal(response.status, 400)
+    assert.equal(response.body.message, 'You have already used this coupon the maximum number of times')
+    assert.equal(await Order.countDocuments({}), 1, 'only the first order may exist')
+    assert.equal(await couponUsedCount(coupon._id), 1, 'the refused attempt must not consume a coupon slot')
+    assert.equal(await stockOf(variant._id), 10, 'the refused attempt must consume no stock')
+  })
+
+  it('9h. POST /orders agrees with GET /coupons/validate on every rejection reason', async () => {
+    // The two endpoints must not drift: the storefront validates with one and
+    // submits to the other, so a divergence would let a code the UI accepted be
+    // rejected at submit time (or worse, silently ignored).
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 10 })
+
+    const cases: { name: string; code: string; expected: RegExp }[] = [
+      { name: 'unknown code', code: 'NO-SUCH-COUPON-CODE', expected: /Invalid coupon code/i },
+      { name: 'inactive coupon', code: TEST_IDS.coupon, expected: /Invalid coupon code/i },
+      { name: 'expired coupon', code: TEST_IDS.coupon, expected: /expired/i },
+      { name: 'exhausted coupon', code: TEST_IDS.coupon, expected: /usage limit reached/i },
+    ]
+
+    const setups: (() => Promise<unknown>)[] = [
+      async () => undefined,
+      async () => createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10, isActive: false }),
+      async () => createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10, expiresAt: new Date(Date.now() - 60_000) }),
+      async () => createCoupon({ code: TEST_IDS.coupon, usageLimit: 1, usedCount: 1, value: 10 }),
+    ]
+
+    // One customer for every case: the fixtures use a deterministic _id, so
+    // re-creating per iteration would collide on the primary key.
+    const customer = await createCustomer()
+
+    for (const [index, testCase] of cases.entries()) {
+      await Coupon.deleteMany({})
+      await setups[index]!()
+
+      const validate = await commerceClient().getCoupon(`/validate/${encodeURIComponent(testCase.code)}?total=100`, tokenFor(customer))
+      const submit = await commerceClient().post('/', codBody(variant._id, 1, { couponCode: testCase.code }), tokenFor(customer))
+
+      assert.ok(validate.status >= 400, `${testCase.name}: the validate endpoint must reject`)
+      assert.equal(submit.status, 400, `${testCase.name}: POST /orders must reject too`)
+      assert.match(submit.body.message, testCase.expected, `${testCase.name}: the reason must match the contract`)
+    }
   })
 })
 
@@ -557,5 +677,46 @@ describe('inventory consistency after checkout (Phase 16)', () => {
 
     assert.equal(response.status, 201)
     assert.equal(await stockOf(variant._id), 0)
+  })
+
+  it('D26: admin inventory reads report the authoritative stock even when the mirror has drifted', async () => {
+    // Locks in the Phase 6 invariant. The Inventory mirror is written
+    // incrementally by the order lifecycle and is not seeded from the variant,
+    // so after a checkout it is at -3 while the authoritative stock is 7. Every
+    // admin-facing read must be derived from ProductVariant.stock, so a drifted
+    // (even nonsensical) mirror can never be presented to an admin as stock.
+    const customer = await createCustomer()
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 10 })
+
+    await commerceClient().post('/', codBody(variant._id, 3), tokenFor(customer))
+    assert.equal(await stockOf(variant._id), 7)
+
+    // Push the mirror somewhere absurd. Any read that trusted the mirror would
+    // now report this value instead of the real stock.
+    await Inventory.updateOne({ variantId: variant._id }, { $set: { quantity: -3 } })
+    assert.equal((await Inventory.findOne({ variantId: variant._id }).lean())!.quantity, -3)
+
+    const list = await commerceClient().getInventory('/', adminToken())
+    assert.equal(list.status, 200, `admin inventory list failed: ${JSON.stringify(list.body)}`)
+    const row = list.body.data.find((r: any) => String(r.variantId) === String(variant._id))
+    assert.ok(row, 'the variant must be listed')
+    assert.equal(row.quantity, 7, 'the admin list must report the authoritative stock, not the drifted mirror')
+
+    const single = await commerceClient().getInventory(`/${variant._id}`, adminToken())
+    assert.equal(single.status, 200)
+    assert.equal(single.body.data.quantity, 7, 'the single-item admin read must also report the authoritative stock')
+
+    // The low-stock filter must be driven by the authoritative stock too: with a
+    // stock of 7 and the default threshold of 5 the variant is NOT low stock,
+    // even though the mirror says -3.
+    const lowStock = await commerceClient().getInventory('/?lowStock=true', adminToken())
+    assert.equal(lowStock.status, 200)
+    const lowRows = lowStock.body.data as any[]
+    assert.equal(
+      lowRows.some((r: any) => String(r.variantId) === String(variant._id)),
+      false,
+      'the low-stock filter must use the authoritative stock, not the drifted mirror',
+    )
   })
 })

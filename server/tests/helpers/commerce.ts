@@ -19,6 +19,8 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
 import orderRoutes from '../../src/routes/orders'
+import couponRoutes from '../../src/routes/coupons'
+import inventoryRoutes from '../../src/routes/inventory'
 import { generateTokens } from '../../src/middleware/auth'
 import { User } from '../../src/models/user.model'
 import { Address } from '../../src/models/address.model'
@@ -225,6 +227,20 @@ export interface CommerceClient {
   baseUrl: string
   post(path: string, body: unknown, token?: string): Promise<HttpResponse>
   put(path: string, body: unknown, token?: string): Promise<HttpResponse>
+  get(path: string, token?: string): Promise<HttpResponse>
+  /**
+   * Issues a GET against the REAL coupons router. Used to prove that
+   * `GET /coupons/validate/:code` and `POST /orders` reject with the same
+   * reason, since the storefront validates with one and submits to the other.
+   */
+  getCoupon(path: string, token?: string): Promise<HttpResponse>
+  /**
+   * Issues a GET against the REAL admin inventory router. Used to prove that
+   * every admin-facing inventory read is derived from ProductVariant.stock and
+   * therefore cannot contradict the authoritative source when the Inventory
+   * mirror has drifted.
+   */
+  getInventory(path: string, token?: string): Promise<HttpResponse>
   close(): Promise<void>
 }
 
@@ -239,14 +255,23 @@ export async function startCommerceClient(): Promise<CommerceClient> {
   app.use(express.json())
   app.use(cookieParser())
   app.use('/api/v1/orders', orderRoutes)
+  app.use('/api/v1/coupons', couponRoutes)
+  app.use('/api/v1/inventory', inventoryRoutes)
 
   const server: Server = await new Promise((resolve) => {
     const listening = app.listen(0, '127.0.0.1', () => resolve(listening))
   })
   const { port } = server.address() as AddressInfo
-  const baseUrl = `http://127.0.0.1:${port}/api/v1/orders`
+  const ordersUrl = `http://127.0.0.1:${port}/api/v1/orders`
+  const couponsUrl = `http://127.0.0.1:${port}/api/v1/coupons`
+  const inventoryUrl = `http://127.0.0.1:${port}/api/v1/inventory`
 
-  async function request(method: 'POST' | 'PUT', path: string, body: unknown, token?: string): Promise<HttpResponse> {
+  async function request(
+    method: 'GET' | 'POST' | 'PUT',
+    url: string,
+    body: unknown,
+    token?: string
+  ): Promise<HttpResponse> {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
       // Node's global fetch pools keep-alive sockets. Without this the HTTP
@@ -255,19 +280,22 @@ export async function startCommerceClient(): Promise<CommerceClient> {
       connection: 'close',
     }
     if (token) headers.authorization = `Bearer ${token}`
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(url, {
       method,
       headers,
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     })
     const text = await response.text()
     return { status: response.status, body: text ? JSON.parse(text) : null }
   }
 
   return {
-    baseUrl,
-    post: (path, body, token) => request('POST', path, body, token),
-    put: (path, body, token) => request('PUT', path, body, token),
+    baseUrl: ordersUrl,
+    post: (path, body, token) => request('POST', `${ordersUrl}${path}`, body, token),
+    put: (path, body, token) => request('PUT', `${ordersUrl}${path}`, body, token),
+    get: (path, token) => request('GET', `${ordersUrl}${path}`, undefined, token),
+    getCoupon: (path, token) => request('GET', `${couponsUrl}${path}`, undefined, token),
+    getInventory: (path, token) => request('GET', `${inventoryUrl}${path}`, undefined, token),
     close: () => new Promise<void>((resolve) => {
       // Destroy any socket the pooled agent still holds, otherwise the server
       // never finishes closing and the test process cannot exit.

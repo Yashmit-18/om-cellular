@@ -1,5 +1,5 @@
 /**
- * D25 Phase 11/12/16 — restoration and failure injection against real MongoDB.
+ * D25 Phase 11/12/16 â€” restoration and failure injection against real MongoDB.
  *
  * Orders are created through the REAL POST /orders route (so the stock that
  * restoration has to undo was genuinely claimed), and every assertion re-reads
@@ -104,7 +104,7 @@ async function simulateAlreadyRestoredLine(orderId: unknown, variantId: unknown,
   await Order.updateOne({ _id: orderId as any }, { $set: { stockRestored: false } })
 }
 
-describe('restoration — complete success (Phase 11.1, Phase 8.5 cancellation)', () => {
+describe('restoration â€” complete success (Phase 11.1, Phase 8.5 cancellation)', () => {
   it('admin cancellation restores stock exactly once and records the restored state', async () => {
     const { order, v1 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 2 }] })
     assert.equal(await stockOf(v1._id), 8)
@@ -142,20 +142,24 @@ describe('restoration — complete success (Phase 11.1, Phase 8.5 cancellation)'
   })
 })
 
-describe('restoration — idempotency and partial state (Phase 11.2-11.4)', () => {
+describe('restoration â€” idempotency and partial state (Phase 11.2-11.4)', () => {
   it('4. repeated restoration never double-restores the same order', async () => {
     const { order, v1 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 3 }] })
     assert.equal(await stockOf(v1._id), 7)
 
     const first = await restoreStockAndCoupon(await Order.findById(order._id))
-    assert.equal(first, true)
+    assert.deepEqual(first, { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 1, couponReleased: false })
     assert.equal(await stockOf(v1._id), 10)
 
     // A second attempt must be a no-op in the database, not a second refund of
     // stock. The persisted completion flag is what makes this safe.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const repeated = await restoreStockAndCoupon(await Order.findById(order._id))
-      assert.equal(repeated, false, 'a repeat restoration must report that it did no work')
+      assert.deepEqual(
+        repeated,
+        { completed: true, performedByThisCall: false, alreadyCompleted: true, itemsRestored: 0, couponReleased: false },
+        'a repeat restoration must report that it completed nothing and did the work earlier',
+      )
       assert.equal(await stockOf(v1._id), 10, 'stock must stay at 10 across repeated attempts')
     }
   })
@@ -170,9 +174,10 @@ describe('restoration — idempotency and partial state (Phase 11.2-11.4)', () =
     await simulateAlreadyRestoredLine(order._id, v2._id, 3)
     assert.equal(await stockOf(v2._id), 10)
 
-    const didWork = await restoreStockAndCoupon(await Order.findById(order._id))
+    const result = await restoreStockAndCoupon(await Order.findById(order._id))
 
-    assert.equal(didWork, true)
+    // This call only credited the ONE line that was still outstanding.
+    assert.deepEqual(result, { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 1, couponReleased: false })
     assert.equal(await stockOf(v1._id), 10, 'the un-restored line is completed')
     assert.equal(await stockOf(v2._id), 10, 'the already-restored line must not be credited twice')
     assert.equal(await soldCountOf(v1._id), 0)
@@ -180,7 +185,7 @@ describe('restoration — idempotency and partial state (Phase 11.2-11.4)', () =
   })
 })
 
-describe('restoration — coupon handling (Phase 11.8-11.9)', () => {
+describe('restoration â€” coupon handling (Phase 11.8-11.9)', () => {
   it('8. coupon usage is released exactly once on cancellation', async () => {
     const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10 })
     const { order, v1 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 1 }], couponCode: TEST_IDS.coupon })
@@ -202,19 +207,19 @@ describe('restoration — coupon handling (Phase 11.8-11.9)', () => {
     const { order, v1 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 2 }], couponCode: TEST_IDS.coupon })
     assert.equal((await Coupon.findById(coupon._id).lean())!.usedCount, 1)
 
-    assert.equal(await restoreStockAndCoupon(await Order.findById(order._id)), true)
+    assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id)), { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 1, couponReleased: true })
     assert.equal(await stockOf(v1._id), 10)
     assert.equal((await Coupon.findById(coupon._id).lean())!.usedCount, 0)
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      assert.equal(await restoreStockAndCoupon(await Order.findById(order._id)), false)
+      assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id)), { completed: true, performedByThisCall: false, alreadyCompleted: true, itemsRestored: 0, couponReleased: false })
     }
     assert.equal(await stockOf(v1._id), 10, 'no double restoration')
     assert.equal((await Coupon.findById(coupon._id).lean())!.usedCount, 0, 'the coupon cannot go negative')
   })
 })
 
-describe('restoration — abandoned pending payment sweep (Phase 11.5)', () => {
+describe('restoration â€” abandoned pending payment sweep (Phase 11.5)', () => {
   it('cancels an abandoned online payment and restores its stock and coupon', async () => {
     const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10 })
     const { order, v1 } = await placeOrder({
@@ -258,21 +263,21 @@ describe('restoration — abandoned pending payment sweep (Phase 11.5)', () => {
   })
 })
 
-describe('restoration — payment failure and return (Phase 11.6-11.7)', () => {
+describe('restoration â€” payment failure and return (Phase 11.6-11.7)', () => {
   it('6. a failed online payment releases the reserved stock exactly once', async () => {
     // Boundary note: the gateway webhook envelope is signed with the Razorpay
     // webhook secret, which this suite must not hold or fabricate. The
     // production function the webhook calls is therefore driven directly
-    // against a real persisted order — real models, real MongoDB, real writes.
+    // against a real persisted order â€” real models, real MongoDB, real writes.
     const { order, v1 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 2 }], paymentMethod: 'online' })
     assert.equal(await stockOf(v1._id), 8)
 
     await Order.updateOne({ _id: order._id }, { $set: { paymentStatus: 'FAILED', status: 'FAILED' } })
 
-    assert.equal(await restoreStockAndCoupon(await Order.findById(order._id)), true)
+    assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id)), { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 1, couponReleased: false })
     assert.equal(await stockOf(v1._id), 10)
 
-    assert.equal(await restoreStockAndCoupon(await Order.findById(order._id)), false)
+    assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id)), { completed: true, performedByThisCall: false, alreadyCompleted: true, itemsRestored: 0, couponReleased: false })
     assert.equal(await stockOf(v1._id), 10, 'a repeat after payment failure must not double-restore')
   })
 
@@ -283,7 +288,7 @@ describe('restoration — payment failure and return (Phase 11.6-11.7)', () => {
 
     // The returns route guards on the same persisted flag, so the flag is what
     // this test relies on for repeat safety.
-    assert.equal(await restoreStockAndCoupon(await Order.findById(order._id), 'RETURN_RECEIVED'), true)
+    assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id), 'RETURN_RECEIVED'), { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 2, couponReleased: false })
 
     assert.equal(await stockOf(v1._id), 10)
     assert.equal(await stockOf(v2._id), 10)
@@ -292,7 +297,7 @@ describe('restoration — payment failure and return (Phase 11.6-11.7)', () => {
   })
 })
 
-describe('restoration — real database failure injection (Phase 11.10, Phase 12)', () => {
+describe('restoration â€” real database failure injection (Phase 11.10, Phase 12)', () => {
   it('10. a write failure during restoration leaves nothing half-done and the order fully retryable', async () => {
     const { order, v1, v2 } = await placeOrder({ lines: [{ kind: 'variant1', quantity: 2 }, { kind: 'variant2', quantity: 3 }] })
     assert.equal(await stockOf(v1._id), 8)
@@ -325,7 +330,7 @@ describe('restoration — real database failure injection (Phase 11.10, Phase 12
 
     // 3. The retry then finishes the whole job.
     const retried = await restoreStockAndCoupon(await Order.findById(order._id))
-    assert.equal(retried, true)
+    assert.deepEqual(retried, { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 2, couponReleased: false })
 
     assert.equal(await stockOf(v1._id), 10, 'variant 1 restored exactly once')
     assert.equal(await stockOf(v2._id), 10, 'variant 2 restored exactly once')
@@ -361,7 +366,7 @@ describe('restoration — real database failure injection (Phase 11.10, Phase 12
     assert.equal(await stockOf(v1._id), 10)
 
     // The retry releases the coupon and does not touch stock again.
-    assert.equal(await restoreStockAndCoupon(await Order.findById(order._id)), true)
+    assert.deepEqual(await restoreStockAndCoupon(await Order.findById(order._id)), { completed: true, performedByThisCall: true, alreadyCompleted: false, itemsRestored: 0, couponReleased: true })
     assert.equal((await Coupon.findById(coupon._id).lean())!.usedCount, 0)
     assert.equal(await stockOf(v1._id), 10, 'stock must not be restored a second time')
     assert.equal((await Order.findById(order._id).lean())!.couponRestored, true)
@@ -395,7 +400,7 @@ describe('restoration — real database failure injection (Phase 11.10, Phase 12
     assert.equal(await OrderItem.countDocuments({}), 0)
   })
 
-  it('FINDING: a failed order-item insert rolls stock back but leaves an orphan order row', async () => {
+  it('D26: a failed order-item insert rolls back stock AND leaves no orphan order', async () => {
     const customer = await createCustomer()
     const product = await createProduct()
     const variant = await createVariant({ productId: product._id, stock: 10 })
@@ -421,16 +426,136 @@ describe('restoration — real database failure injection (Phase 11.10, Phase 12
     // stock leak and no phantom decrement.
     assert.equal(await stockOf(variant._id), 10, 'the claimed stock must be returned, not stranded')
     assert.equal(await soldCountOf(variant._id), 0)
-    assert.equal(await OrderItem.countDocuments({}), 0, 'no partial order item may survive')
 
-    // RECORDED DEFECT, not an assumed behaviour: the route's catch block rolls
-    // back the stock claims but never removes the already-inserted Order
-    // document. A customer therefore ends up with a real PENDING order that has
-    // no line items and holds no stock. This is invisible to DB-free tests
-    // because the failure window only exists once a real database is involved.
-    const orphan = await Order.find({}).lean()
-    assert.equal(orphan.length, 1, 'the current implementation leaves the order row behind')
-    assert.equal(orphan[0].items?.length ?? 0, 0)
-    assert.equal(orphan[0].status, 'PENDING')
+    // D26 FIX. Previously this test asserted the opposite: the route rolled back
+    // stock but left the already-inserted Order behind, so the customer ended up
+    // with a real PENDING order that had no line items and held no stock. The
+    // route now performs deterministic compensation, so an order that was never
+    // acknowledged to the client is removed together with any partial items.
+    assert.equal(await OrderItem.countDocuments({}), 0, 'no partial order item may survive')
+    assert.equal(await Order.countDocuments({}), 0, 'the unacknowledged order must be discarded, not left as an orphan')
+
+    // The strongest form of the defect: nothing that looks like a real order to
+    // any reader may remain. Asserted directly rather than inferred from counts.
+    const survivors = await Order.find({}).lean()
+    assert.deepEqual(survivors, [], 'no order document may survive a failed item insert')
+  })
+
+  it('D26: compensation removes a partially-inserted order without touching a sibling order', async () => {
+    const customer = await createCustomer()
+    const product1 = await createProduct('product1')
+    const product2 = await createProduct('product2')
+    const variant1 = await createVariant({ productId: product1._id, stock: 10, kind: 'variant1' })
+    const variant2 = await createVariant({ productId: product2._id, stock: 10, kind: 'variant2' })
+
+    // A first, fully successful order establishes that unrelated orders must
+    // survive the compensation path untouched.
+    const survivor = await commerceClient().post('/', {
+      items: [{ variantId: String(variant1._id), quantity: 1 }],
+      address: COD_ADDRESS, paymentMethod: 'cod', notes: 'survivor',
+    }, tokenFor(customer))
+    assert.equal(survivor.status, 201)
+    const survivorId = survivor.body.data._id
+
+    // Now fail the SECOND item's insert. The first item is already persisted, so
+    // this is the worst case: an order with a partial item set.
+    const clear = await armFailPoint({
+      namespace: collectionNamespace(OrderItem),
+      failCommands: ['insert'],
+      times: 1,
+    })
+    const second = await commerceClient().post('/', {
+      items: [{ variantId: String(variant2._id), quantity: 1 }, { variantId: String(variant1._id), quantity: 1 }],
+      address: COD_ADDRESS, paymentMethod: 'cod', notes: 'doomed',
+    }, tokenFor(customer))
+    await clear()
+    assert.equal(second.status, 500)
+
+    // Both claims are released, including the one for the already-inserted item.
+    assert.equal(await stockOf(variant1._id), 9, 'only the surviving order may hold stock')
+    assert.equal(await stockOf(variant2._id), 10)
+    assert.equal(await soldCountOf(variant1._id), 1)
+    assert.equal(await soldCountOf(variant2._id), 0)
+
+    // The doomed order and its one persisted item are both gone; the unrelated
+    // order and its item are untouched.
+    const doomed = await Order.find({ notes: 'doomed' }).lean()
+    assert.deepEqual(doomed, [], 'the partially-inserted order must be discarded')
+    assert.equal(await OrderItem.countDocuments({ orderId: { $in: doomed.map((o: any) => o._id) } }), 0)
+
+    const keptOrder = await Order.findById(survivorId).lean()
+    assert.ok(keptOrder, 'an unrelated order must never be removed by compensation')
+    assert.equal(await OrderItem.countDocuments({ orderId: survivorId }), 1)
+  })
+
+  it('D26: an order-item write failure rolls back stock AND coupon usage, leaving no orphan', async () => {
+    // This is the full Phase 7 case: every side effect the request had already
+    // committed must be undone, not just the stock. The coupon claim happens
+    // BEFORE the stock claims, so by the time the item insert fails the request
+    // holds both a coupon slot and two stock claims.
+    const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10 })
+    const customer = await createCustomer()
+    const product1 = await createProduct('product1')
+    const product2 = await createProduct('product2')
+    const variant1 = await createVariant({ productId: product1._id, stock: 10, kind: 'variant1' })
+    const variant2 = await createVariant({ productId: product2._id, stock: 10, kind: 'variant2' })
+
+    const clear = await armFailPoint({
+      namespace: collectionNamespace(OrderItem),
+      failCommands: ['insert'],
+      times: 1,
+    })
+    const response = await commerceClient().post('/', {
+      items: [{ variantId: String(variant1._id), quantity: 2 }, { variantId: String(variant2._id), quantity: 3 }],
+      address: COD_ADDRESS, paymentMethod: 'cod', couponCode: TEST_IDS.coupon,
+    }, tokenFor(customer))
+    await clear()
+    assert.equal(response.status, 500)
+
+    // Both stock claims are released.
+    assert.equal(await stockOf(variant1._id), 10)
+    assert.equal(await stockOf(variant2._id), 10)
+    assert.equal(await soldCountOf(variant1._id), 0)
+    assert.equal(await soldCountOf(variant2._id), 0)
+
+    // And the coupon slot the request had already claimed is given back, so the
+    // coupon is not silently burned by a request that never produced an order.
+    assert.equal(
+      (await Coupon.findById(coupon._id).lean())!.usedCount,
+      0,
+      'a coupon claimed by a request that then failed must be released',
+    )
+
+    // Nothing that looks like a real order survives.
+    assert.deepEqual(await Order.find({}).lean(), [], 'no order document may survive')
+    assert.equal(await OrderItem.countDocuments({}), 0, 'no partial order item may survive')
+  })
+
+  it('D26: a coupon claim that fails leaves no order, no stock movement and no coupon change', async () => {
+    // The mirror image of the case above: fail the coupon write itself. The
+    // claim happens before any stock is touched, so a correct route must abort
+    // without having mutated anything at all.
+    const coupon = await createCoupon({ code: TEST_IDS.coupon, usageLimit: 5, value: 10 })
+    const customer = await createCustomer()
+    const product = await createProduct()
+    const variant = await createVariant({ productId: product._id, stock: 10 })
+
+    const clear = await armFailPoint({
+      namespace: collectionNamespace(Coupon),
+      failCommands: ['findAndModify'],
+      times: 1,
+    })
+    const response = await commerceClient().post('/', {
+      items: [{ variantId: String(variant._id), quantity: 2 }],
+      address: COD_ADDRESS, paymentMethod: 'cod', couponCode: TEST_IDS.coupon,
+    }, tokenFor(customer))
+    await clear()
+    assert.equal(response.status, 500)
+
+    assert.equal(await stockOf(variant._id), 10, 'stock must be untouched when the coupon claim fails')
+    assert.equal(await soldCountOf(variant._id), 0)
+    assert.equal((await Coupon.findById(coupon._id).lean())!.usedCount, 0, 'the coupon count must not move')
+    assert.deepEqual(await Order.find({}).lean(), [], 'no order may be created when the coupon claim fails')
+    assert.equal(await OrderItem.countDocuments({}), 0)
   })
 })

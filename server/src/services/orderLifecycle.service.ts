@@ -39,7 +39,13 @@ export async function sweepAbandonedPendingPayments(now = new Date(), dependenci
       },
       { new: true }
     ),
-    restore: async order => ({ restored: await restoreStockAndCoupon(order, 'ORDER_CANCELLED'), couponReleased: Boolean(order.couponId) }),
+    // The sweep owns the order it claimed, so it reports the stock as restored
+    // only when THIS sweep actually performed the restoration. A concurrent
+    // restorer that got there first is not credited to the sweep's metrics.
+    restore: async order => {
+      const result = await restoreStockAndCoupon(order, 'ORDER_CANCELLED')
+      return { restored: result.performedByThisCall, couponReleased: result.couponReleased }
+    },
   }
   const runner = dependencies || defaults
   const candidates = await runner.findCandidates(filter)
@@ -105,6 +111,27 @@ export async function syncInventory(
 //    after a partial failure only touches the lines that still need it.
 //  - Errors propagate instead of being swallowed; a thrown error reverts the
 //    item/coupon claim so the retry remains retryable.
+//
+// Concurrency semantics of the return value. The previous `Promise<boolean>`
+// was derived from whether the CALLER's pre-loaded document said the work was
+// outstanding, so N concurrent restorers all observed "not done yet" and all
+// returned true even though the per-item claim meant only one of them actually
+// mutated anything. The boolean therefore meant different things depending on
+// timing. It is replaced by an explicit result that separates the two distinct
+// questions a caller can actually ask.
+export interface RestorationResult {
+  /** The restoration requirement is satisfied: stock and coupon are both settled. */
+  completed: boolean
+  /** THIS call performed at least one real mutation (credited a line or released the coupon). */
+  performedByThisCall: boolean
+  /** The work was already fully done before this call, so this call did nothing. */
+  alreadyCompleted: boolean
+  /** How many order lines this call actually credited. */
+  itemsRestored: number
+  /** This call released the coupon usage count. */
+  couponReleased: boolean
+}
+
 export interface RestoreDependencies {
   findItems: (orderId: any) => Promise<any[]>
   claimItem: (item: any) => Promise<boolean>
@@ -143,38 +170,60 @@ function defaultRestoreDependencies(reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED
   }
 }
 
-export async function restoreStockAndCoupon(order: any, reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED' = 'ORDER_CANCELLED', deps?: RestoreDependencies): Promise<boolean> {
+export async function restoreStockAndCoupon(
+  order: any,
+  reason: 'ORDER_CANCELLED' | 'RETURN_RECEIVED' = 'ORDER_CANCELLED',
+  deps?: RestoreDependencies
+): Promise<RestorationResult> {
   const d = deps || defaultRestoreDependencies(reason)
-  let didWork = false
+
+  let itemsRestored = 0
+  let ranStockPhase = false
+  let couponReleased = false
 
   // Stock phase — guarded by its own completion flag so a coupon-phase
   // failure never blocks a later stock retry (and vice versa).
   if (!order.stockRestored) {
+    ranStockPhase = true
     const items = await d.findItems(order._id)
     for (const item of items) {
       if (!(await d.claimItem(item))) continue
       try {
         await d.applyItemRestore(item)
+        itemsRestored += 1
       } catch (error) {
         await d.unclaimItem(item).catch(() => {})
         throw error
       }
     }
     await d.completeStockRestoration(order._id)
-    didWork = true
   }
 
-  // Coupon phase.
+  // Coupon phase. `claimCoupon` is a conditional update, so under concurrency
+  // only one caller can win it; the losers correctly report that they released
+  // nothing.
   if (order.couponId && (await d.claimCoupon(order))) {
     try {
       await d.releaseCouponUsage(order.couponId)
+      couponReleased = true
     } catch (error) {
       await d.unclaimCoupon(order).catch(() => {})
       throw error
     }
-    didWork = true
   }
-  return didWork
+
+  const stockSatisfied = Boolean(order.stockRestored) || ranStockPhase
+  const couponSatisfied = !order.couponId || Boolean(order.couponRestored) || couponReleased
+  const completed = stockSatisfied && couponSatisfied
+  const performedByThisCall = itemsRestored > 0 || couponReleased
+
+  return {
+    completed,
+    performedByThisCall,
+    alreadyCompleted: completed && !performedByThisCall,
+    itemsRestored,
+    couponReleased,
+  }
 }
 
 // Re-consumes stock and coupon usage for an order that previously failed but

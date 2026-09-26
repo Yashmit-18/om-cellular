@@ -202,16 +202,24 @@ describe('restoration concurrency (Phase 14)', () => {
     assert.equal((await Order.findById(orderId).lean())!.stockRestored, true)
     assert.equal(await OrderItem.countDocuments({ orderId, restored: false }), 0)
 
-    // RECORDED BEHAVIOUR, not an assumed guarantee: restoreStockAndCoupon
-    // reports didWork=true for every racer. Each racer read `stockRestored`
-    // from its own pre-loaded document, so all five believed they had work to
-    // do. The stock itself is still correct because the per-item conditional
-    // claim admits only one of them; the return value is advisory and must not
-    // be used as a concurrency guard by callers.
+    // D26: the return value is now an explicit result, so concurrency semantics
+    // are asserted directly instead of being inferred from a boolean that meant
+    // different things depending on timing.
+    const performers = attempts.filter((r) => r.performedByThisCall)
+    const noOps = attempts.filter((r) => r.alreadyCompleted)
+    const totalItemsCredited = attempts.reduce((sum, r) => sum + r.itemsRestored, 0)
+
+    assert.equal(performers.length, 1, 'exactly one racer may report that it performed the restoration')
+    assert.equal(noOps.length, 4, 'the four racers that lost the claim must report alreadyCompleted')
+    assert.equal(totalItemsCredited, 1, 'exactly one racer may credit the line item')
+    assert.ok(
+      attempts.every((r) => r.completed),
+      'every caller can still learn that the restoration requirement is satisfied',
+    )
     assert.equal(
-      attempts.filter(Boolean).length,
-      5,
-      'every racer reports didWork=true because the completion flag is read from a stale document',
+      performers[0]!.itemsRestored + noOps.reduce((sum, r) => sum + r.itemsRestored, 0),
+      1,
+      'items credited across all callers must total exactly one',
     )
   })
 
@@ -227,8 +235,15 @@ describe('restoration concurrency (Phase 14)', () => {
     }, tokenFor(customer))
     const orderId = placed.body.data._id
 
+    // D26: exactly one call performs the work; every later call is an explicit
+    // no-op rather than a misleading `true`.
     for (let round = 0; round < 5; round += 1) {
-      await restoreStockAndCoupon(await Order.findById(orderId))
+      const result = await restoreStockAndCoupon(await Order.findById(orderId))
+      const expectedPerformer = round === 0
+      assert.equal(result.performedByThisCall, expectedPerformer, `round ${round}: performedByThisCall`)
+      assert.equal(result.alreadyCompleted, !expectedPerformer, `round ${round}: alreadyCompleted`)
+      assert.equal(result.completed, true, `round ${round}: the requirement is always satisfied`)
+      assert.equal(result.itemsRestored, expectedPerformer ? 1 : 0, `round ${round}: itemsRestored`)
       assert.equal(await stockOf(variant._id), 10, `stock drifted on restoration round ${round}`)
     }
   })
@@ -249,11 +264,16 @@ describe('restoration concurrency (Phase 14)', () => {
     const orderId = placed.body.data._id
     assert.equal(await stockOf(variant._id), 1)
 
-    await Promise.all([
+    const results = await Promise.all([
       restoreStockAndCoupon(await Order.findById(orderId)),
       restoreStockAndCoupon(await Order.findById(orderId)),
       restoreStockAndCoupon(await Order.findById(orderId)),
     ])
+    assert.equal(
+      results.filter((r) => r.performedByThisCall).length,
+      1,
+      'only one of three concurrent restorers may claim the work',
+    )
 
     const finalStock = await stockOf(variant._id)
     assert.ok(finalStock >= 0, `stock must never go negative, got ${finalStock}`)
@@ -399,12 +419,20 @@ describe('idempotency and the current dedupe behaviour (Phase 15)', () => {
 
     const created = attempts.filter((r) => r.status === 201).length
 
-    // RECORDED DEFECT. The guard is a read followed by a later insert, with no
-    // unique index to arbitrate, so simultaneous requests all read "no recent
-    // duplicate" and all create an order. The sequential case is protected; the
-    // concurrent case is not. D25 deliberately adds no unique index and no
-    // E11000 handling, so this stays an open D23B blocker.
-    assert.equal(created, 3, 'all three simultaneous identical submissions currently succeed')
+    // RECORDED DEFECT, STILL OPEN IN D26. The guard is a read followed by a
+    // later insert, with no unique index to arbitrate, so simultaneous requests
+    // can all read "no recent duplicate" and all create an order. The sequential
+    // case is protected; the concurrent case is not.
+    //
+    // D26 added a second guard immediately before the insert, which shrinks the
+    // unguarded interval to that one insert. It does NOT close it, and this test
+    // is deliberately left asserting the real observed outcome rather than a
+    // hoped-for one: after the D26 change all three still create an order, which
+    // is the evidence that the residual race is structural. Closing it needs a
+    // client-supplied idempotency key backed by a unique index, which is a schema
+    // migration gated on the production dedupe audit. D26 deliberately adds
+    // neither the index nor E11000 handling, so this stays a D23B blocker.
+    assert.equal(created, 3, 'all three simultaneous identical submissions still succeed after the D26 late re-check')
     assert.equal(await Order.countDocuments({}), 3)
 
     // The compensating evidence: the duplicate orders are at least internally
